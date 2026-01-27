@@ -9,13 +9,13 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = "serviceAccountKey.json"
 
     # Bybit
-    BYBIT_API_KEY: str
-    BYBIT_API_SECRET: str
+    BYBIT_API_KEY: Optional[str] = None
+    BYBIT_API_SECRET: Optional[str] = None
     BYBIT_CATEGORY: str = "linear"
     BYBIT_TESTNET: bool = True
 
     # Gemini
-    GEMINI_API_KEY: str
+    GEMINI_API_KEY: Optional[str] = None
 
     # App Logic
     DEBUG: bool = True
