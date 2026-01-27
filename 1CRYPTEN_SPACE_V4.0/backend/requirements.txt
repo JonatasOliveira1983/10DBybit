@@ -5,9 +5,9 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 httpx>=0.24.0,<0.25.0
 websockets==12.0
-google-generativeai==0.3.2
+google-generativeai==0.7.2
 pandas==2.2.0
 numpy==1.26.3
-pybit==5.7.0
+pybit==5.8.0
 zhipuai==2.1.5.20241204
 pycryptodome==3.20.0

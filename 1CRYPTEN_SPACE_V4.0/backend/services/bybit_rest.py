@@ -52,7 +52,7 @@ class BybitREST:
                 logger.info(f"UNIFIED Equity: {equity}")
                 if equity > 0: return equity
             except Exception as ue: 
-                logger.debug(f"UNIFIED balance fetch failed: {ue}")
+                logger.warning(f"UNIFIED balance fetch failed: {ue}")
             
             # Try CONTRACT if UNIFIED fails or is 0
             logger.info("Fetching balance (CONTRACT)...")
