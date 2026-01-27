@@ -29,14 +29,30 @@ class AIService:
                 genai.configure(api_key=gemini_key)
                 
                 # Diagnostic: List models to log what's available
-                available_models = [m.name for m in genai.list_models()]
-                logger.info(f"Available Gemini Models: {available_models}")
+                try:
+                    available_models = [m.name for m in genai.list_models()]
+                    logger.info(f"Available Gemini Models: {available_models}")
+                except Exception as list_err:
+                    logger.warning(f"Could not list models (possibly API restricted): {list_err}")
                 
-                # Using the latest stable model name
-                self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-                logger.info("Gemini-1.5-Flash Client Initialized.")
+                # Try multiple stable/beta names for 1.5-flash
+                # Some API keys/regions expect different identifiers
+                candidate_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'models/gemini-1.5-flash']
+                
+                for model_name in candidate_names:
+                    try:
+                        self.gemini_model = genai.GenerativeModel(model_name)
+                        # Test if it actually works by checking if it was assigned
+                        if self.gemini_model:
+                             logger.info(f"Gemini Client Initialized with model: {model_name}")
+                             break
+                    except Exception as mod_err:
+                        logger.debug(f"Candidate model {model_name} failed: {mod_err}")
+                
+                if not self.gemini_model:
+                    logger.error("All Gemini 1.5 Flash candidate names failed.")
             except Exception as e:
-                logger.error(f"Failed to initialize Gemini Client or list models: {e}")
+                logger.error(f"Failed to initialize Gemini Client: {e}")
 
     async def generate_content(self, prompt: str, system_instruction: str = "Você é um assistente de trading de elite."):
         """
