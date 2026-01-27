@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Synergy Agent Logs v4.0</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0A0A0B",
+                        "gold": "#D4AF37",
+                        "gemini": "#00D2FF",
+                        "contrarian": "#FFD700",
+                        "guardian": "#10B981",
+                        "captain": "#FFFFFF",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "12px",
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .ios-blur { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .neon-border { box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+        .message-bubble { position: relative; max-width: 85%; }
+        .agent-active { border-color: #D4AF37; box-shadow: 0 0 8px rgba(212, 175, 55, 0.4); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-dark text-slate-100 selection:bg-primary/30">
+<div class="fixed top-0 w-full h-12 z-50 bg-background-dark/80 ios-blur flex items-center justify-between px-6">
+<span class="text-sm font-semibold">9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-symbols-outlined text-sm">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-sm">wifi</span>
+<span class="material-symbols-outlined text-sm">battery_full</span>
+</div>
+</div>
+<header class="fixed top-12 w-full z-40 bg-background-dark/80 ios-blur border-b border-white/5 pt-4 pb-4">
+<div class="px-5 mb-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<img alt="1Crypten Logo" class="h-8 w-8 rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCS6olNq8wLealm82mTr8V5tTOP_Nu5Z8nXPera0-GXXB_YQ9sjCamKoJAhsu7YJm07LYhU-17r6fGoLPaiOl8VhJxzSHhc01wSdObjyY1QKbRbN0U8CIR08suv_SkHz94_1wzZikTmYIXZzLiVeraQC2gpQUBdFgx8buR5LBb35bGBSpHzeoC1hRU51BRgPmFpdw-oramoCKmgUB1nxUwNUD8euP5YNTrAd6FFsjxSxOpYqOn66VOkzpYVeFMklCZrlAMAME6JmFU"/>
+<h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Synergy Agent Logs</h1>
+</div>
+<span class="text-[10px] font-mono border border-gold/40 text-gold px-2 py-0.5 rounded-full uppercase tracking-widest">v4.0.0 Live</span>
+</div>
+<div class="flex overflow-x-auto gap-4 px-5 hide-scrollbar">
+<button class="flex flex-col items-center gap-1 shrink-0 group">
+<div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center agent-active transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-white text-3xl">flight_takeoff</span>
+</div>
+<span class="text-[10px] font-medium text-white/60">Captain</span>
+</button>
+<button class="flex flex-col items-center gap-1 shrink-0 group">
+<div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-gemini text-3xl">psychology</span>
+</div>
+<span class="text-[10px] font-medium text-white/60">Gemini</span>
+</button>
+<button class="flex flex-col items-center gap-1 shrink-0 group">
+<div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-contrarian text-3xl">visibility</span>
+</div>
+<span class="text-[10px] font-medium text-white/60">Eye</span>
+</button>
+<button class="flex flex-col items-center gap-1 shrink-0 group">
+<div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-guardian text-3xl">shield</span>
+</div>
+<span class="text-[10px] font-medium text-white/60">Guardian</span>
+</button>
+<button class="flex flex-col items-center gap-1 shrink-0 group">
+<div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-white/30 text-3xl">add</span>
+</div>
+<span class="text-[10px] font-medium text-white/40">Add</span>
+</button>
+</div>
+</header>
+<main class="pt-48 pb-32 px-4 space-y-6">
+<div class="flex justify-center">
+<span class="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">Today • 14:20:05 UTC</span>
+</div>
+<div class="flex flex-col items-start gap-1">
+<div class="flex items-center gap-2 mb-1 ml-1">
+<span class="material-symbols-outlined text-xs text-white">flight_takeoff</span>
+<span class="text-[11px] font-bold text-white uppercase tracking-wider">Captain (Lead)</span>
+</div>
+<div class="message-bubble bg-white text-slate-900 p-4 rounded-2xl rounded-tl-none font-semibold text-sm leading-relaxed shadow-lg">
+                Initiating protocol X-7. All agents, report on SOL/USDT volatility index. We are looking for entry at $142.50.
+            </div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<div class="flex items-center gap-2 mb-1 ml-1">
+<span class="material-symbols-outlined text-xs text-gemini">psychology</span>
+<span class="text-[11px] font-bold text-gemini uppercase tracking-wider">Gemini (Intelligence)</span>
+</div>
+<div class="message-bubble bg-gemini/10 border border-gemini/30 p-4 rounded-2xl rounded-tl-none text-sm leading-relaxed text-slate-200">
+                Data streams analyzed. RSI is currently at 42. High probability of mean reversion within the next 15 minutes. Market sentiment is shifting neutral.
+            </div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<div class="flex items-center gap-2 mb-1 ml-1">
+<span class="material-symbols-outlined text-xs text-contrarian">visibility</span>
+<span class="text-[11px] font-bold text-contrarian uppercase tracking-wider">Eye (Contrarian)</span>
+</div>
+<div class="message-bubble bg-contrarian/10 border border-contrarian/30 p-4 rounded-2xl rounded-tl-none text-sm leading-relaxed text-slate-200">
+                Wait. Liquidation heatmaps show massive sell-walls at $143.20. Crowds are overly optimistic. I suggest a 2% lower entry or a tight stop-loss.
+            </div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<div class="flex items-center gap-2 mb-1 ml-1">
+<span class="material-symbols-outlined text-xs text-guardian">shield</span>
+<span class="text-[11px] font-bold text-guardian uppercase tracking-wider">Guardian (Risk)</span>
+</div>
+<div class="message-bubble bg-guardian/10 border border-guardian/30 p-4 rounded-2xl rounded-tl-none text-sm leading-relaxed text-slate-200">
+                Risk assessment complete. Vault exposure is at 12%. Entry at $142.50 is safe if we leverage max 3x. Monitoring whale movements for potential slippage.
+            </div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<div class="flex items-center gap-2 mb-1 ml-1">
+<span class="material-symbols-outlined text-xs text-white">flight_takeoff</span>
+<span class="text-[11px] font-bold text-white uppercase tracking-wider">Captain (Lead)</span>
+</div>
+<div class="message-bubble bg-white text-slate-900 p-4 rounded-2xl rounded-tl-none font-semibold text-sm shadow-lg">
+                Understood. Adjusting entry to $142.15. Gemini, confirm liquidity depth.
+            </div>
+</div>
+</main>
+<nav class="fixed bottom-0 w-full bg-background-dark/90 ios-blur border-t border-white/5 pb-8 pt-3 px-8 flex justify-between items-center z-50">
+<button class="flex flex-col items-center gap-1 opacity-40">
+<span class="material-symbols-outlined text-gold">dashboard</span>
+<span class="text-[10px] font-medium text-white">Orbit</span>
+</button>
+<button class="flex flex-col items-center gap-1">
+<span class="material-symbols-outlined text-gold" style="font-variation-settings: 'FILL' 1">terminal</span>
+<span class="text-[10px] font-medium text-white">Logs</span>
+</button>
+<div class="relative -top-8">
+<button class="w-14 h-14 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.5)] border-4 border-background-dark">
+<span class="material-symbols-outlined text-white text-3xl">bolt</span>
+</button>
+</div>
+<button class="flex flex-col items-center gap-1 opacity-40">
+<span class="material-symbols-outlined text-gold">account_balance_wallet</span>
+<span class="text-[10px] font-medium text-white">Vault</span>
+</button>
+<button class="flex flex-col items-center gap-1 opacity-40">
+<span class="material-symbols-outlined text-gold">settings</span>
+<span class="text-[10px] font-medium text-white">Config</span>
+</button>
+</nav>
+<div class="fixed bottom-24 left-4 right-4 z-40">
+<div class="bg-white/5 border border-white/10 p-1 rounded-full flex items-center gap-2 ios-blur">
+<div class="pl-4 flex-1">
+<input class="bg-transparent border-none text-sm w-full focus:ring-0 placeholder:text-white/20 text-white py-2" placeholder="Command synergy..." type="text"/>
+</div>
+<button class="w-10 h-10 bg-gold rounded-full flex items-center justify-center text-black">
+<span class="material-symbols-outlined">north</span>
+</button>
+</div>
+</div>
+
+</body></html>

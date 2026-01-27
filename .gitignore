@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+serviceAccountKey.json
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+coverage/
