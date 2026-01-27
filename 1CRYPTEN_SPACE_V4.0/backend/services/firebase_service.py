@@ -33,10 +33,31 @@ class FirebaseService:
             return
             
         try:
-            # Load credentials from file with timeout
-            cred_path = "serviceAccountKey.json"
-            cred = credentials.Certificate(cred_path)
+            # Load credentials
+            cred = None
+            import os
+            import json
             
+            # 1. Try Environment Variable (Production)
+            firebase_env = os.getenv("FIREBASE_CREDENTIALS")
+            if firebase_env:
+                try:
+                    cred_dict = json.loads(firebase_env)
+                    cred = credentials.Certificate(cred_dict)
+                    logger.info("Loaded Firebase credentials from Environment Variable.")
+                except Exception as e:
+                    logger.error(f"Failed to parse FIREBASE_CREDENTIALS env var: {e}")
+
+            # 2. Try Local File (Development)
+            if not cred:
+                cred_path = "serviceAccountKey.json"
+                if os.path.exists(cred_path):
+                   cred = credentials.Certificate(cred_path)
+                   logger.info("Loaded Firebase credentials from local file.")
+            
+            if not cred:
+                raise ValueError("No Firebase credentials found (Env or File).")
+
             # Avoid re-initializing if already running
             try:
                 firebase_admin.get_app()
