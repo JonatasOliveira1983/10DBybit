@@ -89,25 +89,42 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Serve Frontend Static Files
-# directory="../../frontend" -> based on structure c:\Users\spcom\Desktop\10D-Bybit1.0\1CRYPTEN_SPACE_V4.0\backend\main.py
-# frontend is at c:\Users\spcom\Desktop\10D-Bybit1.0\frontend
-app.mount("/static", StaticFiles(directory="../../frontend"), name="static")
+# Server Frontend Static Files safely
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Navigate up from backend -> 1CRYPTEN_SPACE_V4.0 -> root -> frontend
+FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend"))
+
+if os.path.isdir(FRONTEND_DIR):
+    logger.info(f"Frontend directory found at: {FRONTEND_DIR}")
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+else:
+    logger.warning(f"⚠️ Frontend directory NOT found at {FRONTEND_DIR}. Static serving disabled.")
 
 from fastapi.responses import FileResponse
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    return FileResponse("../../frontend/favicon.ico")
+    fav_path = os.path.join(FRONTEND_DIR, "favicon.ico")
+    if os.path.exists(fav_path):
+        return FileResponse(fav_path)
+    return {"error": "favicon not found"}
 
 @app.get("/dashboard")
 async def get_dashboard():
     # Return the code.html from the frontend folder
-    return FileResponse("../../frontend/code.html")
+    index_path = os.path.join(FRONTEND_DIR, "code.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"error": "Dashboard file not found"}
 
 @app.get("/")
 async def root():
-    return FileResponse("../../frontend/code.html")
+    index_path = os.path.join(FRONTEND_DIR, "code.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"message": "Backend Online. Dashboard not found."}
 
 @app.get("/health") # Renamed from "/" to "/health" to avoid conflict with root()
 async def health_check():
