@@ -18,8 +18,7 @@ class BybitREST:
                 testnet=settings.BYBIT_TESTNET,
                 api_key=settings.BYBIT_API_KEY,
                 api_secret=settings.BYBIT_API_SECRET,
-                enable_time_sync=True,
-                recv_window=20000,
+                recv_window=60000,
             )
 
 
