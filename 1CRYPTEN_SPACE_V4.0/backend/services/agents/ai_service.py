@@ -27,11 +27,16 @@ class AIService:
         if gemini_key:
             try:
                 genai.configure(api_key=gemini_key)
+                
+                # Diagnostic: List models to log what's available
+                available_models = [m.name for m in genai.list_models()]
+                logger.info(f"Available Gemini Models: {available_models}")
+                
                 # Using the latest stable model name
                 self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
                 logger.info("Gemini-1.5-Flash Client Initialized.")
             except Exception as e:
-                logger.error(f"Failed to initialize Gemini Client: {e}")
+                logger.error(f"Failed to initialize Gemini Client or list models: {e}")
 
     async def generate_content(self, prompt: str, system_instruction: str = "Você é um assistente de trading de elite."):
         """

@@ -65,15 +65,23 @@ class FirebaseService:
             except ValueError:
                 # Initialize with RTDB URL if available
                 options = {}
-                if settings.FIREBASE_DATABASE_URL:
-                    options['databaseURL'] = settings.FIREBASE_DATABASE_URL
+                db_url = settings.FIREBASE_DATABASE_URL or os.getenv("FIREBASE_DATABASE_URL")
+                if db_url and db_url != "None":
+                    options['databaseURL'] = db_url
+                    logger.info(f"Using Firebase Database URL: {db_url}")
+                else:
+                    logger.warning("FIREBASE_DATABASE_URL is missing or 'None'. RTDB Pulse will be disabled.")
                 app = firebase_admin.initialize_app(cred, options)
             
             # Initialize Clients
             self.db = firestore.client()
             try:
-                self.rtdb = db.reference("/")
-                logger.info("Firebase Realtime DB connected.")
+                # Check if databaseURL was provided to options
+                if 'databaseURL' in options:
+                    self.rtdb = db.reference("/")
+                    logger.info("Firebase Realtime DB connected.")
+                else:
+                    logger.warning("Firebase Realtime DB NOT connected (no URL).")
             except Exception as e:
                 logger.error(f"Error connecting to RTDB: {e}")
 
