@@ -40,10 +40,6 @@ class BybitREST:
             logger.error(f"Error fetching top pairs: {e}")
             return []
 
-        except Exception as e:
-            logger.error(f"Error fetching wallet balance: {e}")
-            return 0.0
-
     def get_wallet_balance(self):
         """Fetches the total equity from the Bybit account (UNIFIED or CONTRACT)."""
         try:
