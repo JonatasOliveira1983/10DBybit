@@ -11,4 +11,4 @@ pandas==2.2.0
 numpy==1.26.3
 pybit==5.7.0
 gunicorn==21.2.0
-firebase-admin==6.2.0
+firebase-admin

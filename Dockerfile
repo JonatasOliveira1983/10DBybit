@@ -22,5 +22,5 @@ WORKDIR /app/1CRYPTEN_SPACE_V4.0/backend
 ENV PORT 8080
 EXPOSE 8080
 
-# Command to run the application using syntax that allows variable expansion
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Command to run the application using Gunicorn (Production Standard)
+CMD exec gunicorn --bind :$PORT --workers 1 --worker-class uvicorn.workers.UvicornWorker --threads 8 --timeout 0 main:app
