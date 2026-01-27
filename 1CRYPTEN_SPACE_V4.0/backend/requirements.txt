@@ -10,3 +10,4 @@ pandas==2.2.0
 numpy==1.26.3
 pybit==5.7.0
 zhipuai==2.1.5.20231221
+pycryptodome==3.20.0
