@@ -15,16 +15,19 @@ class AIService:
 
     def _setup_ai(self):
         """Initializes AI clients if keys are present."""
-        if settings.GLM_API_KEY:
+        glm_key = settings.GLM_API_KEY.strip() if settings.GLM_API_KEY else None
+        if glm_key:
             try:
-                self.glm_client = ZhipuAI(api_key=settings.GLM_API_KEY)
+                self.glm_client = ZhipuAI(api_key=glm_key)
                 logger.info("GLM-4.7 (ZhipuAI) Client Initialized.")
             except Exception as e:
                 logger.error(f"Failed to initialize GLM Client: {e}")
 
-        if settings.GEMINI_API_KEY:
+        gemini_key = settings.GEMINI_API_KEY.strip() if settings.GEMINI_API_KEY else None
+        if gemini_key:
             try:
-                genai.configure(api_key=settings.GEMINI_API_KEY)
+                genai.configure(api_key=gemini_key)
+                # Using the latest stable model name
                 self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
                 logger.info("Gemini-1.5-Flash Client Initialized.")
             except Exception as e:

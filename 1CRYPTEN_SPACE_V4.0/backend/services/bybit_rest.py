@@ -16,9 +16,9 @@ class BybitREST:
         if self._session is None:
             self._session = HTTP(
                 testnet=settings.BYBIT_TESTNET,
-                api_key=settings.BYBIT_API_KEY,
-                api_secret=settings.BYBIT_API_SECRET,
-                recv_window=60000,
+                api_key=settings.BYBIT_API_KEY.strip() if settings.BYBIT_API_KEY else None,
+                api_secret=settings.BYBIT_API_SECRET.strip() if settings.BYBIT_API_SECRET else None,
+                recv_window=30000,
             )
 
 
