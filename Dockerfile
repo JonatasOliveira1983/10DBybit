@@ -5,7 +5,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Set work directory
+# Set work directory to root first to copy requirements
 WORKDIR /app
 
 # Install dependencies
@@ -15,10 +15,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire project
 COPY . .
 
+# Change to backend directory for execution
+WORKDIR /app/1CRYPTEN_SPACE_V4.0/backend
+
 # Expose port (Cloud Run defaults to 8080)
 ENV PORT 8080
 EXPOSE 8080
 
-# Command to run the application
-# We use shell form to properly expand the PORT variable and change directory
-CMD ["sh", "-c", "cd 1CRYPTEN_SPACE_V4.0/backend && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Command to run the application using syntax that allows variable expansion
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}

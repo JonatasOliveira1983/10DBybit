@@ -1,26 +1,35 @@
-print("DEBUG: Importing asyncio...")
-import asyncio
-print("DEBUG: Importing logging...")
-import logging
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
+import sys
+import traceback
 
-print("DEBUG: Importing basic services...")
-# Firebase service imported but disabled
-from services.firebase_service import firebase_service
-from services.bybit_rest import bybit_rest_service
-print("DEBUG: Agent imports disabled for debugging...")
-from services.bybit_ws import bybit_ws_service
-from services.bankroll import bankroll_manager
-from services.agents.guardian import guardian_agent
-from services.agents.gemini import gemini_agent
-from services.agents.contrarian import contrarian_agent
-from services.agents.captain import captain_agent
-from services.signal_generator import signal_generator
-print("DEBUG: Basic imports complete.")
-from fastapi.staticfiles import StaticFiles
-import uvicorn
-from config import settings
+try:
+    print("DEBUG: Importing asyncio...")
+    import asyncio
+    print("DEBUG: Importing logging...")
+    import logging
+    from fastapi import FastAPI
+    from contextlib import asynccontextmanager
+    
+    print("DEBUG: Importing basic services...")
+    # Firebase service imported but disabled
+    from services.firebase_service import firebase_service
+    from services.bybit_rest import bybit_rest_service
+    print("DEBUG: Agent imports disabled for debugging...")
+    from services.bybit_ws import bybit_ws_service
+    from services.bankroll import bankroll_manager
+    from services.agents.guardian import guardian_agent
+    from services.agents.gemini import gemini_agent
+    from services.agents.contrarian import contrarian_agent
+    from services.agents.captain import captain_agent
+    from services.signal_generator import signal_generator
+    print("DEBUG: Basic imports complete.")
+    from fastapi.staticfiles import StaticFiles
+    import uvicorn
+    from config import settings
+
+except Exception as e:
+    print("CRITICAL STARTUP ERROR:")
+    traceback.print_exc()
+    sys.exit(1)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
