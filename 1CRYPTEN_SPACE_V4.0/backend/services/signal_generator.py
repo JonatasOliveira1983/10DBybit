@@ -3,6 +3,7 @@ import asyncio
 import datetime
 from datetime import datetime, timezone, timedelta
 from services.firebase_service import firebase_service
+from services.bankroll import bankroll_manager
 from services.bybit_rest import bybit_rest_service
 from services.bybit_ws import bybit_ws_service
 
@@ -37,11 +38,17 @@ class SignalGenerator:
 
         while self.is_running:
             try:
+                # V4.0 Sniper Rule: On-Demand Radar
+                # Only scan if Bankroll says we can open a new slot
+                potential_slot = await bankroll_manager.can_open_new_slot()
+                if potential_slot is None:
+                    logger.info("Radar in Stand-by: Risk Cap reached or all 10 slots full.")
+                    await firebase_service.log_event("Radar", "Stand-by: Minimum 1 slot required for scanning.", "INFO")
+                    await asyncio.sleep(60) # Longer sleep in stand-by
+                    continue
+
                 # 1. Scan all active symbols from WS service
                 active_symbols = bybit_ws_service.active_symbols
-                if not active_symbols:
-                    await asyncio.sleep(5)
-                    continue
 
                 for symbol in active_symbols:
                     # Calculate Signal Score based on CVD

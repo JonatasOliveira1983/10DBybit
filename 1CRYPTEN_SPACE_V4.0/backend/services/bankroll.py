@@ -174,10 +174,26 @@ class BankrollManager:
                     "risco_real_percent": real_risk,
                     "slots_disponiveis": available_slots_count
                 })
+                
+                # Snapshot logging: Log once every 6 hours (approx)
+                if not hasattr(self, "_last_snapshot_time"):
+                    self._last_snapshot_time = 0
+                
+                import time
+                current_time = time.time()
+                if (current_time - self._last_snapshot_time) > (6 * 3600): # 6 hours
+                    await firebase_service.log_banca_snapshot({
+                         "saldo_total": total_equity,
+                         "risco_real_percent": real_risk,
+                         "avail_slots": available_slots_count
+                    })
+                    self._last_snapshot_time = current_time
+                    logger.info("Bankroll snapshot logged to history.")
+
         except Exception as e:
             logger.error(f"Error updating banca status: {e}")
 
-    async def open_position(self, symbol: str, side: str, sl_price: float = 0, tp_price: float = None):
+    async def open_position(self, symbol: str, side: str, sl_price: float = 0, tp_price: float = None, pensamento: str = ""):
         """Executes the Sniper entry with 20% risk cap and 5% margin per slot."""
         slot_id = await self.can_open_new_slot()
         if not slot_id:
@@ -251,7 +267,8 @@ class BankrollManager:
                 "entry_price": current_price,
                 "current_stop": sl_price,
                 "status_risco": "ATIVO",
-                "pnl_percent": 0.0
+                "pnl_percent": 0.0,
+                "pensamento": pensamento
             })
             await self.update_banca_status()
             return order

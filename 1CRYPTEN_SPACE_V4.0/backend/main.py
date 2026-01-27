@@ -7,6 +7,8 @@ try:
     print("DEBUG: Importing logging...")
     import logging
     from fastapi import FastAPI
+    from fastapi.responses import FileResponse
+    from fastapi.middleware.cors import CORSMiddleware
     from contextlib import asynccontextmanager
     
     print("DEBUG: Importing basic services...")
@@ -66,8 +68,18 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(signal_generator.monitor_and_generate())
             asyncio.create_task(signal_generator.track_outcomes())
             asyncio.create_task(captain_agent.monitor_signals())
+            asyncio.create_task(captain_agent.monitor_active_positions_loop())
             # asyncio.create_task(gemini_agent.analyze_journey_and_recalibrate()) # Disabled for Sniper Mode
             
+            # Start Pulse Monitor Loop (V4.0 Heartbeat)
+            async def pulse_loop():
+                while True:
+                    try:
+                        await firebase_service.update_pulse()
+                    except Exception: pass
+                    await asyncio.sleep(2) # 2s heartbeat
+            asyncio.create_task(pulse_loop())
+
             # Start Bankroll Sync Loop
             async def bankroll_loop():
                 while True:
@@ -98,6 +110,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, restrict this. For local dev/file open, * is needed.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Server Frontend Static Files safely
 import os
 
@@ -105,13 +126,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Navigate up from backend -> 1CRYPTEN_SPACE_V4.0 -> root -> frontend
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend"))
 
-if os.path.isdir(FRONTEND_DIR):
-    logger.info(f"Frontend directory found at: {FRONTEND_DIR}")
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-else:
-    logger.warning(f"⚠️ Frontend directory NOT found at {FRONTEND_DIR}. Static serving disabled.")
+# Prioritize internal static folder for assets
+INTERNAL_STATIC_DIR = os.path.join(BASE_DIR, "static")
+if not os.path.isdir(INTERNAL_STATIC_DIR):
+    os.makedirs(INTERNAL_STATIC_DIR, exist_ok=True)
 
-from fastapi.responses import FileResponse
+if not os.path.isdir(FRONTEND_DIR):
+    logger.warning(f"⚠️ Frontend directory NOT found at {FRONTEND_DIR}. PWA features might failing.")
+else:
+    logger.info(f"Frontend directory established at: {FRONTEND_DIR}")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -171,6 +194,14 @@ async def get_banca():
         "slots_disponiveis": 10,
         "status": "ERROR"
     }
+
+@app.get("/api/banca-history")
+async def get_banca_history(limit: int = 50):
+    try:
+        return await firebase_service.get_banca_history(limit=limit)
+    except Exception as e:
+        logger.error(f"Error in banca history endpoint: {e}")
+        return []
 
 @app.get("/api/slots")
 async def get_slots():
@@ -256,6 +287,14 @@ async def test_order(symbol: str, side: str, sl: float):
 async def panic_button():
     """Emergency endpoint - DISABLED FOR DEBUGGING"""
     return {"error": "Trading functions disabled for debugging"}
+
+# Mount Local Static fallback (highest priority for assets)
+if os.path.isdir(INTERNAL_STATIC_DIR):
+    app.mount("/", StaticFiles(directory=INTERNAL_STATIC_DIR), name="internal_static")
+
+# Mount Frontend as generic fallback
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 if __name__ == "__main__":
     # Forcing reload=False to avoid multi-process complexity during debugging

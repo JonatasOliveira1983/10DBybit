@@ -3,7 +3,10 @@ import asyncio
 from datetime import datetime, timezone
 from services.firebase_service import firebase_service
 from services.bankroll import bankroll_manager
-from services.agents.gemini import gemini_agent
+from services.agents.ai_service import ai_service
+from services.agents.contrarian import contrarian_agent
+from services.agents.guardian import guardian_agent
+from services.agents.news_sensor import news_sensor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
@@ -57,23 +60,90 @@ class CaptainAgent:
                          continue
 
 
-                    # 3. Try to open position
-                    logger.info(f"Captain executing Elite Signal: {signal['symbol']} (Score: {signal['score']})")
-                    await firebase_service.log_event("Captain", f"Executing Sniping protocol for {signal['symbol']} (Score: {signal['score']})", "SUCCESS")
+                    # 2. Sensor Audit (V4.0 Sovereignty)
+                    contrarian_advice = await contrarian_agent.analyze(signal["symbol"])
+                    is_healthy, latency = await guardian_agent.check_api_health()
+                    news_advice = await news_sensor.analyze()
                     
-                    # Side logic: CVD > 0 -> Buy, CVD < 0 -> Sell (simple)
+                    # 3. Decision & Reasoning
+                    # CVD logic + Sensor inputs
                     cvd = signal.get("indicators", {}).get("cvd", 0)
                     side = "Buy" if cvd >= 0 else "Sell"
+                    
+                    pensamento_base = f"Soberania V4.0: Analisei o fluxo (CVD: {cvd:.2f}). "
+                    
+                    if contrarian_advice.get("sentiment") == side:
+                        pensamento_base += "Contrarian confirma força. "
+                    else:
+                        pensamento_base += "Entrada técnica por exaustão. "
+                    
+                    pensamento_base += news_advice.get("pensamento", "") + " "
+                    
+                    if not is_healthy:
+                        pensamento_base += "⚠️ Cuidado: Latência elevada."
+                    else:
+                        pensamento_base += "🛡️ Latência OK."
+
+                    # Enhanced AI Thought (GLM-4.7 Primary)
+                    prompt_ai = f"""
+                    Como Capitão da Nave 1CRYPTEN, justifique em uma frase curta e técnica sua entrada em {signal['symbol']} ({side}).
+                    Indicadores: CVD={cvd:.2f}, Score={signal['score']}, Contrarian={contrarian_advice.get('sentiment')}.
+                    Contexto: {pensamento_base}
+                    """
+                    ai_thought = await ai_service.generate_content(prompt_ai, system_instruction="Você é o Capitão Soberano da 1CRYPTEN. Fale de forma institucional e precisa.")
+                    pensamento = ai_thought if ai_thought else pensamento_base
+
+                    # 4. Try to open position
+                    logger.info(f"Captain executing Elite Signal: {signal['symbol']} (Score: {signal['score']})")
+                    await firebase_service.log_event("Captain", f"Executing Sniping protocol for {signal['symbol']} (Score: {signal['score']})", "SUCCESS")
                     
                     # Execute via BankrollManager
                     await bankroll_manager.open_position(
                         symbol=signal["symbol"],
-                        side=side
+                        side=side,
+                        pensamento=pensamento # Pass the reasoning to bankroll
                     )
 
                 await asyncio.sleep(5) # Accelerated Sniper Scan (5s)
             except Exception as e:
                 logger.error(f"Error in Captain monitor loop: {e}")
                 await asyncio.sleep(5)
+
+    async def monitor_active_positions_loop(self):
+        """
+        Periodically analyzes active trades and provides AI commentary (telemetry).
+        """
+        logger.info("Captain Telemetry loop active.")
+        while self.is_running:
+            try:
+                active_slots = await firebase_service.get_active_slots()
+                trading_slots = [s for s in active_slots if s.get("symbol")]
+                
+                if not trading_slots:
+                    await asyncio.sleep(30)
+                    continue
+
+                for slot in trading_slots:
+                    symbol = slot["symbol"]
+                    pnl = slot.get("pnl_percent", 0)
+                    side = slot.get("side", "Buy")
+                    
+                    # Generate short telemetry update
+                    prompt = f"Como Capitão da 1CRYPTEN, forneça uma telemetria neural curtíssima (máximo 12 palavras) para {symbol} ({side}) com {pnl:.2f}% ROI. Seja técnico."
+                    telemetry = await ai_service.generate_content(prompt, system_instruction="Você é o Capitão Soberano. Sua fala é telemetria neural de elite.")
+                    
+                    if not telemetry:
+                        # Technical Fallback if AI is offline/unbalanced
+                        telemetry = f"Vetor {symbol} em {pnl:.2f}% ROI. Sincronia {side} ativa."
+                    
+                    # Ensure symbol is in the message for frontend filtering
+                    await firebase_service.log_event("Captain", f"[{symbol}] TELEMETRIA: {telemetry}", "INFO")
+                    
+                    await asyncio.sleep(3) # Throttle AI calls
+
+                await asyncio.sleep(60) # Full sweep every 60s
+            except Exception as e:
+                logger.error(f"Error in telemetry loop: {e}")
+                await asyncio.sleep(10)
 
 captain_agent = CaptainAgent()

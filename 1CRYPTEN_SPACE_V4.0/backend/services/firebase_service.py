@@ -1,5 +1,5 @@
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, db
 import asyncio
 from config import settings
 import logging
@@ -20,7 +20,8 @@ import time
 class FirebaseService:
     def __init__(self):
         self.is_active = False
-        self.db = None
+        self.db = None # Firestore
+        self.rtdb = None # Realtime DB
         self.log_buffer = deque(maxlen=50)
         self.signal_buffer = deque(maxlen=50)
         self.slots_cache = [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0} for i in range(1, 11)]
@@ -60,12 +61,22 @@ class FirebaseService:
 
             # Avoid re-initializing if already running
             try:
-                firebase_admin.get_app()
+                app = firebase_admin.get_app()
             except ValueError:
-                firebase_admin.initialize_app(cred)
+                # Initialize with RTDB URL if available
+                options = {}
+                if settings.FIREBASE_DATABASE_URL:
+                    options['databaseURL'] = settings.FIREBASE_DATABASE_URL
+                app = firebase_admin.initialize_app(cred, options)
             
-            # This is a sync call but we run it in the initialization phase
+            # Initialize Clients
             self.db = firestore.client()
+            try:
+                self.rtdb = db.reference("/")
+                logger.info("Firebase Realtime DB connected.")
+            except Exception as e:
+                logger.error(f"Error connecting to RTDB: {e}")
+
             self.is_active = True
             logger.info("Firebase Admin SDK initialized successfully.")
         except Exception as e:
@@ -102,6 +113,30 @@ class FirebaseService:
             await asyncio.to_thread(self.db.collection("banca_status").document("status").set, data, merge=True)
         except Exception: pass
         return data
+
+    async def log_banca_snapshot(self, data: dict):
+        """Logs a historical snapshot of the bankroll."""
+        if not self.is_active: return
+        try:
+            snapshot = {
+                **data,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+            await asyncio.to_thread(self.db.collection("banca_history").add, snapshot)
+        except Exception as e:
+            logger.error(f"Error logging banca snapshot: {e}")
+
+    async def get_banca_history(self, limit: int = 50):
+        """Fetches historical bankroll snapshots."""
+        if not self.is_active: return []
+        try:
+            def _get_history():
+                docs = self.db.collection("banca_history").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(limit).stream()
+                return [doc.to_dict() for doc in docs]
+            return await asyncio.to_thread(_get_history)
+        except Exception as e:
+            logger.error(f"Error fetching banca history: {e}")
+            return []
 
     async def get_active_slots(self):
         # Always return cache for immediate loop safety
@@ -195,6 +230,29 @@ class FirebaseService:
         if not self.is_active: return
         try:
             await asyncio.to_thread(self.db.collection("journey_signals").document(signal_id).update, {"outcome": outcome})
+        except Exception: pass
+
+    async def update_pulse(self):
+        """Sends a heartbeat to Realtime DB for the Pulse Monitor."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            # RTDB is great for this as it has extremely low latency
+            data = {
+                "timestamp": time.time() * 1000,
+                "status": "ONLINE",
+                "last_heartbeat": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+            await asyncio.to_thread(self.rtdb.child("system_pulse").set, data)
+        except Exception as e:
+            logger.error(f"Error updating pulse: {e}")
+
+    async def update_rtdb_slots(self, slots: list):
+        """Duplicate slot data to RTDB for high-speed UI refreshes."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            # Convert list to dict for RTDB
+            slots_data = {str(s["id"]): s for s in slots}
+            await asyncio.to_thread(self.rtdb.child("live_slots").set, slots_data)
         except Exception: pass
 
     async def initialize_db(self):

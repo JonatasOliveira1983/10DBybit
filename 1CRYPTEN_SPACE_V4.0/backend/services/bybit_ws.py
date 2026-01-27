@@ -55,11 +55,16 @@ class BybitWS:
         )
         
         for symbol in symbols:
-            # Subscribe to trades for CVD calculation
+            # Subscribe to trades for CVD calculation (V5 Public Linear)
             self.ws.trade_stream(symbol=symbol, callback=self.handle_trade_message)
-            # Subscribe to tickers for price updates
-            self.ws.ticker_stream(symbol=symbol, callback=lambda msg: None) # Placeholder for now
+            # Ticker stream can be used for real-time price if needed
+            self.ws.ticker_stream(symbol=symbol, callback=lambda msg: None)
 
         logger.info(f"Subscribed to {len(symbols)} symbols for CVD monitoring.")
+
+    def stop(self):
+        if self.ws:
+            self.ws.exit()
+            logger.info("Bybit WebSocket stopped.")
 
 bybit_ws_service = BybitWS()

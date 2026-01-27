@@ -7,6 +7,7 @@ load_dotenv(override=True)
 class Settings(BaseSettings):
     # Firebase (Google)
     FIREBASE_CREDENTIALS_PATH: str = "serviceAccountKey.json"
+    FIREBASE_DATABASE_URL: Optional[str] = None
 
     # Bybit
     BYBIT_API_KEY: Optional[str] = None
@@ -16,6 +17,9 @@ class Settings(BaseSettings):
 
     # Gemini
     GEMINI_API_KEY: Optional[str] = None
+    
+    # GLM (ZhipuAI)
+    GLM_API_KEY: Optional[str] = None
 
     # App Logic
     DEBUG: bool = True

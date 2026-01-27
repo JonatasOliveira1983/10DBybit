@@ -5,6 +5,9 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
     <title>1Crypten Command - Deep Space v4.1</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FFD700">
+    <link rel="apple-touch-icon" href="/logo10D.png">
 
     <!-- Libraries -->
     <!-- Libraries -->
@@ -22,6 +25,7 @@
     <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com" rel="preconnect" />
@@ -37,12 +41,13 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: "#edbc1d",
-                        gold: "#edbc1d",
-                        "space-black": "#050505",
+                        primary: "#FFD700",
+                        gold: "#FFD700",
+                        "space-black": "#000000",
+                        "navy-deep": "#001F3F",
                         danger: "#FF4D4D",
                         success: "#10B981",
-                        card: "#101010",
+                        card: "#080808",
                     },
                     fontFamily: {
                         display: ["Space Grotesk", "sans-serif"],
@@ -54,15 +59,33 @@
     </script>
     <style>
         body {
-            background-color: #050505;
-            color: #e2e8f0;
+            background-color: #000000;
+            color: #d1d5db;
             overflow: hidden;
             font-family: 'Inter', sans-serif;
             height: 100vh;
             width: 100vw;
             background-image:
-                radial-gradient(circle at 50% 50%, rgba(237, 188, 29, 0.03) 0%, transparent 50%),
-                radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.03) 0%, transparent 40%);
+                radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 0% 0%, rgba(0, 31, 63, 0.05) 0%, transparent 40%);
+        }
+
+        .landing-bg {
+            background-image: url('/SoHoje1.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .premium-btn {
+            background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .premium-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(218, 165, 32, 0.5);
         }
 
         .stars-bg {
@@ -102,9 +125,9 @@
         }
 
         .active-slot {
-            background: linear-gradient(145deg, rgba(237, 188, 29, 0.08) 0%, rgba(10, 10, 10, 0.8) 100%);
-            border: 1px solid rgba(237, 188, 29, 0.2);
-            box-shadow: inset 0 0 20px rgba(237, 188, 29, 0.03);
+            background: linear-gradient(145deg, rgba(255, 215, 0, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.02);
         }
 
         .active-slot:hover {
@@ -130,7 +153,7 @@
         }
 
         .premium-gradient-text {
-            background: linear-gradient(135deg, #fff 0%, #edbc1d 100%);
+            background: linear-gradient(135deg, #fff 0%, #FFD700 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -207,13 +230,37 @@
         const { useState, useEffect, useRef } = React;
         const { createRoot } = ReactDOM;
         const { HashRouter, Routes, Route, Link, useLocation } = ReactRouterDOM;
+        const API_BASE = 'http://localhost:5001';
 
         // Firebase Config
-        const firebaseConfig = { projectId: "projeto-teste-firestore-3b00e" };
+        const firebaseConfig = {
+            projectId: "projeto-teste-firestore-3b00e",
+            databaseURL: "https://projeto-teste-firestore-3b00e-default-rtdb.firebaseio.com/" // Update to the real URL if different
+        };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const rtdb = firebase.database();
 
-        // Components
+        // --- Hook: Pulse Monitor (V4.0 Heartbeat) ---
+        const usePulseMonitor = () => {
+            const [latency, setLatency] = useState(0);
+            const [status, setStatus] = useState('OFFLINE');
+
+            useEffect(() => {
+                const pulseRef = rtdb.ref('system_pulse');
+                const unsubscribe = pulseRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.timestamp) {
+                        const lat = Date.now() - data.timestamp;
+                        setLatency(Math.max(0, lat));
+                        setStatus('ONLINE');
+                    }
+                });
+                return () => pulseRef.off('value', unsubscribe);
+            }, []);
+
+            return { latency, status };
+        };
         const TradingChart = ({ symbol, entryPrice, stopLossPrice, side, pnlFallback }) => {
             const chartContainerRef = useRef();
             const chartRef = useRef();
@@ -340,8 +387,9 @@
             }, [symbol, entryPrice, stopLossPrice, side, tf]);
 
 
-            // PnL Latch Logic
+            // PnL Latch Logic with EMA Smoothing
             const [displayPnl, setDisplayPnl] = useState(0);
+            const smoothingRef = useRef(0);
 
             useEffect(() => {
                 let livePnl = 0;
@@ -350,13 +398,14 @@
                     livePnl = side === 'Buy' ? ((lastPrice - ne) / ne * 50 * 100) : ((ne - lastPrice) / ne * 50 * 100);
                 }
 
-                // Priority: Live > Fallback > Keep Last Known > 0
-                if (livePnl !== 0) {
-                    setDisplayPnl(livePnl);
-                } else if (pnlFallback && pnlFallback !== 0) {
-                    setDisplayPnl(pnlFallback);
-                }
-                // If both are 0, we don't reset immediately to avoid flicker, unless symbol changes (handled by key/unmount)
+                const targetPnl = livePnl !== 0 ? livePnl : (pnlFallback || 0);
+
+                // EMA Smoothing: NewVal = (Current * Alpha) + (Previous * (1 - Alpha))
+                const alpha = 0.15; // Lower = smoother, higher = faster
+                const nextVal = (targetPnl * alpha) + (smoothingRef.current * (1 - alpha));
+
+                smoothingRef.current = nextVal;
+                setDisplayPnl(nextVal);
             }, [lastPrice, entryPrice, side, pnlFallback]);
 
             return (
@@ -419,23 +468,23 @@
             const isActive = s.symbol;
             const pnlFallback = s.pnl_percent || 0;
             const currentPrice = tickers[s.symbol];
+            const smoothingRef = useRef(0);
 
             useEffect(() => {
-                if (!isActive) { setDisplayPnl(0); return; }
+                if (!isActive) { setDisplayPnl(0); smoothingRef.current = 0; return; }
 
                 let livePnl = 0;
                 if (currentPrice && Number(s.entry_price) > 0) {
                     const ne = Number(s.entry_price);
-                    const entry = ne;
                     livePnl = s.side === 'Buy' ? ((currentPrice - ne) / ne * 100 * 50) : ((ne - currentPrice) / ne * 100 * 50);
                 }
 
-                // Priority: Live > Fallback > Keep Last Known > 0
-                if (!isNaN(livePnl) && Math.abs(livePnl) > 0.001) {
-                    setDisplayPnl(livePnl);
-                } else if (pnlFallback && pnlFallback !== 0) {
-                    setDisplayPnl(pnlFallback);
-                }
+                const targetPnl = livePnl !== 0 ? livePnl : (pnlFallback || 0);
+                const alpha = 0.2; // A bit faster for small cards
+                const nextVal = (targetPnl * alpha) + (smoothingRef.current * (1 - alpha));
+
+                smoothingRef.current = nextVal;
+                setDisplayPnl(nextVal);
             }, [currentPrice, s.entry_price, s.side, pnlFallback, isActive]);
 
             const pnl = displayPnl;
@@ -445,9 +494,21 @@
                     className={`p-5 rounded-2xl border transition-all relative overflow-hidden group ${isActive ? 'active-slot cursor-pointer' : 'glass-card opacity-30'} ${selectedId === s.id ? 'ring-1 ring-primary/50 border-primary/50' : 'border-white/5'}`}>
 
                     {isActive && (
-                        <div className={`absolute bottom-0 left-0 h-1 transition-all duration-1000 ${pnl >= 0 ? 'bg-emerald-500 shadow-[0_0_15px_#10B981]' : 'bg-red-500 shadow-[0_0_15px_#EF4444]'}`}
-                            style={{ width: `${Math.min(100, Math.abs(pnl) * 2)}%`, opacity: 0.6 }}></div>
+                        <div className={`absolute bottom-0 left-0 h-1 transition-all duration-700 ease-out z-20 ${pnl >= 0 ? 'bg-emerald-500 shadow-[0_0_15px_#10B981]' : 'bg-red-500 shadow-[0_0_15px_#EF4444]'}`}
+                            style={{
+                                // Gas Bar Logic: 
+                                // 0 to 1.5% profit = progress to BE (first 60% of bar)
+                                // 1.5% to 5% profit = progress to Target (last 40% of bar)
+                                width: `${(() => {
+                                    const profit = pnl / 50; // Real % (not 50x)
+                                    if (profit <= 0) return 2;
+                                    if (profit < 1.5) return (profit / 1.5) * 60;
+                                    return 60 + ((profit - 1.5) / 3.5) * 40;
+                                })()}%`,
+                                opacity: 0.8
+                            }}></div>
                     )}
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/5 z-10"></div>
 
                     <div className="flex justify-between items-center text-[10px] mb-3 font-bold font-display tracking-widest">
                         <span className="text-slate-500">SLOT {s.id.toString().padStart(2, '0')}</span>
@@ -463,13 +524,13 @@
                         )}
                     </div>
 
-                    <div className="flex items-end justify-between">
+                    <div className="flex items-end justify-between mb-3">
                         <div>
                             <div className="font-display font-bold text-lg text-white group-hover:text-primary transition-colors">
                                 {s.symbol || 'LIVRE'}
                             </div>
                             {isActive && (
-                                <div className="text-[10px] text-slate-500 font-mono mt-1">
+                                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                                     LEV: 50x
                                 </div>
                             )}
@@ -487,6 +548,15 @@
                             </div>
                         )}
                     </div>
+
+                    {isActive && s.pensamento && (
+                        <div className="mt-2 p-2 bg-navy-deep/20 rounded-lg border border-primary/5">
+                            <p className="text-[9px] text-primary/70 leading-relaxed italic flex items-start gap-1">
+                                <span className="material-icons-round text-[10px] mt-0.5">psychology</span>
+                                {s.pensamento}
+                            </p>
+                        </div>
+                    )}
 
                     {!isActive && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[2px]">
@@ -506,7 +576,7 @@
             useEffect(() => {
                 const fetchLogs = async () => {
                     try {
-                        const response = await fetch('/api/logs');
+                        const response = await fetch(API_BASE + '/api/logs');
                         if (response.ok) setLogs(await response.json());
                     } catch (e) { console.error("Logs Fetch Error", e); }
                 };
@@ -517,7 +587,7 @@
 
             const getAgentColor = (agent) => {
                 switch (agent) {
-                    case 'Captain': return 'text-white border-white/30 bg-white/5';
+                    case 'Captain': return 'text-gold border-gold/40 bg-gradient-to-r from-gold/20 to-navy-deep/40';
                     case 'Gemini': return 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10';
                     case 'Contrarian': return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
                     case 'Guardian': return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
@@ -537,11 +607,12 @@
 
             return (
                 <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 overflow-hidden font-sans">
-                    <header className="px-6 py-4 bg-black/40 backdrop-blur-md border-b border-white/5 flex justify-between items-center z-10">
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-lg font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Synergy Agent Logs</h1>
+                    <header className="px-6 py-4 bg-black/40 backdrop-blur-md border-b border-white/5 flex flex-col z-10">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-[10px] font-mono border border-yellow-500/40 text-yellow-500 px-2 py-0.5 rounded-full uppercase tracking-widest mt-2">Live Feed</span>
+                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
                         </div>
-                        <span className="text-[10px] font-mono border border-yellow-500/40 text-yellow-500 px-2 py-0.5 rounded-full uppercase tracking-widest">Live Feed</span>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Synergy Agent Logs</h1>
                     </header>
 
                     <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
@@ -574,7 +645,7 @@
             useEffect(() => {
                 const fetchSignals = async () => {
                     try {
-                        const response = await fetch('/api/signals?min_score=0');
+                        const response = await fetch(API_BASE + '/api/signals?min_score=0');
                         if (response.ok) {
                             const data = await response.json();
                             setSignals(data);
@@ -593,20 +664,21 @@
 
             return (
                 <div className={`flex flex-col h-full transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/20' : 'bg-[#020617]'} text-white overflow-hidden font-display`}>
-                    <header className="px-6 py-6 pt-10 sticky top-0 z-10 bg-black/40 backdrop-blur-md border-b border-white/5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="font-bold text-xl tracking-tight flex items-center gap-2">
-                                    Journey Radar
-                                    {isHuntActive && <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded animate-pulse">HUNT ACTIVE</span>}
-                                </h1>
-                                <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] mt-1">Sector Tracking: 100 Assets</p>
-                            </div>
-                            <div className="flex gap-2 text-[10px] uppercase font-bold tracking-widest">
+                    <header className="px-6 py-6 pt-8 sticky top-0 z-10 bg-black/40 backdrop-blur-md border-b border-white/5 flex flex-col">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex gap-2 text-[10px] uppercase font-bold tracking-widest mt-2">
                                 <span className={`px-3 py-1 rounded-full border ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'} transition-colors`}>
                                     {isHuntActive ? 'Lock On' : 'Scanning'}
                                 </span>
                             </div>
+                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
+                        </div>
+                        <div>
+                            <h1 className="font-bold text-2xl tracking-tight flex items-center gap-2">
+                                Journey Radar
+                                {isHuntActive && <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded animate-pulse">HUNT ACTIVE</span>}
+                            </h1>
+                            <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] mt-1">Sector Tracking: 100 Assets</p>
                         </div>
                     </header>
 
@@ -681,7 +753,21 @@
             );
         };
 
-        // 3. Dashboard Page (Banca) - Modified for Real-time
+        const LandingPage = ({ onEnter }) => {
+            return (
+                <div className="landing-bg fixed inset-0 flex flex-col items-center justify-center z-[100] p-6">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>
+                    <button
+                        onClick={onEnter}
+                        className="relative z-10 bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 px-10 py-3 rounded-lg text-sm font-bold uppercase tracking-[0.3em] transition-all active:scale-95 shadow-2xl backdrop-blur-md"
+                    >
+                        Entrar
+                    </button>
+                </div>
+            );
+        };
+
+        // 3. Dashboard Page (Banca)
         const DashboardPage = () => {
             const [banca, setBanca] = useState({ saldo_total: 0, risco_real_percent: 0 });
             const [slots, setSlots] = useState([]);
@@ -709,14 +795,14 @@
                         try { document.getElementById('boot-status').innerText = "Syncing Neural Data..."; } catch (e) { }
 
                         // banca
-                        const rBanca = await safeFetch('/banca');
+                        const rBanca = await safeFetch(API_BASE + '/banca');
                         if (rBanca.ok) {
                             const data = await rBanca.json();
                             setBanca(data);
                         }
 
                         // slots
-                        const rSlots = await safeFetch('/api/slots');
+                        const rSlots = await safeFetch(API_BASE + '/api/slots');
                         if (rSlots.ok) {
                             const data = await rSlots.json();
                             if (Array.isArray(data)) {
@@ -732,7 +818,7 @@
                         }
 
                         // logs
-                        const rLogs = await safeFetch('/api/logs');
+                        const rLogs = await safeFetch(API_BASE + '/api/logs');
                         if (rLogs.ok) {
                             const data = await rLogs.json();
                             setLogs(data);
@@ -786,25 +872,55 @@
 
 
 
+            const { latency, status: pulseStatus } = usePulseMonitor();
+            const getPulseColor = () => {
+                if (pulseStatus === 'OFFLINE') return 'bg-red-500';
+                if (latency < 500) return 'bg-emerald-500';
+                if (latency < 2000) return 'bg-amber-500';
+                return 'bg-red-500';
+            };
+
+            const handlePanic = async () => {
+                if (!confirm("🚨 ATENÇÃO: Deseja realmente fechar TODAS as posições?")) return;
+                try {
+                    await fetch(API_BASE + '/panic', { method: 'POST' });
+                } catch (e) { alert("Erro ao executar Pânico"); }
+            };
+
             return (
                 <div className="h-screen flex flex-col overflow-hidden bg-space-black">
-                    <header className="glass-panel px-6 py-5 flex justify-between items-center z-50 border-b border-white/10">
-                        <div>
-                            <p className="text-[9px] text-slate-500 uppercase font-black tracking-[0.2em] mb-1">Portfolio Balance</p>
-                            <h1 className="text-3xl font-display text-white font-bold tracking-tighter premium-gradient-text uppercase">
-                                ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                            </h1>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10B981]"></span>
-                                <span className="text-[10px] text-slate-300 font-bold tracking-widest">SYSTEM ONLINE</span>
+                    <header className="glass-panel px-6 py-4 flex flex-col z-50 border-b border-white/10">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex flex-col gap-1 items-start mt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
+                                    <span className="text-[10px] text-slate-300 font-bold tracking-widest uppercase">PULSE: {latency}ms</span>
+                                </div>
+                                <div className="bg-primary/5 px-2 py-0.5 rounded border border-primary/20">
+                                    <span className="text-[8px] text-primary font-bold uppercase tracking-widest">Latency Lock</span>
+                                </div>
                             </div>
-                            <div className="bg-white/5 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">
-                                <span className="text-[9px] text-slate-500 mr-2 uppercase font-bold">Risk Exposure</span>
-                                <span className={`text-sm font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                    {(banca.risco_real_percent * 100).toFixed(2)}%
-                                </span>
+                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain drop-shadow-[0_0_10px_rgba(255,215,0,0.2)]" />
+                        </div>
+
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <p className="text-[9px] text-slate-500 uppercase font-black tracking-[0.2em] mb-1">Portfolio Balance</p>
+                                <h1 className="text-3xl font-display text-white font-bold tracking-tighter premium-gradient-text uppercase">
+                                    ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                                </h1>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Risk Allocation</span>
+                                    <span className={`text-xl font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                        {(banca.risco_real_percent * 100).toFixed(2)}%
+                                    </span>
+                                </div>
+                                <button onClick={handlePanic} className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_4px_15px_rgba(220,38,38,0.3)] active:scale-95">
+                                    <span className="material-icons-round text-sm">gpp_maybe</span>
+                                    <span className="text-[10px] font-bold tracking-widest">PANIC</span>
+                                </button>
                             </div>
                         </div>
                     </header>
@@ -883,7 +999,123 @@
             );
         };
 
-        const NavBar = () => {
+        // 4. History Page (Spreadsheet Results)
+        const HistoryPage = () => {
+            const [history, setHistory] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+
+            useEffect(() => {
+                const fetchHistory = async () => {
+                    try {
+                        const response = await fetch(API_BASE + '/api/banca-history');
+                        if (response.ok) {
+                            setHistory(await response.json());
+                        }
+                    } catch (e) {
+                        console.error("History Fetch Error:", e);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+                fetchHistory();
+            }, []);
+
+            return (
+                <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-6 overflow-hidden pb-24">
+                    <header className="mb-8 flex flex-col">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-[10px] text-primary/60 border border-primary/20 px-3 py-1 rounded-full font-mono uppercase mt-2">Sync: Operational</span>
+                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-display font-bold text-white premium-gradient-text uppercase tracking-tight">Mission Ledger</h1>
+                            <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] mt-1">Historical Performance Data</p>
+                        </div>
+                    </header>
+
+                    <div className="flex-1 overflow-auto glass-panel rounded-2xl border border-white/5 custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="sticky top-0 bg-navy-deep/40 backdrop-blur-xl z-20">
+                                <tr>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Timestamp</th>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Equity (USD)</th>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Risk Load</th>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10 text-right">Available Slots</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan="4" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase animate-pulse tracking-widest">Accessing archives...</td>
+                                    </tr>
+                                ) : history.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase tracking-widest">No historical data recorded.</td>
+                                    </tr>
+                                ) : history.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                                        <td className="p-4 text-xs font-mono text-slate-300">
+                                            {row.timestamp ? new Date(row.timestamp).toLocaleString() : '---'}
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm font-bold text-white font-display">
+                                                ${Number(row.saldo_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`text-xs font-mono ${row.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                                {(Number(row.risco_real_percent || 0) * 100).toFixed(2)}%
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <span className="text-xs font-bold text-primary/80 bg-primary/5 px-2 py-1 rounded border border-primary/20">
+                                                {row.avail_slots || row.slots_disponiveis || '--'} / 10
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const SettingsPage = () => {
+            return (
+                <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-6 overflow-y-auto pb-24">
+                    <header className="mb-8 flex flex-col">
+                        <div className="flex justify-end mb-2">
+                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-display font-bold text-white">Security Center</h1>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">V4.0 Armament Management</p>
+                        </div>
+                    </header>
+                    <div className="space-y-6">
+                        <div className="glass-card p-6 rounded-2xl">
+                            <h2 className="text-sm font-bold mb-4 flex items-center gap-2"><span className="material-icons-round text-primary text-sm">key</span> API Telemetry</h2>
+                            <div className="space-y-3">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Bybit Key</label>
+                                    <input type="text" disabled value="••••••••••••••••••••••" className="bg-black/40 border border-white/10 rounded-lg p-3 text-xs font-mono" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Environment</label>
+                                    <div className="flex gap-2">
+                                        <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-xs">TESTNET</button>
+                                        <button className="flex-1 bg-white/5 text-slate-500 border border-white/10 font-bold py-2 rounded-lg text-xs opacity-50">MAINNET</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )
+        };
+
+        const NavBar = ({ onLogout }) => {
             const location = useLocation();
             return (
                 <nav className="fixed bottom-0 w-full h-16 bg-black/95 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-50">
@@ -899,28 +1131,71 @@
                         <span className="material-icons-round">terminal</span>
                         <span className="text-[8px] font-bold">LOGS</span>
                     </Link>
+                    <Link to="/history" className={`flex flex-col items-center ${location.pathname === '/history' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
+                        <span className="material-icons-round">history_edu</span>
+                        <span className="text-[8px] font-bold">RESULTS</span>
+                    </Link>
+                    <Link to="/settings" className={`flex flex-col items-center ${location.pathname === '/settings' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
+                        <span className="material-icons-round">settings</span>
+                        <span className="text-[8px] font-bold">SETTINGS</span>
+                    </Link>
+                    <button onClick={onLogout} className="flex flex-col items-center text-red-500/60 hover:text-red-500">
+                        <span className="material-icons-round">logout</span>
+                        <span className="text-[8px] font-bold uppercase">Sair</span>
+                    </button>
                 </nav>
             );
         };
 
 
         const App = () => {
+            const [isLanding, setIsLanding] = useState(() => {
+                // Check if user already entered in this session
+                return sessionStorage.getItem('1crypten_entered') !== 'true';
+            });
+
             useEffect(() => {
                 // Remove boot shield once React is mounted
                 const shield = document.getElementById('boot-shield');
                 if (shield) {
-                    // Failsafe: Remove after 3 seconds to ensure interface visibility
                     const failsafe = setTimeout(() => {
                         shield.style.opacity = '0';
                         setTimeout(() => {
                             shield.style.display = 'none';
                             shield.remove();
                         }, 800);
-                    }, 3000);
+                    }, 1000); // Faster boot now that we have a Landing Page
 
                     return () => clearTimeout(failsafe);
                 }
             }, []);
+
+            // PWA Registration
+            useEffect(() => {
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js').then(registration => {
+                            console.log('SW registered:', registration);
+                        }).catch(error => {
+                            console.log('SW registration failed:', error);
+                        });
+                    });
+                }
+            }, []);
+
+            const handleLogout = () => {
+                sessionStorage.removeItem('1crypten_entered');
+                setIsLanding(true);
+            };
+
+            const handleEnter = () => {
+                setIsLanding(false);
+                sessionStorage.setItem('1crypten_entered', 'true');
+            };
+
+            if (isLanding) {
+                return <LandingPage onEnter={handleEnter} />;
+            }
 
             return (
                 <HashRouter>
@@ -929,8 +1204,10 @@
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/radar" element={<JourneyPage />} />
                             <Route path="/logs" element={<LogsPage />} />
+                            <Route path="/history" element={<HistoryPage />} />
+                            <Route path="/settings" element={<SettingsPage />} />
                         </Routes>
-                        <NavBar />
+                        <NavBar onLogout={handleLogout} />
                     </div>
                 </HashRouter>
             );

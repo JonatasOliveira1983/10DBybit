@@ -120,7 +120,8 @@ class GuardianAgent:
                             await firebase_service.update_slot(slot["id"], {
                                 "current_stop": entry,
                                 "status_risco": "RISK_FREE (GUARDIAN)",
-                                "pnl_percent": pnl_pct # Persist PnL for frontend
+                                "pnl_percent": pnl_pct, # Persist PnL for frontend
+                                "pensamento": f"🛡️ Lucro de {pnl_pct:.2f}% atingido. Stop movido para 0-0. Risco reciclado."
                             })
                             await firebase_service.log_event("Guardian", f"🛡️ SECURED: {symbol} SL moved to Entry. Profit: {pnl_pct:.2f}%", "SUCCESS")
                         else:

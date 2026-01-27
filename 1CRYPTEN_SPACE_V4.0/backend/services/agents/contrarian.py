@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from services.bybit_rest import bybit_rest_service
 from services.bybit_ws import bybit_ws_service
 
@@ -9,14 +10,14 @@ class ContrarianAgent:
     def __init__(self):
         self.funding_threshold = 0.0008 # 0.08%
 
-    async def check_flip_opportunity(self, symbol: str):
+    async def analyze(self, symbol: str):
         """
         Monitors for extreme sentiment and exaustão in price/volume.
         Triggers the P.I.R. (Protocolo de Identificação de Reversão).
         """
         try:
             # 1. Fetch current funding rate from Bybit
-            tickers = bybit_rest_service.session.get_tickers(category="linear", symbol=symbol)
+            tickers = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=symbol)
             ticker_data = tickers.get("result", {}).get("list", [{}])[0]
             funding_rate = float(ticker_data.get("fundingRate", 0))
             
@@ -24,19 +25,18 @@ class ContrarianAgent:
             cvd_score = bybit_ws_service.get_cvd_score(symbol)
             
             # 3. Decision Logic (Flip)
-            # Scenario: Extreme Long funding + High Price + Falling CVD = Absorption/Exhaustion
+            sentiment = None
             if funding_rate > self.funding_threshold and cvd_score < 0:
                 logger.warning(f"Extreme Long Sentiment detected for {symbol} with CVD exhaustion. Triggering FLIP SHORT.")
-                return "SHORT"
+                sentiment = "Sell" # Side format matching Captain
             
-            # Scenario: Extreme Short funding + Low Price + Rising CVD = Bottoming/Absorption
             if funding_rate < -self.funding_threshold and cvd_score > 0:
                 logger.warning(f"Extreme Short Sentiment detected for {symbol} with CVD absorption. Triggering FLIP LONG.")
-                return "LONG"
+                sentiment = "Buy" # Side format matching Captain
                 
-            return None
+            return {"sentiment": sentiment, "funding_rate": funding_rate, "cvd_score": cvd_score}
         except Exception as e:
             logger.error(f"Error checking flip for {symbol}: {e}")
-            return None
+            return {"sentiment": None}
 
 contrarian_agent = ContrarianAgent()
