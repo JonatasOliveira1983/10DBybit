@@ -30,27 +30,27 @@ class AIService:
                 
                 # Diagnostic: List models to log what's available
                 try:
-                    available_models = [m.name for m in genai.list_models()]
-                    logger.info(f"Available Gemini Models: {available_models}")
+                    models = list(genai.list_models())
+                    available_names = [m.name for m in models]
+                    logger.info(f"Available Gemini Models: {available_names}")
+                    
+                    # Try to find a flash model in the list
+                    found_model = None
+                    for m in models:
+                        if 'flash' in m.name.lower() and 'generateContent' in m.supported_generation_methods:
+                            found_model = m.name
+                            break
+                    
+                    if found_model:
+                        self.gemini_model = genai.GenerativeModel(found_model)
+                        logger.info(f"Gemini Client Initialized with detected model: {found_model}")
+                    else:
+                        # Fallback to standard names if list failed or nothing found
+                        self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+                        logger.info("Gemini Client fallback to 'gemini-1.5-flash'")
                 except Exception as list_err:
-                    logger.warning(f"Could not list models (possibly API restricted): {list_err}")
-                
-                # Try multiple stable/beta names for 1.5-flash
-                # Some API keys/regions expect different identifiers
-                candidate_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'models/gemini-1.5-flash']
-                
-                for model_name in candidate_names:
-                    try:
-                        self.gemini_model = genai.GenerativeModel(model_name)
-                        # Test if it actually works by checking if it was assigned
-                        if self.gemini_model:
-                             logger.info(f"Gemini Client Initialized with model: {model_name}")
-                             break
-                    except Exception as mod_err:
-                        logger.debug(f"Candidate model {model_name} failed: {mod_err}")
-                
-                if not self.gemini_model:
-                    logger.error("All Gemini 1.5 Flash candidate names failed.")
+                    logger.warning(f"Could not list models: {list_err}. Falling back to default name.")
+                    self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini Client: {e}")
 

@@ -94,22 +94,22 @@ class FirebaseService:
 
 
     async def get_banca_status(self):
-
-        
         if not self.is_active:
-            return {"saldo_total": 0, "risco_real_percent": 0, "slots_disponiveis": 10, "status": "OFFLINE"}
+            # Try to re-initialize if currently inactive
+            await self.initialize()
+            if not self.is_active:
+                return {"saldo_total": 0, "risco_real_percent": 0, "slots_disponiveis": 10, "status": "OFFLINE"}
             
         try:
             # Wrap blocking call with timeout
             doc = await asyncio.wait_for(
                 asyncio.to_thread(self.db.collection("banca_status").document("status").get),
-                timeout=5.0  # 5 second timeout
+                timeout=10.0  # Increased to 10 seconds for reliability
             )
             if doc.exists:
                 return doc.to_dict()
         except asyncio.TimeoutError:
-            logger.error("Firebase timeout ao buscar banca status")
-            self.is_active = False  # Disable Firebase on timeout
+            logger.warning("Firebase timeout ao buscar banca status. System remains active but this request failed.")
             return {"saldo_total": 0, "risco_real_percent": 0, "slots_disponiveis": 10, "status": "TIMEOUT"}
         except Exception as e:
             logger.error(f"Error fetching banca: {e}")
