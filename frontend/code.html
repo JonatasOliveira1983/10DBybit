@@ -261,18 +261,31 @@
         const usePulseMonitor = () => {
             const [latency, setLatency] = useState(0);
             const [status, setStatus] = useState('OFFLINE');
+            const lastUpdateRef = useRef(0);
 
             useEffect(() => {
                 const pulseRef = rtdb.ref('system_pulse');
                 const unsubscribe = pulseRef.on('value', (snapshot) => {
                     const data = snapshot.val();
                     if (data && data.timestamp) {
+                        lastUpdateRef.current = Date.now();
                         const lat = Date.now() - data.timestamp;
                         setLatency(Math.max(0, lat));
                         setStatus('ONLINE');
                     }
                 });
-                return () => pulseRef.off('value', unsubscribe);
+
+                const checker = setInterval(() => {
+                    const diff = Date.now() - lastUpdateRef.current;
+                    if (diff > 10000) { // 10 seconds timeout
+                        setStatus('OFFLINE');
+                    }
+                }, 2000);
+
+                return () => {
+                    pulseRef.off('value', unsubscribe);
+                    clearInterval(checker);
+                };
             }, []);
 
             return { latency, status };
@@ -588,6 +601,7 @@
         // 1. Logs Page (Synergy Agent Logs)
         const LogsPage = () => {
             const [logs, setLogs] = useState([]);
+            const { latency, status: pulseStatus } = usePulseMonitor();
 
             useEffect(() => {
                 const fetchLogs = async () => {
@@ -625,7 +639,12 @@
                 <div className="flex flex-col min-h-screen bg-[#0A0A0B] text-slate-100 font-sans pb-20">
                     <header className="px-6 py-4 bg-black/40 backdrop-blur-md border-b border-white/5 flex flex-col z-10">
                         <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] font-mono border border-yellow-500/40 text-yellow-500 px-2 py-0.5 rounded-full uppercase tracking-widest mt-2">Live Feed</span>
+                            <div className="flex flex-col gap-1 items-start mt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-500')} animate-pulse`}></span>
+                                    <span className="text-[9px] text-slate-400 font-mono uppercase tracking-widest">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
+                                </div>
+                            </div>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
                         </div>
                         <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Synergy Agent Logs</h1>
@@ -656,6 +675,7 @@
         const JourneyPage = () => {
             const [signals, setSignals] = useState([]);
             const [isHuntActive, setIsHuntActive] = useState(false);
+            const { latency, status: pulseStatus } = usePulseMonitor();
 
             // Fetch Signals via API
             useEffect(() => {
@@ -682,10 +702,16 @@
                 <div className={`flex flex-col min-h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/20' : 'bg-[#020617]'} text-white font-display pb-20`}>
                     <header className="px-6 py-6 pt-8 sticky top-0 z-10 bg-black/40 backdrop-blur-md border-b border-white/5 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
-                            <div className="flex gap-2 text-[10px] uppercase font-bold tracking-widest mt-2">
-                                <span className={`px-3 py-1 rounded-full border ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'} transition-colors`}>
-                                    {isHuntActive ? 'Lock On' : 'Scanning'}
-                                </span>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex gap-2 text-[10px] uppercase font-bold tracking-widest">
+                                    <span className={`px-3 py-1 rounded-full border ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'} transition-colors`}>
+                                        {isHuntActive ? 'Lock On' : 'Scanning'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 ml-1">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-500')} animate-pulse`}></span>
+                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : `${latency}ms`}</span>
+                                </div>
                             </div>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
                         </div>
@@ -896,9 +922,8 @@
             const { latency, status: pulseStatus } = usePulseMonitor();
             const getPulseColor = () => {
                 if (pulseStatus === 'OFFLINE') return 'bg-red-500';
-                // Relaxed for Testnet/Global environments
-                if (latency < 1000) return 'bg-emerald-500';
-                if (latency < 5000) return 'bg-amber-500';
+                if (latency < 2500) return 'bg-emerald-500';
+                if (latency < 7000) return 'bg-amber-500';
                 return 'bg-red-500';
             };
 
@@ -911,12 +936,25 @@
 
             return (
                 <div className="min-h-screen flex flex-col bg-space-black pb-20">
+                    {pulseStatus === 'OFFLINE' && (
+                        <div className="fixed inset-0 z-[100] bg-red-950/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+                            <div className="bg-black/80 border border-red-500/50 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-pulse">
+                                <span className="material-icons-round text-red-500 text-4xl">wifi_off</span>
+                                <div className="text-center">
+                                    <h3 className="text-red-500 font-bold uppercase tracking-widest">Capitão Offline</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Conexão Neuronal Interrompida</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <header className="glass-panel px-6 py-4 flex flex-col z-50 border-b border-white/10">
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex flex-col gap-1 items-start mt-2">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
-                                    <span className="text-[10px] text-slate-300 font-bold tracking-widest uppercase">PULSE: {latency}ms</span>
+                                    <span className="text-[10px] text-slate-300 font-bold tracking-widest uppercase">
+                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : `${latency}ms`}
+                                    </span>
                                 </div>
                                 <div className="bg-primary/5 px-2 py-0.5 rounded border border-primary/20">
                                     <span className="text-[8px] text-primary font-bold uppercase tracking-widest">Latency Lock</span>
@@ -1025,6 +1063,7 @@
         const HistoryPage = () => {
             const [history, setHistory] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
+            const { latency, status: pulseStatus } = usePulseMonitor();
 
             useEffect(() => {
                 const fetchHistory = async () => {
@@ -1046,7 +1085,12 @@
                 <div className="flex flex-col min-h-screen bg-[#000000] text-slate-100 font-sans p-6 pb-24">
                     <header className="mb-8 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] text-primary/60 border border-primary/20 px-3 py-1 rounded-full font-mono uppercase mt-2">Neural Ledger: Active</span>
+                            <div className="flex flex-col gap-1 items-start mt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-500')} animate-pulse`}></span>
+                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : `${latency}ms`}</span>
+                                </div>
+                            </div>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
                         </div>
                         <div>

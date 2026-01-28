@@ -241,33 +241,20 @@ class BankrollManager:
             await firebase_service.log_event("Captain", f"Trade FAILED: Could not fetch price for {symbol}.", "WARNING")
             return None
 
-        # If SL not provided, set it at 1% for Long, 1% above for Short
-        if sl_price == 0:
-            sl_price = current_price * 0.99 if side == "Buy" else current_price * 1.01
-
-        # 2. Dynamic Qty calculation (5% margin at 50x) with exchange precision
+        # 2. Dynamic Qty calculation (1% margin per slot at LEVERAGE) with exchange precision
         info = await asyncio.to_thread(bybit_rest_service.get_instrument_info, symbol)
         qty_step = float(info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
         
-        banca = await firebase_service.get_banca_status()
-        balance = banca.get("saldo_total", 0)
-        
-        # fallback to live if DB is empty
-        if balance < 5:
-            logger.info("Local balance is low/zero, fetching live from Bybit for trade validation...")
-            balance = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
-
+        balance = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
         if balance < 10:
             logger.warning(f"Balance too low for trading: ${balance}")
             await firebase_service.log_event("Captain", f"Trade REJECTED: Insufficient balance (${balance:.2f}). Min $10 required.", "WARNING")
             return None
             
-        margin = balance * self.margin_per_slot
-        leverage = settings.LEVERAGE # 50
+        margin = balance * self.margin_per_slot # 1% margin
+        leverage = settings.LEVERAGE # 50x
         raw_qty = (margin * leverage) / current_price
         
-        logger.info(f"[Bankroll] Sizing: Balance={balance}, Margin={margin}, Lev={leverage}, Price={current_price} -> Raw Qty={raw_qty}")
-
         # Round to qtyStep precision
         import math
         if qty_step > 0:
@@ -276,12 +263,18 @@ class BankrollManager:
         else:
             qty = round(raw_qty, 3)
 
-        # Final safety against insane quantities
-        if qty > 10000000 and current_price > 0.0001: 
-             logger.warning(f"Quantity {qty} seems too high for {symbol}. Capping.")
-             qty = 1000 # Emergency cap for safety
+        # Final SL Safety Check (Liquid-Proof enforcement)
+        if side == "Buy":
+             # Ensure SL is below entry. If not or zero, set to 2% below.
+             if sl_price >= current_price or sl_price <= 0:
+                 sl_price = current_price * 0.98
+        else:
+             # Ensure SL is above entry. If not or zero, set to 2% above.
+             if sl_price <= current_price or sl_price <= 0:
+                 sl_price = current_price * 1.02
 
-        await firebase_service.log_event("Captain", f"SNIPER DEPLOYED: {side} {qty} {symbol} @ {current_price} | SL: {sl_price}", "SUCCESS")
+        await firebase_service.log_event("Captain", f"SNIPER DEPLOYED: {side} {qty} {symbol} @ {current_price} | HARD STOP: {sl_price}", "SUCCESS")
+        logger.info(f"[Safety] Atomic Order for {symbol} triggered with Hard Stop at {sl_price}")
 
         
         # Place Atomic Order
