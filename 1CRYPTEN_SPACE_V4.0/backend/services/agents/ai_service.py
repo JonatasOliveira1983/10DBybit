@@ -11,6 +11,7 @@ class AIService:
     def __init__(self):
         self.glm_client = None
         self.gemini_model = None
+        self.backoff_until = 0 # Timestamp to avoid calls during quota limits
         self._setup_ai()
 
     def _setup_ai(self):
@@ -58,11 +59,15 @@ class AIService:
         """
         Generates content using GLM-4.7 primarily, falling back to Gemini.
         """
+        import time
+        if time.time() < self.backoff_until:
+            logger.info(f"AI Quota Backoff active. Skipping call. (Remaining: {int(self.backoff_until - time.time())}s)")
+            return None
+
         text = None
         # Try GLM Primary
         if self.glm_client:
             try:
-                logger.info("Attempting generation with GLM-4.7 (glm-4-plus)...")
                 response = self.glm_client.chat.completions.create(
                     model="glm-4-plus", 
                     messages=[
@@ -73,27 +78,32 @@ class AIService:
                     temperature=0.9
                 )
                 text = response.choices[0].message.content
-                if text:
-                    logger.info("GLM-4-Plus generation successful.")
-                    return text.strip()
+                if text: return text.strip()
             except Exception as e:
-                logger.warning(f"GLM-4-Plus failed, falling back to Gemini: {e}")
-                await firebase_service.log_event("AI_FAILOVER", f"GLM failed: {e}. Switching to Gemini.", "WARNING")
+                err_str = str(e).lower()
+                if "429" in err_str or "quota" in err_str:
+                    logger.warning("GLM Quota hit. Backing off for 60s.")
+                    self.backoff_until = time.time() + 60
+                logger.warning(f"GLM-4-Plus failed: {e}")
 
         # Try Gemini Backup
         if self.gemini_model:
             try:
-                logger.info("Attempting generation with Gemini-1.5-Flash...")
                 full_prompt = f"{system_instruction}\n\n{prompt}"
                 response = self.gemini_model.generate_content(full_prompt)
                 if response and hasattr(response, 'text'):
                     text = response.text
-                    if text:
-                        logger.info("Gemini generation successful.")
-                        return text.strip()
+                    if text: return text.strip()
             except Exception as e:
-                logger.error(f"Gemini backup also failed: {e}")
-                await firebase_service.log_event("AI_ERROR", f"Both GLM and Gemini failed: {e}", "ERROR")
+                err_str = str(e).lower()
+                if "429" in err_str or "quota" in err_str or "exhausted" in err_str:
+                    # If we hit 429 on the backup, it's serious. Back off for 5 mins.
+                    logger.warning("Gemini Quota exhausted. Backing off AI for 300s.")
+                    self.backoff_until = time.time() + 300
+                    await firebase_service.log_event("AI_QUOTA", "Gemini Quota hit. Backing off for 5 minutes.", "WARNING")
+                logger.error(f"Gemini also failed: {e}")
+
+        return None
 
         return None
 

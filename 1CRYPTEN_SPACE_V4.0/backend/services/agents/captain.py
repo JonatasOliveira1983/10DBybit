@@ -26,37 +26,28 @@ class CaptainAgent:
             try:
                 # 1. Fetch recent signals not yet processed
                 signals = await firebase_service.get_recent_signals(limit=10)
-                logger.info(f"Captain scanned {len(signals)} signals.")
-                await firebase_service.log_event("Captain", f"Scanning {len(signals)} potential entries...", "DEBUG")
-
                 
-                # Get current time to only process NEW signals (last 5 mins)
-                now = datetime.now(timezone.utc)
+                # 1.1 Refresh active slots ONCE per cycle to avoid double entry and save Firebase quota
+                active_slots = await firebase_service.get_active_slots()
+                active_symbols = [s["symbol"] for s in active_slots if s.get("symbol")]
+
+                logger.info(f"Captain scanned {len(signals)} signals. Active: {len(active_symbols)}")
                 
                 for signal in signals:
-                    # 1.1 Refresh active slots each signal to avoid double entry
-                    active_slots = await firebase_service.get_active_slots()
-                    active_symbols = [s["symbol"] for s in active_slots if s.get("symbol")]
-
                     # Skip if already has an outcome (means it was already processed)
-
                     if signal.get("outcome") is not None:
                         continue
 
                     # Sniper Rule: Skip BTCUSDT (Only use BTC as market compass)
                     if "BTCUSDT" in signal["symbol"]:
-                        logger.info(f"Skipping {signal['symbol']}: Sniper mode uses BTC only as compass.")
                         continue
 
                     if signal["symbol"] in active_symbols:
-                        logger.info(f"Skipping {signal['symbol']}: Already in active slot.")
-                        await firebase_service.log_event("Captain", f"Symbol {signal['symbol']} skipped: Already in an active slot.", "DEBUG")
                         continue
 
                     # Efficiency: Use fixed threshold (85) since ML is disabled
                     sniper_threshold = 85
                     if signal["score"] < sniper_threshold:
-                         await firebase_service.log_event("Captain", f"Signal for {signal['symbol']} (Score: {signal['score']}) below Sniper threshold ({sniper_threshold}). Ignoring.", "DEBUG")
                          continue
 
 
@@ -66,7 +57,6 @@ class CaptainAgent:
                     news_advice = await news_sensor.analyze()
                     
                     # 3. Decision & Reasoning
-                    # CVD logic + Sensor inputs
                     cvd = signal.get("indicators", {}).get("cvd", 0)
                     side = "Buy" if cvd >= 0 else "Sell"
                     
@@ -104,10 +94,10 @@ class CaptainAgent:
                         pensamento=pensamento # Pass the reasoning to bankroll
                     )
 
-                await asyncio.sleep(5) # Accelerated Sniper Scan (5s)
+                await asyncio.sleep(10) # Reduced scan frequency to 10s
             except Exception as e:
                 logger.error(f"Error in Captain monitor loop: {e}")
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)
 
     async def monitor_active_positions_loop(self):
         """
@@ -120,30 +110,31 @@ class CaptainAgent:
                 trading_slots = [s for s in active_slots if s.get("symbol")]
                 
                 if not trading_slots:
-                    await asyncio.sleep(30)
+                    await asyncio.sleep(60)
                     continue
 
-                for slot in trading_slots:
-                    symbol = slot["symbol"]
-                    pnl = slot.get("pnl_percent", 0)
-                    side = slot.get("side", "Buy")
-                    
-                    # Generate short telemetry update
-                    prompt = f"Como Capitão da 1CRYPTEN, forneça uma telemetria neural curtíssima (máximo 12 palavras) para {symbol} ({side}) com {pnl:.2f}% ROI. Seja técnico."
-                    telemetry = await ai_service.generate_content(prompt, system_instruction="Você é o Capitão Soberano. Sua fala é telemetria neural de elite.")
-                    
-                    if not telemetry:
-                        # Technical Fallback if AI is offline/unbalanced
-                        telemetry = f"Vetor {symbol} em {pnl:.2f}% ROI. Sincronia {side} ativa."
-                    
-                    # Ensure symbol is in the message for frontend filtering
-                    await firebase_service.log_event("Captain", f"[{symbol}] TELEMETRIA: {telemetry}", "INFO")
-                    
-                    await asyncio.sleep(3) # Throttle AI calls
+                # AI Quota Saver: Pick only ONE slot per cycle to provide telemetry
+                import random
+                slot = random.choice(trading_slots)
+                
+                symbol = slot["symbol"]
+                pnl = slot.get("pnl_percent", 0)
+                side = slot.get("side", "Buy")
+                
+                # Generate short telemetry update
+                prompt = f"Como Capitão da 1CRYPTEN, forneça uma telemetria neural curtíssima (máximo 12 palavras) para {symbol} ({side}) com {pnl:.2f}% ROI. Seja técnico."
+                telemetry = await ai_service.generate_content(prompt, system_instruction="Você é o Capitão Soberano. Sua fala é telemetria neural de elite.")
+                
+                if not telemetry:
+                    # Technical Fallback if AI is offline/unbalanced
+                    telemetry = f"Vetor {symbol} em {pnl:.2f}% ROI. Sincronia {side} ativa."
+                
+                # Ensure symbol is in the message for frontend filtering
+                await firebase_service.log_event("Captain", f"[{symbol}] TELEMETRIA: {telemetry}", "INFO")
 
-                await asyncio.sleep(60) # Full sweep every 60s
+                await asyncio.sleep(300) # Full sweep every 5 minutes to save quota
             except Exception as e:
                 logger.error(f"Error in telemetry loop: {e}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(60)
 
 captain_agent = CaptainAgent()

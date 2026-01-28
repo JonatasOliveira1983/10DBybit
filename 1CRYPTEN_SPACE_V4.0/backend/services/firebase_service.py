@@ -173,21 +173,23 @@ class FirebaseService:
         if not self.is_active: 
             return self.slots_cache
             
+        # Debounce: If we fetched less than 2s ago, return cache immediately to save quota
+        now_time = time.time()
+        if hasattr(self, 'last_slots_fetch') and (now_time - self.last_slots_fetch) < 2.0:
+            return self.slots_cache
+
         try:
             def _get_slots():
                 # Stream the actual documents
                 docs = self.db.collection("slots_ativos").order_by("id").stream()
                 return [doc.to_dict() for doc in docs]
             
-            # Increase timeout and handle transient network lag
-            data = await asyncio.wait_for(asyncio.to_thread(_get_slots), timeout=5.0)
+            # Increase timeout further for high-latency environments
+            data = await asyncio.wait_for(asyncio.to_thread(_get_slots), timeout=10.0)
             
             if data and len(data) >= 1:
-                # Critical: Only overwrite the cache if the data actually contains active trades 
-                # OR if it's a full list of 10. This prevents "blanking out" on partial reads.
-                # If we get a perfectly valid empty list from the DB, we allow it (meaning positions were closed).
-                # But if it's a transient failure that returns empty/None, we stay with the cache.
                 self.slots_cache = data
+                self.last_slots_fetch = now_time
                 return self.slots_cache
                 
         except Exception as e:
