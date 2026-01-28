@@ -262,8 +262,10 @@
             const [latency, setLatency] = useState(0);
             const [status, setStatus] = useState('OFFLINE');
             const lastUpdateRef = useRef(0);
+            const channelRef = useRef('NONE'); // RTDB or REST
 
             useEffect(() => {
+                // Primary: Firebase RTDB
                 const pulseRef = rtdb.ref('system_pulse');
                 const unsubscribe = pulseRef.on('value', (snapshot) => {
                     const data = snapshot.val();
@@ -272,25 +274,36 @@
                         const lat = Date.now() - data.timestamp;
                         setLatency(Math.max(0, lat));
                         setStatus('ONLINE');
+                        channelRef.current = 'RTDB';
                     }
                 });
+
+                // Secondary: REST API Pulse (Dual Heartbeat)
+                const onRestPulse = () => {
+                    lastUpdateRef.current = Date.now();
+                    // If we were offline or warning, upgrade to DEGRADED
+                    setStatus(prev => (prev === 'OFFLINE' || prev === 'WARNING') ? 'DEGRADED' : prev);
+                    channelRef.current = 'REST';
+                };
+                window.addEventListener('rest-pulse', onRestPulse);
 
                 const checker = setInterval(() => {
                     const diff = Date.now() - lastUpdateRef.current;
                     if (diff > 60000) { // 60 seconds = HARD OFFLINE
                         setStatus('OFFLINE');
-                    } else if (diff > 20000) { // 20 seconds = WARNING
-                        setStatus('WARNING');
+                    } else if (diff > 25000) { // 25 seconds = WARNING (Firebase lagging)
+                        setStatus(channelRef.current === 'REST' ? 'DEGRADED' : 'WARNING');
                     }
                 }, 5000);
 
                 return () => {
                     pulseRef.off('value', unsubscribe);
+                    window.removeEventListener('rest-pulse', onRestPulse);
                     clearInterval(checker);
                 };
             }, []);
 
-            return { latency, status };
+            return { latency, status, channel: channelRef.current };
         };
         const TradingChart = ({ symbol, entryPrice, stopLossPrice, side, pnlFallback }) => {
             const chartContainerRef = useRef();
@@ -825,13 +838,17 @@
             // Fetch Data via API
             useEffect(() => {
                 const fetchData = async () => {
-                    const safeFetch = async (url) => {
+                    const safeFetch = async (url, options = {}) => {
                         try {
-                            const response = await fetch(url);
-                            return response;
+                            const res = await fetch(url, options);
+                            if (res.ok) {
+                                // Dual Heartbeat: Signal that the REST API is alive
+                                window.dispatchEvent(new CustomEvent('rest-pulse'));
+                            }
+                            return res;
                         } catch (e) {
                             console.warn(`Fetch error for ${url}:`, e);
-                            return { ok: false };
+                            return { ok: false, json: async () => ({}) };
                         }
                     };
 
@@ -925,6 +942,7 @@
             const getPulseColor = () => {
                 if (pulseStatus === 'OFFLINE') return 'bg-red-500';
                 if (pulseStatus === 'WARNING') return 'bg-amber-500';
+                if (pulseStatus === 'DEGRADED') return 'bg-blue-400';
                 if (latency < 3000) return 'bg-emerald-500';
                 if (latency < 10000) return 'bg-amber-400';
                 return 'bg-amber-600';
@@ -956,7 +974,7 @@
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
                                     <span className="text-[10px] text-slate-300 font-bold tracking-widest uppercase">
-                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : `${latency}ms`)}
+                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : (pulseStatus === 'DEGRADED' ? 'REST: OK' : `${latency}ms`))}
                                     </span>
                                 </div>
                                 <div className="bg-primary/5 px-2 py-0.5 rounded border border-primary/20">
