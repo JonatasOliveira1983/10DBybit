@@ -78,11 +78,12 @@ class GuardianAgent:
                 
                 if last_price == 0: continue
 
-                # Calculate PnL %
+                # Calculate PnL % (including leverage for UI consistency)
+                leverage = getattr(settings, 'LEVERAGE', 50)
                 if side == "Buy":
-                    pnl_pct = (last_price - entry) / entry * 100
+                    pnl_pct = (last_price - entry) / entry * 100 * leverage
                 else:
-                    pnl_pct = (entry - last_price) / entry * 100
+                    pnl_pct = (entry - last_price) / entry * 100 * leverage
                 
                 # Check Trigger
                 # Always update PnL in DB periodically? Too much write?

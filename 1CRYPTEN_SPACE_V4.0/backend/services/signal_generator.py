@@ -48,9 +48,17 @@ class SignalGenerator:
                     continue
 
                 # 1. Scan all active symbols from WS service
-                active_symbols = bybit_ws_service.active_symbols
+                active_symbols_ws = bybit_ws_service.active_symbols
+                
+                # Fetch active slots symbols to avoid redundant signals
+                slots = await firebase_service.get_active_slots()
+                occupied_symbols = [s["symbol"] for s in slots if s.get("symbol")]
 
-                for symbol in active_symbols:
+                for symbol in active_symbols_ws:
+                    # Sniper Rule: Don't scan symbols already in operation
+                    if symbol in occupied_symbols:
+                        continue
+
                     # Calculate Signal Score based on CVD
                     cvd_val = bybit_ws_service.get_cvd_score(symbol)
                     

@@ -809,12 +809,17 @@
                         const rSlots = await safeFetch(API_BASE + '/api/slots');
                         if (rSlots.ok) {
                             const data = await rSlots.json();
-                            if (Array.isArray(data)) {
+                            // Resilience: Only update if we received a valid payload with slots
+                            if (Array.isArray(data) && data.length > 0) {
                                 setSlots(data);
-                                // Initial selection or sync
+                                // Sync selected slot without losing local state on transient nulls
                                 if (data.length > 0) {
                                     setSelectedSlot(prev => {
-                                        if (prev) return data.find(x => x.id === prev.id) || prev;
+                                        if (prev) {
+                                            const updated = data.find(x => x.id === prev.id);
+                                            // Only switch if the new one has a symbol, or preserve existing if incoming is empty
+                                            return (updated && updated.symbol) ? updated : prev;
+                                        }
                                         return data.find(x => x.symbol) || data[0];
                                     });
                                 }
@@ -1011,7 +1016,7 @@
             useEffect(() => {
                 const fetchHistory = async () => {
                     try {
-                        const response = await fetch(API_BASE + '/api/banca-history');
+                        const response = await fetch(API_BASE + '/api/history');
                         if (response.ok) {
                             setHistory(await response.json());
                         }
@@ -1028,12 +1033,12 @@
                 <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-6 overflow-hidden pb-24">
                     <header className="mb-8 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] text-primary/60 border border-primary/20 px-3 py-1 rounded-full font-mono uppercase mt-2">Sync: Operational</span>
+                            <span className="text-[10px] text-primary/60 border border-primary/20 px-3 py-1 rounded-full font-mono uppercase mt-2">Neural Ledger: Active</span>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
                         </div>
                         <div>
                             <h1 className="text-2xl font-display font-bold text-white premium-gradient-text uppercase tracking-tight">Mission Ledger</h1>
-                            <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] mt-1">Historical Performance Data</p>
+                            <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] mt-1">Closed Operations Log</p>
                         </div>
                     </header>
 
@@ -1041,40 +1046,45 @@
                         <table className="w-full text-left border-collapse">
                             <thead className="sticky top-0 bg-navy-deep/40 backdrop-blur-xl z-20">
                                 <tr>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Timestamp</th>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Equity (USD)</th>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Risk Load</th>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10 text-right">Available Slots</th>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Asset / Side</th>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Entry / Exit</th>
+                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10 text-right">PnL (Realized)</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan="4" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase animate-pulse tracking-widest">Accessing archives...</td>
+                                        <td colSpan="3" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase animate-pulse tracking-widest">Accessing archives...</td>
                                     </tr>
                                 ) : history.length === 0 ? (
                                     <tr>
-                                        <td colSpan="4" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase tracking-widest">No historical data recorded.</td>
+                                        <td colSpan="3" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase tracking-widest">No historical data recorded.</td>
                                     </tr>
                                 ) : history.map((row, idx) => (
                                     <tr key={idx} className="hover:bg-white/5 transition-colors group">
-                                        <td className="p-4 text-xs font-mono text-slate-300">
-                                            {row.timestamp ? new Date(row.timestamp).toLocaleString() : '---'}
+                                        <td className="p-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-white font-mono">{row.symbol}</span>
+                                                <span className={`text-[10px] font-black uppercase ${row.side === 'Buy' ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                                    {row.side === 'Buy' ? 'LONG 50x' : 'SHORT 50x'}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className="text-sm font-bold text-white font-display">
-                                                ${Number(row.saldo_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </span>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`text-xs font-mono ${row.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                                {(Number(row.risco_real_percent || 0) * 100).toFixed(2)}%
-                                            </span>
+                                            <div className="flex flex-col font-mono text-[10px] text-slate-400">
+                                                <span><span className="opacity-50 uppercase mr-1">In:</span> {Number(row.entry_price || 0).toFixed(4)}</span>
+                                                <span><span className="opacity-50 uppercase mr-1">Out:</span> {Number(row.exit_price || 0).toFixed(4)}</span>
+                                            </div>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <span className="text-xs font-bold text-primary/80 bg-primary/5 px-2 py-1 rounded border border-primary/20">
-                                                {row.avail_slots || row.slots_disponiveis || '--'} / 10
-                                            </span>
+                                            <div className="flex flex-col items-end">
+                                                <span className={`text-sm font-bold font-mono ${Number(row.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {Number(row.pnl || 0) >= 0 ? '+' : ''}{Number(row.pnl || 0).toFixed(2)} USD
+                                                </span>
+                                                <span className="text-[9px] text-slate-600 font-mono">
+                                                    {row.closed_at ? new Date(Number(row.closed_at)).toLocaleTimeString() : (row.timestamp ? new Date(row.timestamp).toLocaleTimeString() : '---')}
+                                                </span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

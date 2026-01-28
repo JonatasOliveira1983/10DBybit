@@ -253,12 +253,12 @@ async def get_stats():
     }
 
 @app.get("/api/history")
-async def get_history(limit: int = 20):
+async def get_history(limit: int = 50):
     try:
-        # Reusing get_recent_signals for history for now, or use a specific history method if exists
-        return await firebase_service.get_recent_signals(limit=limit)
+        # Fetch real trade history instead of generic signals
+        return await firebase_service.get_trade_history(limit=limit)
     except Exception as e:
-        logger.error(f"Error fetching history: {e}")
+        logger.error(f"Error fetching trade history: {e}")
         return []
 
 @app.get("/api/logs")

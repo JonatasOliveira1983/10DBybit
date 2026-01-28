@@ -36,7 +36,28 @@ class BankrollManager:
             for slot in slots:
                 symbol = slot.get("symbol")
                 if symbol and symbol not in exchange_map:
-                    logger.warning(f"Sync: Clearing stale slot {slot['id']} for {symbol} (Closed on Exchange)")
+                    logger.warning(f"Sync: Slot {slot['id']} for {symbol} is stale. Fetching result before clearing.")
+                    
+                    # Try to fetch last closed PnL
+                    try:
+                        closed_list = await asyncio.to_thread(bybit_rest_service.get_closed_pnl, symbol)
+                        if closed_list:
+                            last_trade = closed_list[0]
+                            await firebase_service.log_trade({
+                                "symbol": symbol,
+                                "side": last_trade.get("side"),
+                                "entry_price": float(last_trade.get("avgEntryPrice", 0)),
+                                "exit_price": float(last_trade.get("avgExitPrice", 0)),
+                                "pnl": float(last_trade.get("closedPnl", 0)),
+                                "leverage": last_trade.get("leverage"),
+                                "qty": last_trade.get("qty"),
+                                "closed_at": last_trade.get("updatedTime")
+                            })
+                            logger.info(f"Sync: Logged final trade for {symbol}.")
+                    except Exception as e:
+                        logger.error(f"Sync: Error logging closed trade for {symbol}: {e}")
+
+                    logger.warning(f"Sync: Clearing stale slot {slot['id']} for {symbol}")
                     await firebase_service.update_slot(slot["id"], {
                         "symbol": None, "entry_price": 0, "current_stop": 0, 
                         "status_risco": "IDLE", "side": None, "pnl_percent": 0
@@ -107,7 +128,7 @@ class BankrollManager:
         
         return real_risk
 
-    async def can_open_new_slot(self):
+    async def can_open_new_slot(self, symbol: str = None):
         """
         Checks if a new slot can be opened based on:
         1. 20% risk cap (Hard Limit)
@@ -143,13 +164,17 @@ class BankrollManager:
                     elif side == "Sell" and stop <= entry:
                         risk_free_count += 1
             
-            # Rule: To open Nth slot (where N > 4), we need (N - 4) risk free slots?
-            # User said: "after securing profit... opens opportunity for one more"
-            # So: Allowed Slots = Initial + RiskFreeCount
             allowed_slots = self.initial_slots + risk_free_count
             
             if active_count >= allowed_slots:
                 logger.info(f"Progression Cap: Active({active_count}) >= Allowed({allowed_slots}) [Initial {self.initial_slots} + RiskFree {risk_free_count}]")
+                return None
+
+        # 3. New Duplicate Symbol Guard
+        if symbol:
+            duplicate = next((s for s in slots if s.get("symbol") == symbol), None)
+            if duplicate:
+                logger.warning(f"Duplicate Guard: {symbol} is already active in Slot {duplicate['id']}.")
                 return None
 
         # If we get here, find an ID
@@ -195,10 +220,10 @@ class BankrollManager:
 
     async def open_position(self, symbol: str, side: str, sl_price: float = 0, tp_price: float = None, pensamento: str = ""):
         """Executes the Sniper entry with 20% risk cap and 5% margin per slot."""
-        slot_id = await self.can_open_new_slot()
+        # Check for duplication and limits
+        slot_id = await self.can_open_new_slot(symbol=symbol)
         if not slot_id:
-            logger.warning(f"No slots available or risk cap reached for {symbol}")
-            await firebase_service.log_event("Captain", f"Trade REJECTED: No slots or Risk Cap (20%) reached for {symbol}.", "WARNING")
+            # We already logged reason in can_open_new_slot
             return None
 
         # 1. Fetch Current Price

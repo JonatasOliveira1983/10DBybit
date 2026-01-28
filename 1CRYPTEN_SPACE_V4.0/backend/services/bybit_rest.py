@@ -137,4 +137,13 @@ class BybitREST:
             logger.error(f"Error closing position for {symbol}: {e}")
             return None
 
+    def get_closed_pnl(self, symbol: str, limit: int = 1):
+        """Fetches final PnL for closed trades."""
+        try:
+            response = self.session.get_closed_pnl(category=self.category, symbol=symbol, limit=limit)
+            return response.get("result", {}).get("list", [])
+        except Exception as e:
+            logger.error(f"Error fetching closed PnL for {symbol}: {e}")
+            return []
+
 bybit_rest_service = BybitREST()

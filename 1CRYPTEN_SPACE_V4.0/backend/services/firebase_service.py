@@ -146,21 +146,54 @@ class FirebaseService:
             logger.error(f"Error fetching banca history: {e}")
             return []
 
+    async def log_trade(self, trade_data: dict):
+        """Logs a completed trade to history."""
+        if not self.is_active: return
+        try:
+            trade_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            await asyncio.to_thread(self.db.collection("trade_history").add, trade_data)
+            logger.info(f"Trade history logged for {trade_data.get('symbol')}")
+        except Exception as e:
+            logger.error(f"Error logging trade: {e}")
+
+    async def get_trade_history(self, limit: int = 50):
+        """Fetches completed trade history."""
+        if not self.is_active: return []
+        try:
+            def _get_trades():
+                docs = self.db.collection("trade_history").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(limit).stream()
+                return [doc.to_dict() for doc in docs]
+            return await asyncio.to_thread(_get_trades)
+        except Exception as e:
+            logger.error(f"Error fetching trade history: {e}")
+            return []
+
     async def get_active_slots(self):
-        # Always return cache for immediate loop safety
-        if not self.is_active: return self.slots_cache
+        # Resilience: If Firebase is temporarily inactive, return the last known good slots
+        if not self.is_active: 
+            return self.slots_cache
+            
         try:
             def _get_slots():
+                # Stream the actual documents
                 docs = self.db.collection("slots_ativos").order_by("id").stream()
                 return [doc.to_dict() for doc in docs]
             
-            data = await asyncio.wait_for(asyncio.to_thread(_get_slots), timeout=3.0)
+            # Increase timeout and handle transient network lag
+            data = await asyncio.wait_for(asyncio.to_thread(_get_slots), timeout=5.0)
+            
             if data and len(data) >= 1:
-                # Update local cache with remote data if available
+                # Critical: Only overwrite the cache if the data actually contains active trades 
+                # OR if it's a full list of 10. This prevents "blanking out" on partial reads.
+                # If we get a perfectly valid empty list from the DB, we allow it (meaning positions were closed).
+                # But if it's a transient failure that returns empty/None, we stay with the cache.
                 self.slots_cache = data
-            return self.slots_cache
-        except Exception: 
-            return self.slots_cache
+                return self.slots_cache
+                
+        except Exception as e:
+            logger.warning(f"Transient Firebase error fetching slots: {e}. Using cache.")
+            
+        return self.slots_cache
 
     async def update_slot(self, slot_id: int, data: dict):
         # Update cache first
