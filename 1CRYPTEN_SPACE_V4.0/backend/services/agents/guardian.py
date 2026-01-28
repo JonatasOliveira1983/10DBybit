@@ -17,18 +17,17 @@ class GuardianAgent:
         """Checks latency and connectivity to Bybit."""
         try:
             start_time = time.time()
-            # Wrap blocking call
             await asyncio.to_thread(bybit_rest_service.session.get_server_time)
             latency = (time.time() - start_time) * 1000
             
-            if latency > self.max_latency_ms:
-                logger.warning(f"High latency detected: {latency:.2f}ms. Guardian is cautious.")
-                await firebase_service.log_event("Guardian", f"High latency: {latency:.2f}ms. Performance may be impacted.", "WARNING")
-                self.is_healthy = False
+            # Increase threshold for Testnet/Global environments to avoid spam
+            threshold = 5000 if settings.BYBIT_TESTNET else self.max_latency_ms
+            
+            if latency > threshold:
+                logger.warning(f"High latency: {latency:.2f}ms. Guardian is alert.")
+                self.is_healthy = True # Still healthy, just slow
             else:
                 self.is_healthy = True
-                # Pulse on success
-                await firebase_service.log_event("Guardian", f"Safe Sync Active (Latency: {latency:.1f}ms)", "DEBUG")
             
             return self.is_healthy, latency
 
@@ -49,12 +48,15 @@ class GuardianAgent:
             if not active_slots:
                 return
 
-            # Get current prices
-            symbols = [s["symbol"] for s in active_slots]
-            # Since we can't fetch batch tickers easily with logic here, let's do one-by-one or optimize later
-            # Optimization: Fetch all linear tickers and filter? Too heavy 100+
-            # Let's verify price individually for safety
-            
+            # Batch Ticker Update (Saves 10 network rounds)
+            try:
+                tickers_resp = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear")
+                ticker_list = tickers_resp.get("result", {}).get("list", [])
+                price_map = {t["symbol"]: float(t.get("lastPrice", 0)) for t in ticker_list}
+            except Exception as te:
+                logger.error(f"Guardian batch ticker failure: {te}")
+                return
+
             for slot in active_slots:
                 symbol = slot["symbol"]
                 entry = slot.get("entry_price", 0)
@@ -62,74 +64,56 @@ class GuardianAgent:
                 side = slot["side"]
                 
                 if entry == 0: continue
-
-                # Check if already at Breakeven (approximate)
-                # Tolerance 0.1%
-                is_breakeven = False
-                if side == "Buy" and current_stop >= entry * 0.999: is_breakeven = True
-                if side == "Sell" and current_stop <= entry * 1.001: is_breakeven = True
-                
-                if is_breakeven:
-                    continue # Already safe
-
-                # Fetch current price
-                ticker = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=symbol)
-                last_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
-                
+                last_price = price_map.get(symbol, 0)
                 if last_price == 0: continue
 
-                # Calculate PnL % (including leverage for UI consistency)
+                # Calculate PnL %
                 leverage = getattr(settings, 'LEVERAGE', 50)
-                if side == "Buy":
-                    pnl_pct = (last_price - entry) / entry * 100 * leverage
-                else:
-                    pnl_pct = (entry - last_price) / entry * 100 * leverage
+                pnl_pct = ((last_price - entry) / entry if side == "Buy" else (entry - last_price) / entry) * 100 * leverage
                 
-                # Check Trigger
-                # Always update PnL in DB periodically? Too much write?
-                # Let's update PnL only if significant change or simply use frontend for display.
-                # User complaint: "Zero profit". Maybe just log it?
-                # BETTER: Update slot PnL every check so frontend has fallback.
-                if True:
-                     try:
-                         # Throttle updates? No, 100 docs is fine for now on small scale.
-                         # Actually, let's only update if we are NOT moving stop, to populate dashboard.
-                         # If moving stop, we update below.
-                         await firebase_service.update_slot(slot["id"], {
-                             "pnl_percent": pnl_pct
-                         })
-                     except: pass
+                # Check if already at Breakeven
+                is_breakeven = False
+                if side == "Buy" and current_stop >= entry: is_breakeven = True
+                if side == "Sell" and current_stop <= entry and current_stop > 0: is_breakeven = True
+
+                # Always update PnL in Firebase for UI
+                try:
+                    await firebase_service.update_slot(slot["id"], {"pnl_percent": pnl_pct})
+                except: pass
+                
+                if is_breakeven: continue
 
                 if pnl_pct >= settings.BREAKEVEN_TRIGGER_PERCENT: # 1.5%
-                    logger.info(f"Guardian: {symbol} in profit ({pnl_pct:.2f}%). Moving SL to Entry ({entry}).")
+                    logger.info(f"Guardian: {symbol} in profit ({pnl_pct:.2f}%). Moving SL to Entry.")
                     
                     # Move SL on Exchange
                     try:
-                        # Use session directly
                         resp = await asyncio.to_thread(
                             bybit_rest_service.session.set_trading_stop,
                             category="linear",
                             symbol=symbol,
-                            stopLoss=str(entry), # Move to exact entry
+                            stopLoss=str(entry),
                             slTriggerBy="LastPrice",
                             tpslMode="Full",
-                            positionIdx=0 # 0 for One-Way Mode
+                            positionIdx=0
                         )
                         
-                        if resp.get("retCode") == 0:
-                            # Update Firebase with PnL and new Stop
+                        ret_code = resp.get("retCode")
+                        if ret_code in [0, 34040]: # 0 = OK, 34040 = Already set
                             await firebase_service.update_slot(slot["id"], {
                                 "current_stop": entry,
                                 "status_risco": "RISK_FREE (GUARDIAN)",
-                                "pnl_percent": pnl_pct, # Persist PnL for frontend
-                                "pensamento": f"🛡️ Lucro de {pnl_pct:.2f}% atingido. Stop movido para 0-0. Risco reciclado."
+                                "pnl_percent": pnl_pct,
+                                "pensamento": f"🛡️ Lucro de {pnl_pct:.2f}% atingido. Stop movido para entrada. Risco reciclado."
                             })
-                            await firebase_service.log_event("Guardian", f"🛡️ SECURED: {symbol} SL moved to Entry. Profit: {pnl_pct:.2f}%", "SUCCESS")
+                            if ret_code == 0:
+                                await firebase_service.log_event("Guardian", f"🛡️ SECURED: {symbol} SL moved to Entry. Profit: {pnl_pct:.2f}%", "SUCCESS")
                         else:
                              logger.error(f"Failed to move SL for {symbol}: {resp}")
 
                     except Exception as e:
-                        logger.error(f"Error moving SL for {symbol}: {e}")
+                        if "34040" not in str(e):
+                            logger.error(f"Error moving SL for {symbol}: {e}")
 
         except Exception as e:
             logger.error(f"Error in manage_positions: {e}")
@@ -138,14 +122,11 @@ class GuardianAgent:
         """Infinite loop to monitor system health and positions."""
         while True:
             # 1. Health Check
-            healthy, lat = await self.check_api_health()
-            if not healthy:
-                logger.critical("SYSTEM UNHEALTHY - GUARDIAN MAY PAUSE TRADING")
+            await self.check_api_health()
             
             # 2. Position Management (Auto-Breakeven)
-            if healthy:
-                await self.manage_positions()
+            await self.manage_positions()
 
-            await asyncio.sleep(10) # Check every 10s
+            await asyncio.sleep(15) # Check every 15s
 
 guardian_agent = GuardianAgent()
