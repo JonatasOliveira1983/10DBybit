@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
 
             if symbols:
                 logger.info("Step 3: WebSocket Monitoring ENABLED.")
-                await asyncio.to_thread(bybit_ws_service.start, symbols)
+                await bybit_ws_service.start(symbols)
             
             # 4. Start Background Tasks
             logger.info("Step 4: Background loops ENABLED.")
@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
                     try:
                         await firebase_service.update_pulse()
                     except Exception: pass
-                    await asyncio.sleep(2) # 2s heartbeat
+                    await asyncio.sleep(5) # 5s heartbeat (optimized from 2s)
             asyncio.create_task(pulse_loop())
 
             # Start Bankroll Sync Loop

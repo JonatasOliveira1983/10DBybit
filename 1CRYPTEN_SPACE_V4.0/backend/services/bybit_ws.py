@@ -46,21 +46,24 @@ class BybitWS:
             return 0.0
         return sum(item["delta"] for item in self.cvd_data[symbol])
 
-    def start(self, symbols: list):
+    async def start(self, symbols: list):
         """Starts the WebSocket connection for a list of symbols."""
-        self.active_symbols = symbols
+        # Optimization: Limit to top 30 symbols to prevent WebSocket ping/pong timeouts
+        monitored_symbols = symbols[:30]
+        self.active_symbols = monitored_symbols
+        
         self.ws = WebSocket(
             testnet=settings.BYBIT_TESTNET,
             channel_type="linear",
         )
         
-        for symbol in symbols:
+        for symbol in monitored_symbols:
             # Subscribe to trades for CVD calculation (V5 Public Linear)
             self.ws.trade_stream(symbol=symbol, callback=self.handle_trade_message)
-            # Ticker stream can be used for real-time price if needed
+            # Ticker stream for real-time price
             self.ws.ticker_stream(symbol=symbol, callback=lambda msg: None)
 
-        logger.info(f"Subscribed to {len(symbols)} symbols for CVD monitoring.")
+        logger.info(f"Subscribed to {len(monitored_symbols)} symbols (Top 30 Optimization) for CVD monitoring.")
 
     def stop(self):
         if self.ws:

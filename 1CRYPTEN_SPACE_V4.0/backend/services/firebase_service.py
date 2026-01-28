@@ -217,12 +217,22 @@ class FirebaseService:
         self.signal_buffer.appendleft(signal_data)
         
         if not self.is_active: return signal_data["id"]
-        try:
-            # Wrap blocking call
-            await asyncio.wait_for(asyncio.to_thread(self.db.collection("journey_signals").add, signal_data), timeout=5.0)
-        except Exception as e: 
-            logger.error(f"Erro ao logar sinal no Firebase: {e}")
-        return signal_data["id"]
+        
+        # Retry logic for critical signal logging
+        for attempt in range(3):
+            try:
+                # Wrap blocking call
+                await asyncio.wait_for(asyncio.to_thread(self.db.collection("journey_signals").add, signal_data), timeout=5.0)
+                return signal_data["id"] # Success
+            except (asyncio.TimeoutError, Exception) as e: 
+                if attempt < 2:
+                    wait_time = (attempt + 1) * 2
+                    logger.warning(f"Retry {attempt+1}/3: Firebase log_signal failed ({type(e).__name__}). Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"FATAL: log_signal failed after 3 attempts: {e}")
+        
+        return signal_data["id"] # Return ID anyway as it's in the local buffer
 
     async def get_recent_signals(self, limit: int = 100):
         # Always return local buffer first for speed and quota saving
@@ -285,7 +295,8 @@ class FirebaseService:
                 "status": "ONLINE",
                 "last_heartbeat": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
-            await asyncio.to_thread(self.rtdb.child("system_pulse").set, data)
+            # Add timeout to prevent event loop starvation if RTDB hangs
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.child("system_pulse").set, data), timeout=5.0)
         except Exception as e:
             logger.error(f"Error updating pulse: {e}")
 
