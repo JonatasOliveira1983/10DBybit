@@ -13,28 +13,14 @@ logger = logging.getLogger("SignalGenerator")
 class SignalGenerator:
     def __init__(self):
         self.is_running = False
+        self.last_standby_log = 0
 
     async def monitor_and_generate(self):
         """
         Monitors high CVD scores via WebSocket and generates elite signals.
         """
         self.is_running = True
-        logger.info("Signal Generator loop started.")
-        
-        # Forced initial signal for verification
-        logger.info("Forced initial signal for verification.")
-        await firebase_service.log_signal({
-            "symbol": "BTCUSDT",
-            "score": 92,
-            "type": "CVD_SPIKE",
-            "market_environment": "Bullish",
-            "is_elite": True,
-            "indicators": {
-                "cvd": 500,
-                "scanned_at": datetime.now(timezone.utc).isoformat()
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        # logger.info("Signal Generator loop started.")
 
         while self.is_running:
             try:
@@ -42,9 +28,12 @@ class SignalGenerator:
                 # Only scan if Bankroll says we can open a new slot
                 potential_slot = await bankroll_manager.can_open_new_slot()
                 if potential_slot is None:
-                    logger.info("Radar in Stand-by: Risk Cap reached or all 10 slots full.")
-                    await firebase_service.log_event("Radar", "Stand-by: Minimum 1 slot required for scanning.", "INFO")
-                    await asyncio.sleep(60) # Longer sleep in stand-by
+                    import time
+                    now = time.time()
+                    if now - self.last_standby_log > 600: # Every 10 mins
+                         logger.info("Radar in Stand-by: Risk Cap reached or all 10 slots full.")
+                         self.last_standby_log = now
+                    await asyncio.sleep(60) # Long sleep in stand-by
                     continue
 
                 # 1. Scan all active symbols from WS service

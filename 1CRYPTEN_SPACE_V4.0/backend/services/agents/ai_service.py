@@ -44,13 +44,13 @@ class AIService:
         Generates content using OpenRouter (DeepSeek) primarily, falling back to GLM/Gemini.
         """
         if time.time() < self.backoff_until:
-            logger.info(f"AI Quota Backoff active. Skipping call.")
             return None
 
         # 1. Primary: OpenRouter (DeepSeek V3 - High Performance/Low Cost)
         if self.openrouter_key:
             try:
-                async with httpx.AsyncClient() as client:
+                # Use a specific timeout to avoid hanging the whole system during high latency
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.post(
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={
@@ -59,24 +59,24 @@ class AIService:
                             "X-Title": "1CRYPTEN Space V4.0",
                         },
                         json={
-                            "model": "deepseek/deepseek-chat", # DeepSeek V3
+                            "model": "deepseek/deepseek-chat",
                             "messages": [
                                 {"role": "system", "content": system_instruction},
                                 {"role": "user", "content": prompt}
                             ],
                             "temperature": 0.7
-                        },
-                        timeout=15.0
+                        }
                     )
                     if response.status_code == 200:
                         data = response.json()
                         text = data['choices'][0]['message']['content']
                         if text: return text.strip()
-                    elif response.status_code == 429:
-                        logger.warning("OpenRouter Quota hit. Backing off.")
-                        self.backoff_until = time.time() + 60
+                    else:
+                        logger.warning(f"OpenRouter returned {response.status_code}: {response.text}")
+                        if response.status_code == 429:
+                             self.backoff_until = time.time() + 60
             except Exception as e:
-                logger.warning(f"OpenRouter Primary failed: {e}")
+                logger.warning(f"OpenRouter connection error: {e}")
 
         # 2. Fallback: GLM
         if self.glm_client:
@@ -93,17 +93,33 @@ class AIService:
             except Exception as e:
                 logger.warning(f"GLM Fallback failed: {e}")
 
-        # 3. Fallback: Gemini
+        # 3. Fallback: Gemini (Multi-model name resilience)
         if self.gemini_model:
-            try:
-                full_prompt = f"{system_instruction}\n\n{prompt}"
-                response = self.gemini_model.generate_content(full_prompt)
-                if response and hasattr(response, 'text'):
-                    return response.text.strip()
-            except Exception as e:
-                logger.error(f"All AI providers failed: {e}")
-                if "429" in str(e):
-                    self.backoff_until = time.time() + 300
+            # Try multiple common name patterns if the primary fail with 404
+            models_to_try = [
+                self.gemini_model, # The one defined in init
+                'gemini-1.5-flash-latest',
+                'models/gemini-1.5-flash'
+            ]
+            
+            for m_obj in models_to_try:
+                try:
+                    full_prompt = f"{system_instruction}\n\n{prompt}"
+                    # If it's a string, we need to create a temporary model object
+                    if isinstance(m_obj, str):
+                        temp_model = genai.GenerativeModel(m_obj)
+                        response = temp_model.generate_content(full_prompt)
+                    else:
+                        response = m_obj.generate_content(full_prompt)
+                        
+                    if response and hasattr(response, 'text'):
+                        return response.text.strip()
+                except Exception as e:
+                    if "404" in str(e): continue # Try next model
+                    logger.error(f"Gemini provider error with {m_obj}: {e}")
+                    if "429" in str(e):
+                        self.backoff_until = time.time() + 300
+                        break
 
         return None
 

@@ -12,6 +12,7 @@ class BankrollManager:
         self.risk_cap = settings.RISK_CAP_PERCENT # 0.20 (20%)
         self.margin_per_slot = 0.01 # 1% per slot (Sniper mode)
         self.initial_slots = settings.INITIAL_SLOTS # 4
+        self.last_log_times = {} # Cooldown for logs
 
     async def sync_slots_with_exchange(self):
         """
@@ -167,7 +168,12 @@ class BankrollManager:
             allowed_slots = self.initial_slots + risk_free_count
             
             if active_count >= allowed_slots:
-                logger.info(f"Progression Cap: Active({active_count}) >= Allowed({allowed_slots}) [Initial {self.initial_slots} + RiskFree {risk_free_count}]")
+                import time
+                now = time.time()
+                last = self.last_log_times.get("progression_cap", 0)
+                if now - last > 60:
+                    logger.info(f"Progression Cap: Active({active_count}) >= Allowed({allowed_slots}) [Initial {self.initial_slots} + RiskFree {risk_free_count}]")
+                    self.last_log_times["progression_cap"] = now
                 return None
 
         # 3. New Duplicate Symbol Guard
