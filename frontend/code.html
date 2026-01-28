@@ -896,8 +896,9 @@
             const { latency, status: pulseStatus } = usePulseMonitor();
             const getPulseColor = () => {
                 if (pulseStatus === 'OFFLINE') return 'bg-red-500';
-                if (latency < 500) return 'bg-emerald-500';
-                if (latency < 2000) return 'bg-amber-500';
+                // Relaxed for Testnet/Global environments
+                if (latency < 1000) return 'bg-emerald-500';
+                if (latency < 5000) return 'bg-amber-500';
                 return 'bg-red-500';
             };
 
