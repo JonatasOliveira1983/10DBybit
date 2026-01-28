@@ -277,10 +277,10 @@
 
                 const checker = setInterval(() => {
                     const diff = Date.now() - lastUpdateRef.current;
-                    if (diff > 10000) { // 10 seconds timeout
+                    if (diff > 25000) { // 25 seconds timeout (safe margin for 5s heartbeats)
                         setStatus('OFFLINE');
                     }
-                }, 2000);
+                }, 5000);
 
                 return () => {
                     pulseRef.off('value', unsubscribe);
