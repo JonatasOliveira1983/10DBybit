@@ -296,9 +296,10 @@ class FirebaseService:
                 "last_heartbeat": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
             # Add timeout to prevent event loop starvation if RTDB hangs
-            await asyncio.wait_for(asyncio.to_thread(self.rtdb.child("system_pulse").set, data), timeout=5.0)
-        except Exception as e:
-            logger.error(f"Error updating pulse: {e}")
+            # Reduced to 3s for faster failure detection and loop continuation
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.child("system_pulse").set, data), timeout=3.0)
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.warning(f"Heartbeat failed: {type(e).__name__}. This is usually transient but may trigger LAG in UI.")
 
     async def update_rtdb_slots(self, slots: list):
         """Duplicate slot data to RTDB for high-speed UI refreshes."""

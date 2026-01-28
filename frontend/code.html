@@ -277,8 +277,10 @@
 
                 const checker = setInterval(() => {
                     const diff = Date.now() - lastUpdateRef.current;
-                    if (diff > 25000) { // 25 seconds timeout (safe margin for 5s heartbeats)
+                    if (diff > 60000) { // 60 seconds = HARD OFFLINE
                         setStatus('OFFLINE');
+                    } else if (diff > 20000) { // 20 seconds = WARNING
+                        setStatus('WARNING');
                     }
                 }, 5000);
 
@@ -641,8 +643,8 @@
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex flex-col gap-1 items-start mt-2">
                                 <div className="flex items-center gap-2">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-500')} animate-pulse`}></span>
-                                    <span className="text-[9px] text-slate-400 font-mono uppercase tracking-widest">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (pulseStatus === 'WARNING' ? 'bg-amber-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-400'))} animate-pulse`}></span>
+                                    <span className="text-[9px] text-slate-400 font-mono uppercase tracking-widest">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : (pulseStatus === 'WARNING' ? 'LAG' : `${latency}ms`)}</span>
                                 </div>
                             </div>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
@@ -709,8 +711,8 @@
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 ml-1">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-500')} animate-pulse`}></span>
-                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : `${latency}ms`}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (pulseStatus === 'WARNING' ? 'bg-amber-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-400'))} animate-pulse`}></span>
+                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : `${latency}ms`)}</span>
                                 </div>
                             </div>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
@@ -922,9 +924,10 @@
             const { latency, status: pulseStatus } = usePulseMonitor();
             const getPulseColor = () => {
                 if (pulseStatus === 'OFFLINE') return 'bg-red-500';
-                if (latency < 2500) return 'bg-emerald-500';
-                if (latency < 7000) return 'bg-amber-500';
-                return 'bg-red-500';
+                if (pulseStatus === 'WARNING') return 'bg-amber-500';
+                if (latency < 3000) return 'bg-emerald-500';
+                if (latency < 10000) return 'bg-amber-400';
+                return 'bg-amber-600';
             };
 
             const handlePanic = async () => {
@@ -953,7 +956,7 @@
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
                                     <span className="text-[10px] text-slate-300 font-bold tracking-widest uppercase">
-                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : `${latency}ms`}
+                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : `${latency}ms`)}
                                     </span>
                                 </div>
                                 <div className="bg-primary/5 px-2 py-0.5 rounded border border-primary/20">
@@ -1087,8 +1090,8 @@
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex flex-col gap-1 items-start mt-2">
                                 <div className="flex items-center gap-2">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-500')} animate-pulse`}></span>
-                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : `${latency}ms`}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (pulseStatus === 'WARNING' ? 'bg-amber-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-400'))} animate-pulse`}></span>
+                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : `${latency}ms`)}</span>
                                 </div>
                             </div>
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />

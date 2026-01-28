@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
                     try:
                         await firebase_service.update_pulse()
                     except Exception: pass
-                    await asyncio.sleep(3) # 3s heartbeat (balanced for stability)
+                    await asyncio.sleep(2) # 2s heartbeat (over-provisioning for stability)
             asyncio.create_task(pulse_loop())
 
             # Start Bankroll Sync Loop
