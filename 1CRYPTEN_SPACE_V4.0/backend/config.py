@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     
     # GLM (ZhipuAI)
     GLM_API_KEY: Optional[str] = None
+    
+    # OpenRouter (New Primary)
+    OPENROUTER_API_KEY: Optional[str] = None
 
     # App Logic
     DEBUG: bool = True

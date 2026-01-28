@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import time
+import httpx
 from zhipuai import ZhipuAI
 import google.generativeai as genai
 from config import settings
@@ -11,7 +13,8 @@ class AIService:
     def __init__(self):
         self.glm_client = None
         self.gemini_model = None
-        self.backoff_until = 0 # Timestamp to avoid calls during quota limits
+        self.backoff_until = 0 
+        self.openrouter_key = settings.OPENROUTER_API_KEY.strip() if settings.OPENROUTER_API_KEY else None
         self._setup_ai()
 
     def _setup_ai(self):
@@ -20,7 +23,7 @@ class AIService:
         if glm_key:
             try:
                 self.glm_client = ZhipuAI(api_key=glm_key)
-                logger.info("GLM-4.7 (ZhipuAI) Client Initialized.")
+                logger.info("GLM-4.7 Client Initialized.")
             except Exception as e:
                 logger.error(f"Failed to initialize GLM Client: {e}")
 
@@ -28,44 +31,54 @@ class AIService:
         if gemini_key:
             try:
                 genai.configure(api_key=gemini_key)
-                
-                # Diagnostic: List models to log what's available
-                try:
-                    models = list(genai.list_models())
-                    available_names = [m.name for m in models]
-                    logger.info(f"Available Gemini Models: {available_names}")
-                    
-                    # Try to find a flash model in the list
-                    found_model = None
-                    for m in models:
-                        if 'flash' in m.name.lower() and 'generateContent' in m.supported_generation_methods:
-                            found_model = m.name
-                            break
-                    
-                    if found_model:
-                        self.gemini_model = genai.GenerativeModel(found_model)
-                        logger.info(f"Gemini Client Initialized with detected model: {found_model}")
-                    else:
-                        # Fallback to standard names if list failed or nothing found
-                        self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-                        logger.info("Gemini Client fallback to 'gemini-1.5-flash'")
-                except Exception as list_err:
-                    logger.warning(f"Could not list models: {list_err}. Falling back to default name.")
-                    self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+                self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+                logger.info("Gemini Backup Initialized.")
             except Exception as e:
-                logger.error(f"Failed to initialize Gemini Client: {e}")
+                logger.error(f"Failed to initialize Gemini: {e}")
+        
+        if self.openrouter_key:
+            logger.info("OpenRouter (Primary) Configured.")
 
     async def generate_content(self, prompt: str, system_instruction: str = "Você é um assistente de trading de elite."):
         """
-        Generates content using GLM-4.7 primarily, falling back to Gemini.
+        Generates content using OpenRouter (DeepSeek) primarily, falling back to GLM/Gemini.
         """
-        import time
         if time.time() < self.backoff_until:
-            logger.info(f"AI Quota Backoff active. Skipping call. (Remaining: {int(self.backoff_until - time.time())}s)")
+            logger.info(f"AI Quota Backoff active. Skipping call.")
             return None
 
-        text = None
-        # Try GLM Primary
+        # 1. Primary: OpenRouter (DeepSeek V3 - High Performance/Low Cost)
+        if self.openrouter_key:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.openrouter_key}",
+                            "HTTP-Referer": "https://1crypten.space", 
+                            "X-Title": "1CRYPTEN Space V4.0",
+                        },
+                        json={
+                            "model": "deepseek/deepseek-chat", # DeepSeek V3
+                            "messages": [
+                                {"role": "system", "content": system_instruction},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "temperature": 0.7
+                        },
+                        timeout=15.0
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        text = data['choices'][0]['message']['content']
+                        if text: return text.strip()
+                    elif response.status_code == 429:
+                        logger.warning("OpenRouter Quota hit. Backing off.")
+                        self.backoff_until = time.time() + 60
+            except Exception as e:
+                logger.warning(f"OpenRouter Primary failed: {e}")
+
+        # 2. Fallback: GLM
         if self.glm_client:
             try:
                 response = self.glm_client.chat.completions.create(
@@ -73,38 +86,27 @@ class AIService:
                     messages=[
                         {"role": "system", "content": system_instruction},
                         {"role": "user", "content": prompt}
-                    ],
-                    top_p=0.7,
-                    temperature=0.9
+                    ]
                 )
                 text = response.choices[0].message.content
                 if text: return text.strip()
             except Exception as e:
-                err_str = str(e).lower()
-                if "429" in err_str or "quota" in err_str:
-                    logger.warning("GLM Quota hit. Backing off for 60s.")
-                    self.backoff_until = time.time() + 60
-                logger.warning(f"GLM-4-Plus failed: {e}")
+                logger.warning(f"GLM Fallback failed: {e}")
 
-        # Try Gemini Backup
+        # 3. Fallback: Gemini
         if self.gemini_model:
             try:
                 full_prompt = f"{system_instruction}\n\n{prompt}"
                 response = self.gemini_model.generate_content(full_prompt)
                 if response and hasattr(response, 'text'):
-                    text = response.text
-                    if text: return text.strip()
+                    return response.text.strip()
             except Exception as e:
-                err_str = str(e).lower()
-                if "429" in err_str or "quota" in err_str or "exhausted" in err_str:
-                    # If we hit 429 on the backup, it's serious. Back off for 5 mins.
-                    logger.warning("Gemini Quota exhausted. Backing off AI for 300s.")
+                logger.error(f"All AI providers failed: {e}")
+                if "429" in str(e):
                     self.backoff_until = time.time() + 300
-                    await firebase_service.log_event("AI_QUOTA", "Gemini Quota hit. Backing off for 5 minutes.", "WARNING")
-                logger.error(f"Gemini also failed: {e}")
 
         return None
 
-        return None
+ai_service = AIService()
 
 ai_service = AIService()
