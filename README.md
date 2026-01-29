@@ -1,54 +1,51 @@
-# 1CRYPTEN Space V4.1: Master System Report 🚀
+# 1CRYPTEN Space V4.6.1: Operação Fluxo & Tesouraria 🦅💰
 
-Este relatório detalha a arquitetura, a lógica operacional e o estado atual da Nave 1CRYPTEN, consolidando o conceito Sniper estabelecido e as atualizações de soberania com o OpenRouter e resiliência Dual Heartbeat.
+Este relatório detalha a arquitetura, a lógica operacional e o estado atual da Nave 1CRYPTEN, consolidando o upgrade de **Sinais de Fluxo v4.3 e Estratégia de Tesouraria**.
 
 ---
 
 ## 1. Conceito e Visão 🎯
-O 1CRYPTEN foi concebido como um Agente de Trading Autônomo e Inteligente. Diferente de bots tradicionais baseados apenas em indicadores matemáticos (RSI, MACD), o 1CRYPTEN utiliza uma **Hierarquia de IA (DeepSeek, GLM, Gemini)** para validar o contexto do mercado antes de cada disparo.
+O 1CRYPTEN é um Agente de Trading Autônomo que combina análise técnica de volume (CVD) com inteligência linguística superior.
 
-**Missão:** Identificar picos de volume e anomalias de fluxo (CVD) nos ativos de maior liquidez e executar trades curtos e precisos, protegendo o capital através de uma gestão de risco progressiva.
-
----
-
-## 2. Arquitetura do "Nerve Center" 🧠
-O sistema opera como um ecossistema de micro-agentes especializados:
-
-- **Captain Agent:** O comandante. Responsável por monitorar os sinais do Radar e tomar a decisão final de compra ou venda. Ele coordena o tamanho da mão e a entrada na Bybit.
-- **Guardian Agent:** O escudo. Monitora a saúde da API e a latência. Sua função crítica é o **Breakeven Automático**: assim que um trade atinge o lucro alvo inicial, ele move o Stop Loss para o preço de entrada, garantindo o "Risco Zero".
-- **Signal Generator (Radar):** O olheiro. Escaneia constantemente os ativos da Bybit (otimizado para Top 30), filtrando os melhores candidatos baseados em algoritmos proprietários de CVD (Cumulative Volume Delta).
-- **AI Service:** O cérebro analítico. Orquestra a comunicação com modelos de linguagem de ponta via OpenRouter (DeepSeek V3).
-- **Bankroll Manager:** O tesoureiro. Controla a exposição máxima (20% da banca) e o limite de slots (4 iniciais, expansíveis até 10 conforme os trades ficam em Risco Zero).
+**Versão 4.6.1 (Fluxo Calibrado):** O sistema foi afinado para capturar movimentos de alta convicção em Altcoins (DOGE, SOL, ETH) ajustando a sensibilidade do radar para **$30k de Fluxo Real (Score 75)**. Além disso, a **Gestão de Banca** agora aplica 20% do capital total nos primeiros 4 slots (5% por ordem), maximizando a eficiência do capital inicial.
 
 ---
 
-## 3. Integração Bybit & Estabilidade v4.1 🛰️
+## 2. Hierarquia de Agentes & Identidade 🧠
 
-A Nave passou por uma reengenharia de estabilidade para suportar alta volatilidade:
-
-- **Liquid-Proof Safety:** Implementação de ordens atômicas com Stop-Loss (SL) físico obrigatório na exchange. Se o sistema falhar, o SL de 2% (segurança) já está na Bybit.
-- **Dual Heartbeat Resilience (v4.1.4):** 
-    - **Canal Primário:** Firebase RTDB (Baixa latência).
-    - **Canal Secundário:** REST API Telemetry. A interface agora usa chamadas bem-sucedidas de dados como prova de vida, eliminando avisos falsos de "Offline" durante instabilidade de rede.
-- **WebSocket Slicing:** Monitoramento focado nos 30 pares de maior liquidez para evitar congestionamento e `ping/pong timeouts`.
+- **Sovereign Oracle (Chat):** A voz da Nave. Respostas concisas e foco operacional.
+- **Captain Agent:** O executor tático. Utiliza EMAs e CVD ajustado ($30k+) para decisões de elite.
+- **Guardian Agent:** Gestão de Risco e proteção de banca com protocolo de Reversão Inteligente.
+- **Visual Intelligence Module:** Nova camada que traduz dados complexos da Bybit em zonas visuais de lucro/risco.
+- **SlotCard 2.0:** Interface de slots redesenhada com "Hero Profit", barra de combustível estável e indicadores de alvo.
 
 ---
 
-## 4. Estado Atual (Snapshot V4.1 ready) ✅
+## 3. Gráfico de Elite & Visual Intelligence (v4.5.0) 📊
 
-- **Motor AI:** Integrado OpenRouter com DeepSeek V3 (Soberano).
-- **Resiliência:** Sistema de retries e timeouts em todas as operações críticas de banco de dados.
-- **UI Premium:** Interface com três níveis de conectividade: **ONLINE** (Verde), **LAG** (Amarelo - REST Only) e **OFFLINE** (Vermelho - Total).
-- **Sincronização:** Sincronia automática de slots com a exchange no boot, recuperando posições após reinícios.
+A visualização de mercado foi elevada ao padrão institucional:
+
+- **Deep Context (300 Candles):** Triplicamos o histórico visual para permitir que o Comandante e o Capitão vejam a estrutura macro do mercado.
+- **Borda Premium Metallic Gold:** Container do gráfico com efeito de pulso, simbolizando o "Escudo Quântico" da interface.
+- **Trade Zones Dinâmicas:** Sombreamento em tempo real que identifica Zonas de Lucro (Verde) e Zonas de Risco (Vermelho) baseadas na entrada do Capitão.
+- **Camada de Indicadores:** Integração de EMA 20 (Amarela) e EMA 200 (Azul) para alinhamento instantâneo com a tendência.
+- **Volume History (CVD Proxy):** Histograma de volume no fundo do gráfico para monitorar a agressividade dos big players.
 
 ---
 
-## 5. Sugestões de Evolução (Roadmap) 🚀
+## 4. Estabilidade & Mobile UX 📡
 
-- **A. Refinamento de ML:** Backtesting vivo estuda trades fechados e ajusta pesos de sinais.
-- **B. NewsHunter:** Scanner de menções em redes sociais para validar sinais de volume com notícias em tempo real.
-- **C. App/Push:** Notificações via Telegram para cada "Risco Zero" atingido pelo Guardian.
-- **D. Arbitragem:** Expansão para Binance/OKX utilizando o mesmo motor de decisão.
+- **Mobile Ready TF:** Seletor de Timeframe (1m a 4h) otimizado para toque e visível em qualquer dispositivo.
+- **Memory Security:** Implementação de travas de ciclo de vida (`isMounted`) que eliminam erros de destruição de componentes no console.
+- **WebSocket Resilience:** Protocolo de conexão endurecido para fluxos de dados em tempo real da Bybit.
+
+---
+
+## 5. Roadmap Sugerido 🚀
+
+- **A. Neural Heatmaps:** Visualização de zonas de liquidez baseadas em Machine Learning.
+- **B. Voice-over Command:** Execução de comandos por voz para mãos livres.
+- **C. Auto-Backtest Visual:** Execução de simulações históricas diretamente no gráfico.
 
 ---
 
@@ -60,7 +57,8 @@ A Nave passou por uma reengenharia de estabilidade para suportar alta volatilida
    cd 1CRYPTEN_SPACE_V4.0/backend
    python main.py
    ```
-3. **Interface:** Acesse `http://localhost:5001` no seu navegador.
+3. **Interface:** Acesse `http://localhost:5001`.
 
 ---
-**Operação: 10D - Deep Space - V4.1.4 Calibrated.**
+**Operação: 10D - Deep Space - V4.6.0 Radar 2.0.**
+

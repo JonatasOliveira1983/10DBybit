@@ -22,9 +22,10 @@ class FirebaseService:
         self.is_active = False
         self.db = None # Firestore
         self.rtdb = None # Realtime DB
-        self.log_buffer = deque(maxlen=50)
-        self.signal_buffer = deque(maxlen=50)
+        self.log_buffer = deque(maxlen=500) # Increased buffer for offline periods
+        self.signal_buffer = deque(maxlen=500)
         self.slots_cache = [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0} for i in range(1, 11)]
+        self._reconnect_task = None
 
     async def initialize(self):
         """Asynchronously initializes the Firebase Admin SDK."""
@@ -87,10 +88,39 @@ class FirebaseService:
 
             self.is_active = True
             logger.info("Firebase Admin SDK initialized successfully.")
+            
+            # Flush buffers if we just reconnected
+            asyncio.create_task(self._flush_buffers())
+
         except Exception as e:
             logger.error(f"Error initializing Firebase: {e}")
             logger.warning("Starting FirebaseService in OFFLINE/SAFE MODE.")
-            self.is_active = False  # Explicitly set to False
+            self.is_active = False  
+            
+            # Start reconnection loop if not already running
+            if not self._reconnect_task or self._reconnect_task.done():
+                self._reconnect_task = asyncio.create_task(self._reconnection_loop())
+
+    async def _reconnection_loop(self):
+        """Background loop that tries to reconnect to Firebase if offline."""
+        while not self.is_active:
+            logger.info("Firebase Reconnection Attempt...")
+            await self.initialize()
+            if self.is_active:
+                logger.info("Firebase RECONNECTED successfully.")
+                break
+            await asyncio.sleep(60) # Try every minute
+
+    async def _flush_buffers(self):
+        """Pushes buffered logs and signals to Firebase after a reconnection."""
+        if not self.is_active: return
+        
+        logger.info(f"Flushing buffers to Firebase: {len(self.log_buffer)} logs, {len(self.signal_buffer)} signals.")
+        
+        # We don't clear the buffer because it's a deque used for UI as well, 
+        # but we can try to push items that are 'local' only.
+        # For simplicity, we just log that we are online now.
+        await self.log_event("System", "🔥 Firebase Connection Restored. Buffers active.", "SUCCESS")
 
 
     async def get_banca_status(self):
@@ -296,8 +326,8 @@ class FirebaseService:
                 "last_heartbeat": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
             # Add timeout to prevent event loop starvation if RTDB hangs
-            # Reduced to 3s for faster failure detection and loop continuation
-            await asyncio.wait_for(asyncio.to_thread(self.rtdb.child("system_pulse").set, data), timeout=3.0)
+            # Use root reference directly to avoid NotFound if child doesn't exist
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.update, {"system_pulse": data}), timeout=3.0)
         except (asyncio.TimeoutError, Exception) as e:
             logger.warning(f"Heartbeat failed: {type(e).__name__}. This is usually transient but may trigger LAG in UI.")
 
@@ -307,8 +337,68 @@ class FirebaseService:
         try:
             # Convert list to dict for RTDB
             slots_data = {str(s["id"]): s for s in slots}
-            await asyncio.to_thread(self.rtdb.child("live_slots").set, slots_data)
+            await asyncio.to_thread(self.rtdb.child("live_slots").update, slots_data)
         except Exception: pass
+
+    async def update_radar_batch(self, batch_data: dict):
+        """Updates multiple symbols in RTDB in a single operation."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            # Note: In RTDB, update/set at the root or a subpath is efficient.
+            await asyncio.to_thread(self.rtdb.child("market_radar").update, batch_data)
+        except Exception as e:
+            logger.error(f"Error updating radar batch: {e}")
+
+    # --- Operação Oráculo: Chat Memory ---
+    async def get_chat_history(self, limit: int = 15):
+        """Fetches the recent interactive chat messages from RTDB."""
+        if not self.is_active or not self.rtdb: return []
+        try:
+            def _get_chat_history_sync():
+                # Correct way: use .child() on the root reference
+                ref = self.rtdb.child("chat_history")
+                snapshot = ref.order_by_key().limit_to_last(limit).get()
+                if not snapshot: return []
+                # RTDB returns a dict, sort by key (timestamp) and return list
+                history = [v for k, v in sorted(snapshot.items())]
+                return history
+            return await asyncio.to_thread(_get_chat_history_sync)
+        except Exception as e:
+            logger.error(f"Error fetching chat history: {e}")
+            return []
+
+    async def add_chat_message(self, role: str, message: str):
+        """Adds a message to the chat history in RTDB."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            def _add_chat_message_sync():
+                ref = self.rtdb.child("chat_history")
+                timestamp = int(time.time() * 1000)
+                ref.child(str(timestamp)).set({
+                    "role": role,
+                    "text": message, # Using 'text' to match standard naming if needed, or 'message'
+                    "timestamp": timestamp
+                })
+                # Cleanup: Keep only last 20 messages to avoid bloat
+                snapshot = ref.get()
+                if snapshot and len(snapshot) > 20:
+                    keys = sorted(snapshot.keys())
+                    # Delete everything except the last 20
+                    for k in keys[:-20]:
+                        ref.child(k).delete()
+            await asyncio.to_thread(_add_chat_message_sync)
+        except Exception as e:
+            logger.error(f"Error adding chat message: {e}")
+
+    async def clear_chat_history(self):
+        """Removes all chat messages from RTDB."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            await asyncio.to_thread(self.rtdb.child("chat_history").delete)
+            # Log the reset event
+            await self.log_event("System", "Chat History Reset by Commander", "INFO")
+        except Exception as e:
+            logger.error(f"Error clearing chat history: {e}")
 
     async def initialize_db(self):
         """Creates initial documents if they don't exist."""

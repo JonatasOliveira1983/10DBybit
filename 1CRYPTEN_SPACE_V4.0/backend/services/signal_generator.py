@@ -14,6 +14,8 @@ class SignalGenerator:
     def __init__(self):
         self.is_running = False
         self.last_standby_log = 0
+        self.radar_interval = 3.0 # Update RTDB every 3s for 200 symbols
+        self.scan_interval = 15.0 # Scan for signals every 15s
 
     async def monitor_and_generate(self):
         """
@@ -24,16 +26,14 @@ class SignalGenerator:
 
         while self.is_running:
             try:
-                # V4.0 Sniper Rule: On-Demand Radar
-                # Only scan if Bankroll says we can open a new slot
+                # V4.3 Sniper Rule: Smart Demand
+                # Only scan for SIGNALS (Firestore) if we have slot availability
+                slots = await firebase_service.get_active_slots()
                 potential_slot = await bankroll_manager.can_open_new_slot()
+                
                 if potential_slot is None:
-                    import time
-                    now = time.time()
-                    if now - self.last_standby_log > 600: # Every 10 mins
-                         logger.info("Radar in Stand-by: Risk Cap reached or all 10 slots full.")
-                         self.last_standby_log = now
-                    await asyncio.sleep(60) # Long sleep in stand-by
+                    # Slow down scanning if full/risk capped, but keep loop alive
+                    await asyncio.sleep(60) 
                     continue
 
                 # 1. Scan all active symbols from WS service
@@ -48,45 +48,64 @@ class SignalGenerator:
                     if symbol in occupied_symbols:
                         continue
 
-                    # Calculate Signal Score based on CVD
                     cvd_val = bybit_ws_service.get_cvd_score(symbol)
-                    
-                    # Absolute CVD threshold for signal generation
-                    # In a real system this would be dynamic/volatility-adjusted
                     abs_cvd = abs(cvd_val)
                     
-                    if abs_cvd > 0.5: # Small threshold for demo visibility
-                        # Map CVD strength to 0-100 score
-                        # Scale: 0.5 -> 70, 2.0 -> 95+ 
-                        score = min(99, int(70 + (abs_cvd * 10)))
+                    # Sniper Rule (Radar 2.0): Threshold based on USD Money Flow
+                    # $30k+ CVD delta in recent history is a valid signal start
+                    if abs_cvd > 30000: 
+                        # Calibrated: $150k USD delta = ~85 score, $400k+ = 99 score
+                        score = min(99, int(75 + (abs_cvd / 15000)))
                         
-                        # Only log if it's a "Significant" signal to avoid spam
-                        if score >= 80:
-                            # Check if we logged this symbol recently to avoid duplicate signals
-                            # (Firebase will handle most of this, but let's be polite)
-                            
-                            logger.info(f"Sniper detected opportunity: {symbol} | CVD: {cvd_val:.2f} | Score: {score}")
+                        if score >= 75:
+                            logger.info(f"Sniper detected ELITE opportunity: {symbol} | CVD: {cvd_val:.2f} | Score: {score}")
                             
                             await firebase_service.log_signal({
                                 "symbol": symbol,
                                 "score": score,
-                                "type": "CVD_MOMENTUM",
+                                "type": "CVD_MOMENTUM_V4.3",
                                 "market_environment": "Bullish" if cvd_val > 0 else "Bearish",
-                                "is_elite": score >= 85,
+                                "is_elite": True,
                                 "indicators": {
                                     "cvd": round(cvd_val, 4),
                                     "scanned_at": datetime.now(timezone.utc).isoformat()
                                 },
                                 "timestamp": datetime.now(timezone.utc).isoformat()
                             })
-                            # Cool down for this symbol
-                            await asyncio.sleep(1) 
+                            await asyncio.sleep(0.5) 
 
-                await asyncio.sleep(15) # Scan cycle
+                await asyncio.sleep(self.scan_interval) 
                 
             except Exception as e:
                 logger.error(f"Error in Signal Generator loop: {e}")
-                await asyncio.sleep(10)
+    async def radar_loop(self):
+        """
+        High-performance loop to update the Market Radar in RTDB.
+        Runs independently of Signal generation.
+        """
+        logger.info("Market Radar (200 pairs) active via RTDB.")
+        while self.is_running:
+            try:
+                active_symbols = bybit_ws_service.active_symbols
+                radar_batch = {}
+                
+                for symbol in active_symbols:
+                    cvd = bybit_ws_service.get_cvd_score(symbol)
+                    # Radar Heuristic: $500k USD delta = 99% intensity
+                    score = min(99, int(abs(cvd) / 5000))
+                    radar_batch[symbol.replace(".", "_")] = { # RTDB keys cannot have dots
+                        "cvd": round(cvd, 2),
+                        "score": score,
+                        "side": "LONG" if cvd > 10000 else "SHORT" if cvd < -10000 else "NEUTRAL"
+                    }
+                
+                if radar_batch:
+                    await firebase_service.update_radar_batch(radar_batch)
+                
+                await asyncio.sleep(self.radar_interval)
+            except Exception as e:
+                logger.error(f"Error in radar_loop: {e}")
+                await asyncio.sleep(5)
 
     async def track_outcomes(self):
         """
@@ -117,8 +136,8 @@ class SignalGenerator:
                             ts = ts.replace(tzinfo=timezone.utc)
                             
                         if (now - ts) > timedelta(minutes=5):
-                            # Wrap blocking call
-                            ticker_resp = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=signal["symbol"])
+                            # Use the centralized service to handle .P suffix
+                            ticker_resp = await bybit_rest_service.get_tickers(symbol=signal["symbol"])
                             ticker_data = ticker_resp.get("result", {}).get("list", [{}])[0]
                             current_price = float(ticker_data.get("lastPrice", 0))
                             

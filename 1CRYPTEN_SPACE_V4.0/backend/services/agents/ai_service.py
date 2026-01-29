@@ -14,7 +14,12 @@ class AIService:
         self.glm_client = None
         self.gemini_model = None
         self.backoff_until = 0 
-        self.openrouter_key = settings.OPENROUTER_API_KEY.strip() if settings.OPENROUTER_API_KEY else None
+        raw_key = settings.OPENROUTER_API_KEY.strip() if settings.OPENROUTER_API_KEY else None
+        if raw_key and not raw_key.startswith("sk-or-v1-"):
+            self.openrouter_key = f"sk-or-v1-{raw_key}"
+        else:
+            self.openrouter_key = raw_key
+        self._setup_ai()
         self._setup_ai()
 
     def _setup_ai(self):
@@ -31,8 +36,8 @@ class AIService:
         if gemini_key:
             try:
                 genai.configure(api_key=gemini_key)
-                self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-                logger.info("Gemini Backup Initialized.")
+                self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+                logger.info("Gemini Backup Initialized (v2.5).")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")
         
@@ -50,7 +55,7 @@ class AIService:
         if self.openrouter_key:
             try:
                 # Use a specific timeout to avoid hanging the whole system during high latency
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=20.0) as client:
                     response = await client.post(
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={
@@ -59,7 +64,8 @@ class AIService:
                             "X-Title": "1CRYPTEN Space V4.0",
                         },
                         json={
-                            "model": "deepseek/deepseek-chat",
+                            "model": "deepseek/deepseek-chat", # Primary
+                            "fallback_models": ["openai/gpt-3.5-turbo", "google/gemini-flash-1.5"],
                             "messages": [
                                 {"role": "system", "content": system_instruction},
                                 {"role": "user", "content": prompt}
@@ -98,7 +104,10 @@ class AIService:
             # Try multiple common name patterns if the primary fail with 404
             models_to_try = [
                 self.gemini_model, # The one defined in init
-                'gemini-1.5-flash-latest',
+                'gemini-2.5-flash',
+                'gemini-2.0-flash',
+                'gemini-1.5-flash',
+                'models/gemini-2.5-flash',
                 'models/gemini-1.5-flash'
             ]
             
@@ -122,7 +131,5 @@ class AIService:
                         break
 
         return None
-
-ai_service = AIService()
 
 ai_service = AIService()

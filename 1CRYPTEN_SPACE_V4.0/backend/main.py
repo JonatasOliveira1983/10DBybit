@@ -50,11 +50,18 @@ async def lifespan(app: FastAPI):
             
             # 2. Fetch Top 100 Symbols
             logger.info("Step 2: Fetching Top Symbols...")
-            symbols = await asyncio.to_thread(bybit_rest_service.get_top_100_usdt_pairs)
+            symbols = await asyncio.to_thread(bybit_rest_service.get_top_200_usdt_pairs)
             logger.info(f"Step 2.1: Tracking top {len(symbols)} symbols.")
             
-            # 2.2 Sync Slots with Bybit to clear stale entries and recover missing positions
+            # 2.2 Sync Slots with Bybit & Force Recalculation
+            logger.info("Step 2.2: Resetting PNL and syncing slots for high-fidelity ROI...")
             await bankroll_manager.sync_slots_with_exchange()
+            
+            # Additional safety: force PNL=0 for all slots in DB on startup to trigger Guardian refresh
+            slots = await firebase_service.get_active_slots()
+            for s in slots:
+                if s.get("symbol"):
+                    await firebase_service.update_slot(s["id"], {"pnl_percent": 0.0})
 
             # 3. Start WebSocket monitoring (ENABLED)
 
@@ -67,6 +74,8 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(guardian_agent.monitor_loop())
             asyncio.create_task(signal_generator.monitor_and_generate())
             asyncio.create_task(signal_generator.track_outcomes())
+            asyncio.create_task(bankroll_manager.position_reaper_loop())
+            asyncio.create_task(signal_generator.radar_loop())
             asyncio.create_task(captain_agent.monitor_signals())
             asyncio.create_task(captain_agent.monitor_active_positions_loop())
             # asyncio.create_task(gemini_agent.analyze_journey_and_recalibrate()) # Disabled for Sniper Mode
@@ -276,6 +285,30 @@ async def get_btc_regime():
         "regime": "BULLISH", # Placeholder or fetch from GeminiAgent
         "confidence": 0.95
     }
+
+@app.post("/api/chat")
+async def chat_with_captain(payload: dict):
+    """Interactive endpoint to talk to the Captain."""
+    message = payload.get("message")
+    symbol = payload.get("symbol")
+    
+    if not message:
+        return {"error": "No message provided"}
+    
+    # 1. Log the user message first for UI consistency (CLEAN, NO PREFIXES)
+    await firebase_service.log_event("USER", message, "INFO")
+    
+    # 2. Process via Captain (symbol is passed only here for internal context)
+    response = await captain_agent.process_chat(message, symbol=symbol)
+    
+    return {"response": response}
+
+
+@app.post("/api/chat/reset")
+async def reset_chat():
+    """Clears the chat history."""
+    await firebase_service.clear_chat_history()
+    return {"status": "success", "message": "Chat history cleared."}
 
 
 @app.post("/test-order")

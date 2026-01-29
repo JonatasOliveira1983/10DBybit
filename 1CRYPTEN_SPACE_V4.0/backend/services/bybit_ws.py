@@ -14,6 +14,7 @@ class BybitWS:
         self.ws = None
         # CVD storage: {symbol: {timestamp: delta}}
         self.cvd_data = {} 
+        self.prices = {} # {symbol: last_price}
         self.max_cvd_history = 100 # Store last 100 trade events for delta calculation
         self.active_symbols = []
 
@@ -22,7 +23,8 @@ class BybitWS:
         try:
             data = message.get("data", [])
             topic = message.get("topic", "")
-            symbol = topic.replace("publicTrade.", "")
+            raw_symbol = topic.replace("publicTrade.", "")
+            symbol = f"{raw_symbol}.P"
 
             if symbol not in self.cvd_data:
                 self.cvd_data[symbol] = deque(maxlen=self.max_cvd_history)
@@ -30,15 +32,32 @@ class BybitWS:
             for trade in data:
                 side = trade.get("S") # 'Buy' or 'Sell'
                 size = float(trade.get("v", 0))
+                price = float(trade.get("p", 0))
                 
-                # Buy volume is positive delta, Sell is negative
-                delta = size if side == "Buy" else -size
+                # UPDATE: Normalize CVD to USD Value for fair comparison
+                # If price is 0 (unlikely for linear), use last known from ticker
+                if price == 0: price = self.prices.get(symbol, 0)
+                else: self.prices[symbol] = price # Update last known price from trade event
+
+                delta = (size * price) if side == "Buy" else -(size * price)
                 self.cvd_data[symbol].append({
                     "timestamp": trade.get("T"),
                     "delta": delta
                 })
         except Exception as e:
             logger.error(f"Error processing trade message: {e}")
+
+    def handle_ticker_message(self, message):
+        """Processes ticker updates to maintain current price references."""
+        try:
+            data = message.get("data", {})
+            topic = message.get("topic", "")
+            raw_symbol = topic.replace("tickers.", "")
+            symbol = f"{raw_symbol}.P"
+            
+            if "lastPrice" in data:
+                self.prices[symbol] = float(data["lastPrice"])
+        except Exception: pass
 
     def get_cvd_score(self, symbol: str) -> float:
         """Returns the current cumulative delta for the stored history."""
@@ -47,23 +66,22 @@ class BybitWS:
         return sum(item["delta"] for item in self.cvd_data[symbol])
 
     async def start(self, symbols: list):
-        """Starts the WebSocket connection for a list of symbols."""
-        # Optimization: Limit to top 30 symbols to prevent WebSocket ping/pong timeouts
-        monitored_symbols = symbols[:30]
-        self.active_symbols = monitored_symbols
+        """Starts the WebSocket connection for a list of symbols (V4.3 Expansion)."""
+        self.active_symbols = symbols
         
         self.ws = WebSocket(
             testnet=settings.BYBIT_TESTNET,
             channel_type="linear",
         )
         
-        for symbol in monitored_symbols:
+        for symbol in symbols:
+            api_symbol = symbol.replace(".P", "")
             # Subscribe to trades for CVD calculation (V5 Public Linear)
-            self.ws.trade_stream(symbol=symbol, callback=self.handle_trade_message)
-            # Ticker stream for real-time price
-            self.ws.ticker_stream(symbol=symbol, callback=lambda msg: None)
+            self.ws.trade_stream(symbol=api_symbol, callback=self.handle_trade_message)
+            # Ticker stream for real-time price & normalization
+            self.ws.ticker_stream(symbol=api_symbol, callback=self.handle_ticker_message)
 
-        logger.info(f"Subscribed to {len(monitored_symbols)} symbols (Top 30 Optimization) for CVD monitoring.")
+        logger.info(f"BybitWS: Subscribed to {len(symbols)} symbols for CVD & Price monitoring.")
 
     def stop(self):
         if self.ws:

@@ -65,55 +65,87 @@ class GuardianAgent:
                 
                 if entry == 0: continue
                 last_price = price_map.get(symbol, 0)
+                if last_price == 0 and "." in symbol:
+                    last_price = price_map.get(symbol.split('.')[0], 0)
+                
                 if last_price == 0: continue
 
                 # Calculate PnL %
                 leverage = getattr(settings, 'LEVERAGE', 50)
-                pnl_pct = ((last_price - entry) / entry if side == "Buy" else (entry - last_price) / entry) * 100 * leverage
+                side_norm = (side or "").lower()
+                pnl_pct = ((last_price - entry) / entry if side_norm == "buy" else (entry - last_price) / entry) * 100 * leverage
                 
-                # Check if already at Breakeven
-                is_breakeven = False
-                if side == "Buy" and current_stop >= entry: is_breakeven = True
-                if side == "Sell" and current_stop <= entry and current_stop > 0: is_breakeven = True
+                # AUDIT LOG: Identify discrepancy between Price/Entry and PNL
+                if symbol == "VIRTUALUSDT" or symbol == "WLFIUSDT":
+                    logger.info(f"[AUDIT] {symbol}: Side={side_norm}, Entry={entry}, Last={last_price}, ROI={pnl_pct:.2f}%")
+
+                # Define Trailing Surf Logic (Lucro % -> Novo Stop em relação à entrada %)
+                # Ex: Se lucro é 6%, move stop para +3% da entrada.
+                surf_rules = [
+                    {"trigger": 10.0, "stop_pct": 7.0},
+                    {"trigger": 6.0,  "stop_pct": 3.0},
+                    {"trigger": 3.0,  "stop_pct": 1.5},
+                    {"trigger": settings.BREAKEVEN_TRIGGER_PERCENT, "stop_pct": 0.0} # Breakeven
+                ]
+
+                target_stop_pct = None
+                for rule in surf_rules:
+                    if pnl_pct >= rule["trigger"]:
+                        target_stop_pct = rule["stop_pct"]
+                        break
+                
+                if target_stop_pct is None: continue
+
+                # Calculate new price for the Stop
+                # For Long: Entry * (1 + target_stop_pct/100/leverage)
+                # For Short: Entry * (1 - target_stop_pct/100/leverage)
+                # Note: target_stop_pct is in terms of UNLEVERAGED profit to stay safe
+                safe_offset = (target_stop_pct / leverage) / 100
+                new_stop_price = entry * (1 + safe_offset) if side == "Buy" else entry * (1 - safe_offset)
+                
+                # Check if this move is actually an improvement (Trailing only)
+                is_improvement = False
+                side_norm = (side or "").lower()
+                if side_norm == "buy" and new_stop_price > current_stop: is_improvement = True
+                if side_norm == "sell" and new_stop_price < current_stop and current_stop > 0: is_improvement = True
+                if side_norm == "sell" and current_stop == 0: is_improvement = True # First stop
 
                 # Always update PnL in Firebase for UI
                 try:
                     await firebase_service.update_slot(slot["id"], {"pnl_percent": pnl_pct})
                 except: pass
                 
-                if is_breakeven: continue
+                if not is_improvement: continue
 
-                if pnl_pct >= settings.BREAKEVEN_TRIGGER_PERCENT: # 1.5%
-                    logger.info(f"Guardian: {symbol} in profit ({pnl_pct:.2f}%). Moving SL to Entry.")
+                # Execution: Move SL on Exchange
+                try:
+                    logger.info(f"Guardian SURF: {symbol} Profit {pnl_pct:.2f}%. Moving SL to {new_stop_price:.5f} (+{target_stop_pct}% ROI).")
+                    resp = await bybit_rest_service.set_trading_stop(
+                        category="linear",
+                        symbol=symbol,
+                        stopLoss=str(new_stop_price),
+                        slTriggerBy="LastPrice",
+                        tpslMode="Full",
+                        positionIdx=0
+                    )
                     
-                    # Move SL on Exchange
-                    try:
-                        resp = await asyncio.to_thread(
-                            bybit_rest_service.session.set_trading_stop,
-                            category="linear",
-                            symbol=symbol,
-                            stopLoss=str(entry),
-                            slTriggerBy="LastPrice",
-                            tpslMode="Full",
-                            positionIdx=0
-                        )
-                        
-                        ret_code = resp.get("retCode")
-                        if ret_code in [0, 34040]: # 0 = OK, 34040 = Already set
-                            await firebase_service.update_slot(slot["id"], {
-                                "current_stop": entry,
-                                "status_risco": "RISK_FREE (GUARDIAN)",
-                                "pnl_percent": pnl_pct,
-                                "pensamento": f"🛡️ Lucro de {pnl_pct:.2f}% atingido. Stop movido para entrada. Risco reciclado."
-                            })
-                            if ret_code == 0:
-                                await firebase_service.log_event("Guardian", f"🛡️ SECURED: {symbol} SL moved to Entry. Profit: {pnl_pct:.2f}%", "SUCCESS")
-                        else:
-                             logger.error(f"Failed to move SL for {symbol}: {resp}")
+                    ret_code = resp.get("retCode")
+                    if ret_code in [0, 34040]: # 0 = OK, 34040 = Already set
+                        status_msg = f"SURF_ACTIVE ({target_stop_pct}% ROI)" if target_stop_pct > 0 else "RISK_FREE (GUARDIAN)"
+                        await firebase_service.update_slot(slot["id"], {
+                            "current_stop": new_stop_price,
+                            "status_risco": status_msg,
+                            "pnl_percent": pnl_pct,
+                            "pensamento": f"🏄 Surfando {symbol}: Lucro de {pnl_pct:.2f}% atingido. Stop movido para +{target_stop_pct:.1f}% ROI."
+                        })
+                        if ret_code == 0:
+                            await firebase_service.log_event("Guardian", f"🏄 SURF: {symbol} SL moved to {new_stop_price:.5f}. Profit: {pnl_pct:.2f}%", "SUCCESS")
+                    else:
+                         logger.error(f"Failed to move SL for {symbol}: {resp}")
 
-                    except Exception as e:
-                        if "34040" not in str(e):
-                            logger.error(f"Error moving SL for {symbol}: {e}")
+                except Exception as e:
+                    if "34040" not in str(e):
+                        logger.error(f"Error moving SL for {symbol}: {e}")
 
         except Exception as e:
             logger.error(f"Error in manage_positions: {e}")

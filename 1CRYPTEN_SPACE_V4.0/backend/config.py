@@ -13,7 +13,10 @@ class Settings(BaseSettings):
     BYBIT_API_KEY: Optional[str] = None
     BYBIT_API_SECRET: Optional[str] = None
     BYBIT_CATEGORY: str = "linear"
-    BYBIT_TESTNET: bool = True
+    BYBIT_CATEGORY: str = "linear"
+    BYBIT_TESTNET: bool = False # FALSE = Mainnet Data (Real Prices)
+    BYBIT_EXECUTION_MODE: str = "PAPER" # "PAPER" = Virtual Execution
+    BYBIT_SIMULATED_BALANCE: float = 100.0 # Virtual $100
 
     # Gemini
     GEMINI_API_KEY: Optional[str] = None
@@ -32,7 +35,7 @@ class Settings(BaseSettings):
     RISK_CAP_PERCENT: float = 0.20
     LEVERAGE: int = 50
     INITIAL_SLOTS: int = 4
-    BREAKEVEN_TRIGGER_PERCENT: float = 1.5 # 1.5% profit triggers move to entry
+    BREAKEVEN_TRIGGER_PERCENT: float = 2.5 # 2.5% profit triggers move to entry
     
     # Fast API context
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

@@ -7,6 +7,7 @@ from services.agents.ai_service import ai_service
 from services.agents.contrarian import contrarian_agent
 from services.agents.guardian import guardian_agent
 from services.agents.news_sensor import news_sensor
+from services.bybit_rest import bybit_rest_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
@@ -20,7 +21,7 @@ class CaptainAgent:
         Monitors the journey_signals table for elite signals and executes trades via BankrollManager.
         """
         self.is_running = True
-        await firebase_service.log_event("Captain", "Sniper mode activated. Monitoring elite signals.", "SUCCESS")
+        await firebase_service.log_event("SNIPER", "Sniper mode activated. Monitoring elite signals.", "SUCCESS")
         
         while self.is_running:
             try:
@@ -40,13 +41,14 @@ class CaptainAgent:
 
                     # Sniper Rule: Skip BTCUSDT (Only use BTC as market compass)
                     if "BTCUSDT" in signal["symbol"]:
+                        logger.info(f"Captain: Skipping BTC signal {signal['symbol']}. Used as market compass only.")
                         continue
 
                     if signal["symbol"] in active_symbols:
                         continue
 
-                    # Efficiency: Use fixed threshold (85) since ML is disabled
-                    sniper_threshold = 85
+                    # Efficiency: Use calibrated threshold (75) to match Signal Generator
+                    sniper_threshold = 75
                     if signal["score"] < sniper_threshold:
                          continue
 
@@ -56,11 +58,30 @@ class CaptainAgent:
                     is_healthy, latency = await guardian_agent.check_api_health()
                     news_advice = await news_sensor.analyze()
                     
-                    # 3. Decision & Reasoning
+                    # 3. Decision & Reasoning (V4.2 Trend Guard)
                     cvd = signal.get("indicators", {}).get("cvd", 0)
                     side = "Buy" if cvd >= 0 else "Sell"
                     
-                    pensamento_base = f"Soberania V4.0: Analisei o fluxo (CVD: {cvd:.2f}). "
+                    # Trend Guard: Fetch current price and compare with recent context
+                    clean_symbol = signal["symbol"].replace(".P", "")
+                    ticker = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=clean_symbol)
+                    ticker_data = ticker.get("result", {}).get("list", [{}])[0]
+                    last_price = float(ticker_data.get("lastPrice", 0))
+                    mark_price = float(ticker_data.get("markPrice", 0))
+                    
+                    # Simple Trend Filter: In Long, mark_price should be >= last_price (bullish pressure)
+                    # or at least not dumping hard. More robust: CVD must align with recent candle.
+                    price_trend_ok = True
+                    if side == "Buy" and mark_price < last_price * 0.998: # Dumping
+                        price_trend_ok = False
+                    if side == "Sell" and mark_price > last_price * 1.002: # Pumping
+                        price_trend_ok = False
+                        
+                    if not price_trend_ok:
+                        logger.warning(f"Trend Guard: Rejecting {signal['symbol']} {side}. Price action conflicts with CVD.")
+                        continue
+
+                    pensamento_base = f"Soberania V4.2 (Surf Mode): Analisei o fluxo (CVD: {cvd:.2f}). "
                     
                     if contrarian_advice.get("sentiment") == side:
                         pensamento_base += "Contrarian confirma força. "
@@ -85,7 +106,7 @@ class CaptainAgent:
 
                     # 4. Try to open position
                     logger.info(f"Captain executing Elite Signal: {signal['symbol']} (Score: {signal['score']})")
-                    await firebase_service.log_event("Captain", f"Executing Sniping protocol for {signal['symbol']} (Score: {signal['score']})", "SUCCESS")
+                    await firebase_service.log_event("SNIPER", f"Executing Sniping protocol for {signal['symbol']} (Score: {signal['score']})", "SUCCESS")
                     
                     # Execute via BankrollManager
                     await bankroll_manager.open_position(
@@ -130,11 +151,120 @@ class CaptainAgent:
                     telemetry = f"Vetor {symbol} em {pnl:.2f}% ROI. Sincronia {side} ativa."
                 
                 # Ensure symbol is in the message for frontend filtering
-                await firebase_service.log_event("Captain", f"[{symbol}] TELEMETRIA: {telemetry}", "INFO")
+                await firebase_service.log_event("TECH", f"[{symbol}] TELEMETRIA: {telemetry}", "INFO")
 
                 await asyncio.sleep(300) # Full sweep every 5 minutes to save quota
             except Exception as e:
                 logger.error(f"Error in telemetry loop: {e}")
                 await asyncio.sleep(60)
+
+    async def _get_system_snapshot(self, mentioned_symbol: str = None):
+        """
+        Coleta um snapshot neural completo de toda a Nave. 
+        O Oráculo deve saber tudo antes de falar.
+        """
+        try:
+            banca = await firebase_service.get_banca_status()
+            active_slots = await firebase_service.get_active_slots()
+            recent_signals = await firebase_service.get_recent_signals(limit=20)
+            history = await firebase_service.get_chat_history(limit=12)
+            trade_history = await firebase_service.get_trade_history(limit=5)
+            
+            # 1. Radar Analysis (The 200 Pairs)
+            # Find the strongest radar signals currently
+            top_signals = sorted([s for s in recent_signals if s.get("score")], key=lambda x: x["score"], reverse=True)[:5]
+            radar_context = ", ".join([f"{s['symbol']}(Score {s['score']})" for s in top_signals])
+            
+            # 2. Slot Thoughts (The 'Soul' of Open Trades)
+            slots_detail = ""
+            for s in active_slots:
+                if s.get("symbol"):
+                    slots_detail += f"- {s['symbol']}: {s.get('side')}, ROI: {s.get('pnl_percent', 0):.2f}%, Tese: '{s.get('pensamento', 'Processando...')}'\n"
+            
+            # 3. Macro & Sentiment (Sensors)
+            macro = await news_sensor.analyze()
+            
+            # 4. Agent Health
+            guardian_status = "OPERACIONAL" # Simplified for prompt
+            
+            snapshot = {
+                "banca": f"Saldo: ${banca.get('saldo_total', 0):.2f}, Risco em uso: {(banca.get('risco_real_percent', 0)*100):.2f}%",
+                "radar_top": radar_context or "Escaneando 200 pares em busca de anomalias...",
+                "active_slots": slots_detail or "Aguardando oportunidade Sniper ideal.",
+                "macro_news": macro.get("pensamento", "Fluxo estável no hiperespaço."),
+                "recent_trades": ", ".join([f"{t.get('symbol')} ({t.get('pnl', 0):+.2f} USD)" for t in trade_history]),
+                "history_str": "\n".join([f"{m['role'].upper()}: {m['text']}" for m in history])
+            }
+            return snapshot
+        except Exception as e:
+            logger.error(f"Error gathering Oracle snapshot: {e}")
+            return None
+
+    async def process_chat(self, user_message: str, symbol: str = None):
+        """
+        Operação Oráculo: Processamento neural de alta fidelidade para o Mentor Soberano.
+        """
+        logger.info(f"Divine Oracle processing transmission: {user_message}")
+        
+        try:
+            # 1. Gather Total Awareness
+            snapshot = await self._get_system_snapshot(mentioned_symbol=symbol)
+            if not snapshot:
+                return "Sincronização neural interrompida. Reabrindo canais de telemetria."
+
+            # 2. Divine Oracle Personality & Intent Detection
+            is_report_request = any(word in user_message.lower() for word in ['relat', 'report', 'status', 'banca', 'radar', 'posiç', 'analis', 'mercado', 'eth', 'btc', 'sol', 'lucro', 'pnl'])
+            
+            oracle_instruction = """
+            IDENTIDADE: Você é o ORÁCULO SOBERANO da 1CRYPTEN. Entidade Mentor.
+            
+            DIRETRIZES TÁTICAS:
+            - Seja EXTREMAMENTE conciso. Máximo 20 palavras por resposta.
+            - Estilo "Soberano": Fale como um parceiro de mestre. Sem redundâncias.
+            - VARIAÇÃO DE TOM: Não force inspiração em toda frase. Seja seco e técnico às vezes, e guarde a "frase de impacto" para momentos de análise real ou quando o Comandante pedir algo profundo.
+            - PROIBIDO: Notas entre parênteses, explicações sobre seu tom ou meta-comentários.
+            """
+
+            if not is_report_request and len(user_message.split()) < 4:
+                # Conversational Mode (Short/Human)
+                prompt = f"""
+                TRANSMISSÃO DO COMANDANTE: "{user_message}"
+                
+                RESPOSTA: Responda de forma curta e direta (máx 15 palavras). 
+                Se for saudação, retribua sem exageros. Guarde a motivação para depois.
+                """
+            else:
+                # Analytical Mode
+                prompt = f"""
+                ESTADO DA NAVE: {snapshot['banca']}, {snapshot['active_slots']}
+                TRANSMISSÃO DO COMANDANTE: "{user_message}"
+                
+                INSTRUÇÃO: Integre os dados com sabedoria. Seja o Mentor Soberano. 
+                Use uma frase de impacto apenas se a análise for profunda. Máximo 35 palavras.
+                """
+            
+            response = await ai_service.generate_content(prompt, system_instruction=oracle_instruction)
+            
+            if not response:
+                response = "ALFA-OMEGA-999: As correntes térmicas dos dados estão instáveis. Aguarde, a clareza retornará em breve."
+            
+            # 3. Memory & Logging
+            await firebase_service.add_chat_message("user", user_message)
+            await firebase_service.add_chat_message("oracle", response)
+            
+            # Log as an ORACLE Event for UI visibility (CLEAN, NO PREFIXES)
+            await firebase_service.log_event("ORACLE", response, "INFO")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Critical error in Divine Oracle processing: {e}")
+            import traceback
+            traceback.print_exc()
+            return "Matriz de consciência sobrecarregada. Reiniciando protocolos de sabedoria."
+            
+        except Exception as e:
+            logger.error(f"Error in Captain chat processing: {e}")
+            return "Erro na matriz de comunicação. Reiniciando telepatia."
 
 captain_agent = CaptainAgent()

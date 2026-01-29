@@ -17,7 +17,8 @@ class ContrarianAgent:
         """
         try:
             # 1. Fetch current funding rate from Bybit
-            tickers = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=symbol)
+            clean_symbol = symbol.replace(".P", "")
+            tickers = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=clean_symbol)
             ticker_data = tickers.get("result", {}).get("list", [{}])[0]
             funding_rate = float(ticker_data.get("fundingRate", 0))
             

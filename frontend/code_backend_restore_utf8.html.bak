@@ -221,110 +221,6 @@
             scrollbar-width: thin;
             scrollbar-color: #B8860B rgba(0, 0, 0, 0.2);
         }
-
-        /* Premium Chart Border - Metallic Gold Pulse */
-        .premium-chart-container {
-            border: 2px solid rgba(255, 215, 0, 0.4);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.1), inset 0 0 10px rgba(255, 215, 0, 0.05);
-            animation: borderPulse 4s infinite alternate;
-        }
-
-        @keyframes borderPulse {
-            0% {
-                border-color: rgba(255, 215, 0, 0.3);
-                box-shadow: 0 0 10px rgba(255, 215, 0, 0.05);
-            }
-
-            100% {
-                border-color: rgba(255, 215, 0, 0.6);
-                box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
-            }
-        }
-
-        /* Oracle Chat Styles - Modern V4.2 */
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 300px;
-            background: rgba(10, 10, 12, 0.4);
-            border: 2px solid rgba(255, 215, 0, 0.12);
-            border-radius: 1.25rem;
-            overflow: hidden;
-            backdrop-filter: blur(24px);
-            box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
-        }
-
-        .chat-header {
-            padding: 1rem 1.25rem;
-            background: linear-gradient(to right, rgba(255, 215, 0, 0.05), transparent);
-            border-bottom: 2px solid rgba(255, 215, 0, 0.15);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .message-bubble {
-            max-width: 88%;
-            padding: 0.85rem 1.1rem;
-            border-radius: 1.1rem;
-            font-size: 0.72rem;
-            line-height: 1.5;
-            position: relative;
-            font-family: 'Inter', sans-serif;
-            transition: all 0.2s ease;
-            animation: messageEntry 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes messageEntry {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message-user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            color: #fff;
-            border-bottom-right-radius: 0.25rem;
-            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.05);
-        }
-
-        .message-captain {
-            align-self: flex-start;
-            background: rgba(255, 255, 255, 0.03);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            color: #e2e8f0;
-            border-bottom-left-radius: 0.25rem;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 215, 0, 0.2);
-            border-radius: 10px;
-        }
     </style>
 </head>
 
@@ -416,7 +312,6 @@
             const linesRef = useRef([]);
             const [lastPrice, setLastPrice] = useState(null);
             const [tf, setTf] = useState('15'); // Default 15m
-            const isMounted = useRef(true);
 
             const timeframes = [
                 { label: '1m', value: '1' },
@@ -428,167 +323,56 @@
 
 
             const fetchHistory = async () => {
-                if (!symbol || !isMounted.current) return;
-                const apiSymbol = symbol.replace('.P', '');
-                console.log(`[Chart] Fetching history for ${apiSymbol} (Display: ${symbol}) @ ${tf}m`);
+                if (!symbol) return;
                 try {
-                    const response = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${apiSymbol}&interval=${tf}&limit=300`);
+                    const response = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${tf}&limit=100`);
                     const json = await response.json();
-
-                    if (!isMounted.current || !seriesRef.current) return;
-
                     if (json.result && json.result.list) {
-                        console.log(`[Chart] Received ${json.result.list.length} candles for ${symbol}`);
                         const klines = json.result.list.map(k => ({
-                            time: parseInt(k[0]) / 1000,
-                            open: parseFloat(k[1]),
-                            high: parseFloat(k[2]),
-                            low: parseFloat(k[3]),
-                            close: parseFloat(k[4]),
-                            volume: parseFloat(k[5])
+                            time: parseInt(k[0]) / 1000, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]),
                         })).sort((a, b) => a.time - b.time);
-
                         if (seriesRef.current) seriesRef.current.setData(klines);
-
-                        // Indicators Calculation
-                        if (volumeSeriesRef.current) {
-                            volumeSeriesRef.current.setData(klines.map(k => ({
-                                time: k.time,
-                                value: k.volume,
-                                color: k.close >= k.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'
-                            })));
-                        }
-
-                        const calculateEMA = (data, period) => {
-                            if (data.length < period) return [];
-                            const k = 2 / (period + 1);
-                            let emaData = [];
-                            let ema = data.slice(0, period).reduce((acc, val) => acc + val.close, 0) / period;
-                            for (let i = period; i < data.length; i++) {
-                                ema = (data[i].close - ema) * k + ema;
-                                emaData.push({ time: data[i].time, value: ema });
-                            }
-                            return emaData;
-                        };
-
-                        if (ema20Ref.current) ema20Ref.current.setData(calculateEMA(klines, 20));
-                        if (ema200Ref.current) ema200Ref.current.setData(calculateEMA(klines, 200));
-
-                        // Zones Update (Base on entry)
-                        if (zonesRef.current) {
-                            zonesRef.current.setData(klines.map(k => ({ time: k.time, value: k.close })));
-                        }
                     }
-                } catch (e) { if (isMounted.current) console.error("History Error", e); }
+                } catch (e) { console.error("History Error", e); }
             };
-
-            const volumeSeriesRef = useRef();
-            const ema20Ref = useRef();
-            const ema200Ref = useRef();
-            const zonesRef = useRef();
 
             useEffect(() => {
                 if (!chartContainerRef.current) return;
+                // Dispose old chart if exists to avoid duplication when re-mounting or hot-reload
                 if (chartRef.current) { chartRef.current.remove(); }
 
-                isMounted.current = true; // Ensure we are marked as mounted for this effect cycle
-                let active = true;
-
-                // Chart Configuration with dynamic height check
-                const containerHeight = chartContainerRef.current.clientHeight || 250;
-                const containerWidth = chartContainerRef.current.clientWidth || 400;
-
                 const chart = LightweightCharts.createChart(chartContainerRef.current, {
-                    width: containerWidth,
-                    height: containerHeight,
+                    width: chartContainerRef.current.clientWidth, height: 350,
                     layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#94a3b8' },
                     grid: { vertLines: { color: 'rgba(255, 255, 255, 0.05)' }, horzLines: { color: 'rgba(255, 255, 255, 0.05)' } },
                     rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
                     timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
                     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
                 });
-
-                chartRef.current = chart;
-
-                // Volume Histogram Setup
-                const volumeSeries = chart.addHistogramSeries({
-                    priceFormat: { type: 'volume' },
-                    priceScaleId: 'volume'
-                });
-
-                chart.priceScale('volume').applyOptions({
-                    scaleMargins: { top: 0.7, bottom: 0 },
-                    visible: false
-                });
-                volumeSeriesRef.current = volumeSeries;
-
-                ema200Ref.current = chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.5)', lineWidth: 1, title: 'EMA 200' });
-                ema20Ref.current = chart.addLineSeries({ color: 'rgba(255, 215, 0, 0.6)', lineWidth: 1, title: 'EMA 20' });
-
-                zonesRef.current = chart.addBaselineSeries({
-                    baseValue: { type: 'price', price: Number(entryPrice) || 0 },
-                    topFillColor1: 'rgba(16, 185, 129, 0.1)', topFillColor2: 'rgba(16, 185, 129, 0.05)',
-                    bottomFillColor1: 'rgba(239, 68, 68, 0.1)', bottomFillColor2: 'rgba(239, 68, 68, 0.05)',
-                    lineVisible: false, axisLabelVisible: false, priceLineVisible: false,
-                });
-
                 const candleSeries = chart.addCandlestickSeries({
                     upColor: '#10B981', downColor: '#EF4444', borderVisible: false, wickUpColor: '#10B981', wickDownColor: '#EF4444'
                 });
-                seriesRef.current = candleSeries;
-
-                // Initial fetch
+                chartRef.current = chart; seriesRef.current = candleSeries;
                 fetchHistory();
 
-                const handleResize = () => {
-                    if (chartRef.current && chartContainerRef.current) {
-                        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
-                    }
-                };
-
                 const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-                const apiSymbol = symbol.replace('.P', '');
-                ws.onopen = () => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${tf}.${apiSymbol}`, `tickers.${apiSymbol}`] }));
-                    }
-                };
+                ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${tf}.${symbol}`, `tickers.${symbol}`] }));
                 ws.onmessage = (event) => {
-                    if (!active) return;
                     const msg = JSON.parse(event.data);
-                    if (msg.topic && msg.topic.startsWith('kline') && seriesRef.current) {
+                    if (msg.topic && msg.topic.startsWith('kline')) {
                         const k = msg.data[0];
-                        const update = { time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) };
-                        try {
-                            seriesRef.current.update(update);
-                            if (volumeSeriesRef.current) volumeSeriesRef.current.update({ ...update, value: parseFloat(k.volume), color: update.close >= update.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)' });
-                            if (zonesRef.current) zonesRef.current.update({ time: update.time, value: update.close });
-                        } catch (e) { }
+                        candleSeries.update({ time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) });
                     }
                     if (msg.topic && msg.topic.startsWith('tickers') && msg.data.lastPrice) {
                         setLastPrice(parseFloat(msg.data.lastPrice));
                     }
                 };
-
-                window.addEventListener('resize', handleResize);
-
-                return () => {
-                    active = false;
-                    window.removeEventListener('resize', handleResize);
-                    ws.close();
-                    if (chartRef.current) {
-                        chartRef.current.remove();
-                        chartRef.current = null;
-                    }
-                };
+                window.addEventListener('resize', () => chart.applyOptions({ width: chartContainerRef.current.clientWidth }));
+                return () => { ws.close(); chart.remove(); chartRef.current = null; };
             }, [symbol, tf]);
 
             useEffect(() => {
                 if (!seriesRef.current || !chartRef.current) return;
-
-                if (zonesRef.current) {
-                    zonesRef.current.applyOptions({ baseValue: { type: 'price', price: Number(entryPrice) || 0 } });
-                }
 
                 // Small delay to ensure chart state is stable after TF change
                 const timeout = setTimeout(() => {
@@ -670,11 +454,11 @@
 
             return (
                 <div className="w-full h-full relative group">
-                    {/* Timeframe Selector - Fixed for Mobile */}
-                    <div className="absolute top-4 left-4 z-20 flex gap-1 bg-black/40 p-1 rounded border border-white/5 backdrop-blur-md">
+                    {/* Timeframe Selector */}
+                    <div className="absolute top-4 left-4 z-20 flex gap-1 bg-black/80 p-1 rounded border border-white/10 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
                         {timeframes.map(t => (
                             <button key={t.value} onClick={() => setTf(t.value)}
-                                className={`px-2 py-1 text-[10px] font-bold rounded transition-colors ${tf === t.value ? 'bg-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
+                                className={`px-2 py-1 text-[10px] font-bold rounded ${tf === t.value ? 'bg-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
                                 {t.label}
                             </button>
                         ))}
@@ -722,14 +506,13 @@
 
             return tickers;
         };
-        // --- Sub-Component: Slot Card (v2.0 - Hero Profit, Stable Fuel, Detailed Stats) ---
-        const SlotCard = ({ s, selectedId, setSelectedSlotId, tickers, getDynamicPnL }) => {
+        // --- Sub-Component: Slot Card (Latched PnL) ---
+        const SlotCard = ({ s, selectedId, setSelectedSlot, tickers, getDynamicPnL }) => {
             const [displayPnl, setDisplayPnl] = useState(0);
             const isActive = s.symbol;
             const pnlFallback = s.pnl_percent || 0;
             const currentPrice = tickers[s.symbol];
             const smoothingRef = useRef(0);
-            const entryAmount = 5; // Captain's Fixed Entry
 
             useEffect(() => {
                 if (!isActive) { setDisplayPnl(0); smoothingRef.current = 0; return; }
@@ -741,8 +524,7 @@
                 }
 
                 const targetPnl = livePnl !== 0 ? livePnl : (pnlFallback || 0);
-                // Stabilizer: Higher alpha for responsiveness but kept smooth
-                const alpha = 0.15;
+                const alpha = 0.2; // A bit faster for small cards
                 const nextVal = (targetPnl * alpha) + (smoothingRef.current * (1 - alpha));
 
                 smoothingRef.current = nextVal;
@@ -750,73 +532,79 @@
             }, [currentPrice, s.entry_price, s.side, pnlFallback, isActive]);
 
             const pnl = displayPnl;
-            const profitUSD = (entryAmount * (pnl / 100)); // Raw value
-            const isProfit = pnl >= 0;
-
-            // Target Calculation (Simulated 100% ROI Target or fixed based on strategy - utilizing 2% move * 50x)
-            const entryPrice = Number(s.entry_price) || 0;
-            const targetPrice = s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98; // 2% move for 100% ROI
 
             return (
-                <div onClick={() => setSelectedSlotId(s.id)}
-                    className={`relative overflow-hidden rounded-2xl border transition-all duration-300 group ${isActive ? 'cursor-pointer hover:shadow-2xl' : 'cursor-default opacity-40'} ${selectedId === s.id ? 'bg-white/[0.07] border-primary/60 ring-1 ring-primary/30' : 'bg-black/40 border-white/5 hover:border-white/10'}`}>
+                <div onClick={() => isActive && setSelectedSlot(s)}
+                    className={`p-5 rounded-2xl border transition-all relative overflow-hidden group ${isActive ? 'active-slot cursor-pointer' : 'glass-card opacity-30'} ${selectedId === s.id ? 'ring-1 ring-primary/50 border-primary/50' : 'border-white/5'}`}>
 
-                    {isActive ? (
-                        <div className="h-full w-full">
-                            {/* Premium Glow Background */}
-                            <div className={`absolute inset-0 opacity-20 transition-colors duration-500 ${isProfit ? 'bg-gradient-to-br from-emerald-500/20 via-transparent to-transparent' : 'bg-gradient-to-br from-red-500/20 via-transparent to-transparent'}`}></div>
+                    {isActive && (
+                        <div className={`absolute bottom-0 left-0 h-1 transition-all duration-700 ease-out z-20 ${pnl >= 0 ? 'bg-emerald-500 shadow-[0_0_15px_#10B981]' : 'bg-red-500 shadow-[0_0_15px_#EF4444]'}`}
+                            style={{
+                                // Gas Bar Logic: 
+                                // 0 to 1.5% profit = progress to BE (first 60% of bar)
+                                // 1.5% to 5% profit = progress to Target (last 40% of bar)
+                                width: `${(() => {
+                                    const profit = pnl / 50; // Real % (not 50x)
+                                    if (profit <= 0) return 2;
+                                    if (profit < 1.5) return (profit / 1.5) * 60;
+                                    return 60 + ((profit - 1.5) / 3.5) * 40;
+                                })()}%`,
+                                opacity: 0.8
+                            }}></div>
+                    )}
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/5 z-10"></div>
 
-                            {/* Stable Fuel Bar */}
-                            <div className="absolute bottom-0 left-0 w-full h-1.5 bg-black/50 overflow-hidden">
-                                <div className={`h-full transition-all duration-1000 ease-out ${isProfit ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-red-600 to-red-400'}`}
-                                    style={{ width: `${Math.min(100, Math.abs(pnl))}%`, boxShadow: `0 0 10px ${isProfit ? '#10B981' : '#EF4444'}` }}></div>
+                    <div className="flex justify-between items-center text-[10px] mb-3 font-bold font-display tracking-widest">
+                        <span className="text-slate-500">SLOT {s.id.toString().padStart(2, '0')}</span>
+                        {isActive && (
+                            <div className="flex gap-2 items-center">
+                                <span className={`px-2 py-0.5 rounded-full text-[8px] ${s.side === 'Buy' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                                    {s.side === 'Buy' ? 'LONG' : 'SHORT'}
+                                </span>
+                                <span className={`font-mono ${pnl >= 0 ? 'text-emerald-400' : 'text-danger'}`}>
+                                    {pnl > 0 ? '+' : ''}{pnl.toFixed(2)}%
+                                </span>
                             </div>
+                        )}
+                    </div>
 
-                            <div className="p-3 relative z-10 flex flex-col h-full justify-between">
-                                {/* Header */}
-                                <div className="flex justify-between items-start">
-                                    <div className="flex flex-col">
-                                        <span className="font-display font-bold text-xs text-white/90 tracking-wider">
-                                            {s.symbol.replace('USDT.P', '').replace('USDT', '')}
-                                        </span>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${s.side === 'Buy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                                                {s.side === 'Buy' ? 'LONG' : 'SHORT'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {/* Small PnL % */}
-                                    <span className={`font-mono text-[10px] font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {isProfit ? '+' : ''}{pnl.toFixed(1)}%
-                                    </span>
-                                </div>
-
-                                {/* Hero Profit USD */}
-                                <div className="flex flex-col items-center justify-center my-2">
-                                    <span className={`text-2xl font-mono font-bold tracking-tighter drop-shadow-lg ${isProfit ? 'text-white' : 'text-red-100'}`}>
-                                        {profitUSD >= 0 ? '+' : ''}${profitUSD.toFixed(2)}
-                                    </span>
-                                    {/* Dynamic Label */}
-                                    <span className="text-[8px] text-slate-500 uppercase font-bold tracking-widest">{isProfit ? 'Em Lucro' : 'Reagindo'}</span>
-                                </div>
-
-                                {/* Market Data Grid */}
-                                <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-2">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] text-slate-500 uppercase font-bold">Entrada</span>
-                                        <span className="text-[10px] font-mono text-slate-300">{entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: (entryPrice < 1 ? 4 : 2) })}</span>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-[8px] text-slate-500 uppercase font-bold">Alvo (100%)</span>
-                                        <span className="text-[10px] font-mono text-primary/80">{targetPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: (targetPrice < 1 ? 4 : 2) })}</span>
-                                    </div>
-                                </div>
+                    <div className="flex items-end justify-between mb-3">
+                        <div>
+                            <div className="font-display font-bold text-lg text-white group-hover:text-primary transition-colors">
+                                {s.symbol || 'LIVRE'}
                             </div>
+                            {isActive && (
+                                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    LEV: 50x
+                                </div>
+                            )}
                         </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center p-4 text-center space-y-2 cursor-pointer hover:bg-white/5 transition-colors">
-                            <span className="text-xl font-display font-bold text-slate-600">{`SLOT ${String(s.id).padStart(2, '0')}`}</span>
-                            <span className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Vazio</span>
+                        {s.entry_price > 0 && (
+                            <div className="text-right">
+                                <div className="text-[10px] text-slate-400 font-mono">
+                                    <span className="opacity-30 text-[8px] mr-1">ENTRY</span>
+                                    {Number(s.entry_price).toLocaleString()}
+                                </div>
+                                <div className="text-[10px] text-primary/60 font-mono mt-0.5">
+                                    <span className="opacity-30 text-[8px] mr-1">STOP</span>
+                                    {s.current_stop || '--'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {isActive && s.pensamento && (
+                        <div className="mt-2 p-2 bg-navy-deep/20 rounded-lg border border-primary/5">
+                            <p className="text-[9px] text-primary/70 leading-relaxed italic flex items-start gap-1">
+                                <span className="material-icons-round text-[10px] mt-0.5">psychology</span>
+                                {s.pensamento}
+                            </p>
+                        </div>
+                    )}
+
+                    {!isActive && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[2px]">
+                            <span className="text-[8px] font-bold tracking-[0.3em] text-white/40">LOCKED</span>
                         </div>
                     )}
                 </div>
@@ -1040,17 +828,9 @@
         const DashboardPage = () => {
             const [banca, setBanca] = useState({ saldo_total: 0, risco_real_percent: 0 });
             const [slots, setSlots] = useState([]);
-            const [selectedSlotId, setSelectedSlotId] = useState(null);
+            const [selectedSlot, setSelectedSlot] = useState(null);
             const [isLoaded, setIsLoaded] = useState(false);
             const [logs, setLogs] = useState([]);
-            const chatRef = useRef(null);
-
-            // Auto-scroll chat to bottom on new messages
-            useEffect(() => {
-                if (chatRef.current) {
-                    chatRef.current.scrollTop = chatRef.current.scrollHeight;
-                }
-            }, [logs]);
 
 
 
@@ -1089,8 +869,17 @@
                             // Resilience: Only update if we received a valid payload with slots
                             if (Array.isArray(data) && data.length > 0) {
                                 setSlots(data);
-                                // Sync selected slot persistence
-                                // Selection handled via derived state
+                                // Sync selected slot without losing local state on transient nulls
+                                if (data.length > 0) {
+                                    setSelectedSlot(prev => {
+                                        if (prev) {
+                                            const updated = data.find(x => x.id === prev.id);
+                                            // Only switch if the new one has a symbol, or preserve existing if incoming is empty
+                                            return (updated && updated.symbol) ? updated : prev;
+                                        }
+                                        return data.find(x => x.symbol) || data[0];
+                                    });
+                                }
                             }
                         }
 
@@ -1146,12 +935,6 @@
                 return slot.pnl_percent || 0;
             };
 
-            // Derived Selection Logic (BTC Compass)
-            const activeSlot = slots.find(s => s.id === selectedSlotId && s.symbol) || slots.find(s => s.symbol);
-            const displaySlot = activeSlot || { symbol: 'BTCUSDT.P', entry_price: 0, current_stop: 0, side: 'Buy', id: 'BTC' };
-            const isCompassMode = !activeSlot;
-
-
 
 
 
@@ -1166,26 +949,26 @@
             };
 
             const handlePanic = async () => {
-                if (!confirm("⚠️ ATENÇÃO: Deseja realmente fechar TODAS as posições?")) return;
+                if (!confirm("­ƒÜ¿ ATEN├ç├âO: Deseja realmente fechar TODAS as posi├º├Áes?")) return;
                 try {
                     await fetch(API_BASE + '/panic', { method: 'POST' });
-                } catch (e) { alert("Erro ao executar Pânico"); }
+                } catch (e) { alert("Erro ao executar P├ónico"); }
             };
 
             return (
-                <div className="min-h-screen max-h-screen flex flex-col bg-space-black overflow-hidden">
+                <div className="min-h-screen flex flex-col bg-space-black pb-20">
                     {pulseStatus === 'OFFLINE' && (
                         <div className="fixed inset-0 z-[100] bg-red-950/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                             <div className="bg-black/80 border border-red-500/50 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-pulse">
                                 <span className="material-icons-round text-red-500 text-4xl">wifi_off</span>
                                 <div className="text-center">
-                                    <h3 className="text-red-500 font-bold uppercase tracking-widest">Capitão Offline</h3>
-                                    <p className="text-[10px] text-slate-400 mt-1">Conexão Neuronal Interrompida</p>
+                                    <h3 className="text-red-500 font-bold uppercase tracking-widest">Capit├úo Offline</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Conex├úo Neuronal Interrompida</p>
                                 </div>
                             </div>
                         </div>
                     )}
-                    <header className="glass-panel px-6 py-4 flex flex-col z-50 border-b border-white/10 flex-shrink-0">
+                    <header className="glass-panel px-6 py-4 flex flex-col z-50 border-b border-white/10">
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex flex-col gap-1 items-start mt-2">
                                 <div className="flex items-center gap-2">
@@ -1202,150 +985,95 @@
                         </div>
 
                         <div className="flex justify-between items-end">
-                            <div className="flex items-end gap-4">
-                                <div>
-                                    <p className="text-[9px] text-slate-500 uppercase font-black tracking-[0.2em] mb-1">Portfolio Balance</p>
-                                    <h1 className="text-3xl font-display text-white font-bold tracking-tighter premium-gradient-text uppercase">
-                                        ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                                    </h1>
-                                </div>
-                                <div className="mb-1 bg-white/5 px-2 py-1 rounded border border-white/10 flex flex-col">
-                                    <span className="text-[7px] text-slate-500 uppercase font-bold tracking-[0.1em]">Op. Limit</span>
-                                    <span className="text-xs font-mono font-bold text-primary">$5.00</span>
-                                </div>
+                            <div>
+                                <p className="text-[9px] text-slate-500 uppercase font-black tracking-[0.2em] mb-1">Portfolio Balance</p>
+                                <h1 className="text-3xl font-display text-white font-bold tracking-tighter premium-gradient-text uppercase">
+                                    ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                                </h1>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col items-end">
-                                    <span className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Risk Allocation (Max 20%)</span>
+                                    <span className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Risk Allocation</span>
                                     <span className={`text-xl font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
                                         {(banca.risco_real_percent * 100).toFixed(2)}%
                                     </span>
                                 </div>
+                                <button onClick={handlePanic} className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_4px_15px_rgba(220,38,38,0.3)] active:scale-95">
+                                    <span className="material-icons-round text-sm">gpp_maybe</span>
+                                    <span className="text-[10px] font-bold tracking-widest">PANIC</span>
+                                </button>
                             </div>
                         </div>
                     </header>
 
-                    <main className="flex-1 flex flex-col overflow-hidden pb-16">
-                        {/* 1. CHART SECTION (Fixed 300px) */}
-                        <section className="h-[300px] flex-shrink-0 relative border-b border-white/5 bg-black/20">
-                            <div className={`h-full relative rounded-2xl overflow-hidden m-3 glass-panel ${isCompassMode ? 'border border-primary/20' : 'premium-chart-container'}`}>
-                                <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-lg border border-white/10 backdrop-blur-xl pointer-events-none">
-                                    <span className={`w-2 h-2 rounded-full ${isCompassMode ? 'bg-primary' : (displaySlot.side === 'Buy' ? 'bg-emerald-500' : 'bg-orange-500')} ${!isCompassMode && 'animate-pulse'}`}></span>
-                                    <span className="text-sm font-display font-bold text-white tracking-widest uppercase">{displaySlot.symbol}</span>
-                                    <span className="text-[10px] font-mono text-slate-400">{isCompassMode ? 'Market Compass' : '50x Sniper'}</span>
+                    <main className="flex-1">
+                        <section className="h-[60%] flex flex-col relative border-b border-white/5 bg-black/20">
+                            {selectedSlot && selectedSlot.symbol ? (
+                                <div className="h-full flex flex-col">
+                                    <div className="flex-1 relative border border-white/10 rounded-2xl overflow-hidden m-3 glass-panel">
+                                        <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 bg-black/40 p-3 rounded-xl border border-white/10 backdrop-blur-xl pointer-events-none">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full animate-pulse ${selectedSlot.side === 'Buy' ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
+                                                <h2 className="text-xl font-display font-bold text-white tracking-tight">{selectedSlot.symbol}</h2>
+                                            </div>
+                                            <div className="text-[10px] font-mono text-slate-400 flex gap-3">
+                                                <span><span className="opacity-50">ENT:</span> {selectedSlot.entry_price}</span>
+                                                <span><span className="opacity-50">STP:</span> {selectedSlot.current_stop}</span>
+                                            </div>
+                                        </div>
+                                        <TradingChart symbol={selectedSlot.symbol} entryPrice={selectedSlot.entry_price} stopLossPrice={selectedSlot.current_stop} side={selectedSlot.side} pnlFallback={selectedSlot.pnl_percent} />
+                                    </div>
+
+                                    {/* Captain's Log Section */}
+                                    <div className="h-[35%] bg-black/40 border-t border-white/5 p-4 overflow-hidden flex flex-col">
+                                        <div className="text-[10px] font-bold text-primary mb-3 flex justify-between items-center tracking-[0.2em]">
+                                            <div className="flex items-center gap-2">
+                                                <span className="material-icons-round text-xs">analytics</span>
+                                                NEURAL TELEMETRY: {selectedSlot.symbol}
+                                            </div>
+                                            <div className="px-2 py-0.5 bg-primary/10 rounded text-[9px]">ENCRYPTED</div>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                                            {logs.filter(l => l.message && l.message.includes(selectedSlot.symbol)).length > 0 ? (
+                                                logs.filter(l => l.message && l.message.includes(selectedSlot.symbol)).map((log, i) => (
+                                                    <div key={i} className="text-[11px] font-mono leading-relaxed group">
+                                                        <span className="text-slate-600 mr-2 opacity-50">
+                                                            [{(() => {
+                                                                if (!log.timestamp) return '..:..';
+                                                                try {
+                                                                    const date = log.timestamp.seconds ? new Date(log.timestamp.seconds * 1000) : new Date(log.timestamp);
+                                                                    return isNaN(date.getTime()) ? '..:..' : date.toLocaleTimeString();
+                                                                } catch (e) { return '..:..'; }
+                                                            })()}]
+                                                        </span>
+                                                        <span className={`${log.level === 'WARNING' ? 'text-amber-500' : 'text-slate-300'} group-hover:text-white transition-colors`}>{log.message}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="h-full flex items-center justify-center text-[10px] text-slate-700 font-mono tracking-widest italic animate-pulse">
+                                                    NO TELEMETRY DETECTED...
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="w-full h-full flex flex-col pt-10">
-                                    <TradingChart key={displaySlot.symbol} symbol={displaySlot.symbol} entryPrice={displaySlot.entry_price} stopLossPrice={displaySlot.current_stop} side={displaySlot.side} pnlFallback={displaySlot.pnl_percent} />
-                                </div>
-                            </div>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-slate-700 text-[10px] uppercase font-bold">Waiting for Target...</div>
+                            )}
                         </section>
 
-                        {/* 2. SLOTS SECTION (Scrollable, with improved spacing) */}
-                        <section className="flex-1 overflow-y-auto mx-4 mt-6 mb-6 p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 bg-white/[0.02] rounded-3xl border border-white/10 shadow-lg min-h-[150px] custom-scrollbar">
+                        <section className="p-4 grid grid-cols-2 gap-3">
                             {slots.map(s => (
                                 <SlotCard
                                     key={s.id}
                                     s={s}
-                                    selectedId={selectedSlotId}
-                                    setSelectedSlotId={setSelectedSlotId}
+                                    selectedId={selectedSlot ? selectedSlot.id : null}
+                                    setSelectedSlot={setSelectedSlot}
                                     tickers={tickers}
                                     getDynamicPnL={getDynamicPnL}
                                 />
                             ))}
-                        </section>
 
-                        {/* 3. CHAT SECTION (Fixed 250px with scroll) */}
-                        <section className="h-[250px] flex-shrink-0 px-3 py-3">
-                            <div className="chat-container h-full flex flex-col">
-                                <div className="chat-header py-2 px-3 flex-shrink-0">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#FFD700]"></div>
-                                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Oracle Chat</span>
-                                        </div>
-                                        <button
-                                            onClick={async () => {
-                                                if (confirm("Reiniciar conversa com o Oráculo?")) {
-                                                    try {
-                                                        await fetch(API_BASE + '/api/chat/reset', { method: 'POST' });
-                                                        setLogs([]); // Clear local state
-                                                    } catch (e) { console.error(e); }
-                                                }
-                                            }}
-                                            className="text-[7px] bg-white/5 hover:bg-white/10 border-2 border-white/20 px-2 py-0.5 rounded uppercase tracking-tighter text-slate-400 hover:text-white transition-all">
-                                            Nova Conversa
-                                        </button>
-                                    </div>
-                                    <Link to="/logs" className="text-[8px] text-primary/40 hover:text-primary transition-colors font-bold uppercase tracking-widest flex items-center gap-1">
-                                        <span className="material-icons-round text-[10px]">history</span>
-                                        Logs
-                                    </Link>
-                                </div>
-                                <div className="chat-messages custom-scrollbar flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3"
-                                    ref={chatRef}>
-
-                                    {logs.filter(l => l.agent === 'USER' || l.agent === 'ORACLE').slice(0, 20).reverse().map((l, i) => (
-                                        <div key={i} className={`flex flex-col ${l.agent === 'USER' ? 'items-end' : 'items-start'}`}>
-                                            <div className={`message-bubble max-w-[85%] ${l.agent === 'USER' ? 'message-user' : 'message-captain'}`}>
-                                                <div className="flex justify-between items-center mb-1 opacity-50 font-display font-bold text-[7px] tracking-widest uppercase gap-4">
-                                                    <span>{l.agent === 'USER' ? 'VOCÊ' : 'ORÁCULO'}</span>
-                                                </div>
-                                                <div className="text-[11px] font-medium leading-[1.5] text-white/90">
-                                                    {l.message.replace(/\[[A-Z0-9]+USDT\]/g, '').trim()}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {logs.filter(l => l.agent === 'USER' || l.agent === 'ORACLE').length === 0 && (
-                                        <div className="h-full flex flex-col items-center justify-center gap-3 opacity-40 py-10">
-                                            <span className="material-icons-round text-primary/30 text-3xl">chat_bubble_outline</span>
-                                            <div className="text-[9px] text-slate-500 font-mono text-center tracking-widest text-primary/60">
-                                                A AGUARDAR TRANSMISSÃO SOFRIDA...
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-2 bg-black/40 border-t-2 border-white/10 flex gap-2 flex-shrink-0">
-                                    <div className="flex-1 relative flex items-center">
-                                        <span className="material-icons-round absolute left-3 text-primary/40 text-sm">terminal</span>
-                                        <input
-                                            id="chat-input"
-                                            onKeyDown={async (e) => {
-                                                if (e.key === 'Enter' && e.target.value.trim()) {
-                                                    const m = e.target.value.trim();
-                                                    e.target.value = '';
-                                                    try {
-                                                        await fetch(API_BASE + '/api/chat', {
-                                                            method: 'POST',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({ message: m, symbol: displaySlot.symbol })
-                                                        });
-                                                    } catch (err) { console.error("Chat error:", err); }
-                                                }
-                                            }}
-                                            className="w-full bg-white/5 border-2 border-white/20 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-primary/40 focus:bg-white/[0.08] transition-all font-mono"
-                                            placeholder="Pergunte ao Capitão..."
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={async () => {
-                                            const input = document.getElementById('chat-input');
-                                            if (input && input.value.trim()) {
-                                                const m = input.value.trim();
-                                                input.value = '';
-                                                await fetch(API_BASE + '/api/chat', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ message: m, symbol: displaySlot.symbol })
-                                                });
-                                            }
-                                        }}
-                                        className="bg-primary hover:bg-primary/90 text-black w-9 h-9 rounded-lg transition-all flex items-center justify-center shadow-[0_4px_15px_rgba(255,215,0,0.2)] active:scale-95"
-                                    >
-                                        <span className="material-icons-round text-base">send</span>
-                                    </button>
-                                </div>
-                            </div>
                         </section>
                     </main>
                 </div>
@@ -1446,14 +1174,6 @@
         };
 
         const SettingsPage = () => {
-            const handlePanic = async () => {
-                if (!confirm("⚠️ CAUTELA: O Protocolo de Pânico fechará TODAS as posições imediatamente no mercado. Confirmar?")) return;
-                try {
-                    const res = await fetch(API_BASE + '/panic', { method: 'POST' });
-                    if (res.ok) alert("ORDEM DE PÂNICO ENVIADA: Limpeza de Slots em andamento.");
-                } catch (e) { alert("Erro ao executar Protocolo Especial."); }
-            };
-
             return (
                 <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-6 overflow-y-auto pb-24">
                     <header className="mb-8 flex flex-col">
@@ -1461,38 +1181,20 @@
                             <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-display font-bold text-white uppercase tracking-tight">Security Center</h1>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">V4.6 Operation Armament</p>
+                            <h1 className="text-2xl font-display font-bold text-white">Security Center</h1>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">V4.0 Armament Management</p>
                         </div>
                     </header>
                     <div className="space-y-6">
-                        {/* Protocolo de Pânico UI - Moved here */}
-                        <div className="glass-panel p-6 rounded-2xl border border-red-500/20 bg-red-950/10">
-                            <h2 className="text-sm font-bold mb-1 text-red-500 flex items-center gap-2">
-                                <span className="material-icons-round text-sm">gpp_maybe</span>
-                                Protocolo Dark Space (PÂNICO)
-                            </h2>
-                            <p className="text-[10px] text-slate-400 mb-4 uppercase tracking-tighter">Limpeza imediata de todas as posições em aberto.</p>
-                            <button
-                                onClick={handlePanic}
-                                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl text-xs tracking-[0.3em] shadow-[0_0_30px_rgba(220,38,38,0.2)] transition-all active:scale-95 flex items-center justify-center gap-3">
-                                <span className="material-icons-round">flash_on</span>
-                                EXECUTAR LIMPEZA TOTAL
-                            </button>
-                        </div>
-
                         <div className="glass-card p-6 rounded-2xl">
-                            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
-                                <span className="material-icons-round text-primary text-sm">key</span>
-                                API Telemetry
-                            </h2>
+                            <h2 className="text-sm font-bold mb-4 flex items-center gap-2"><span className="material-icons-round text-primary text-sm">key</span> API Telemetry</h2>
                             <div className="space-y-3">
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Bybit Key (Auth)</label>
-                                    <input type="text" disabled value="••••••••••••••••••••••••" className="bg-black/40 border border-white/10 rounded-lg p-3 text-xs font-mono" />
+                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Bybit Key</label>
+                                    <input type="text" disabled value="ÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇó" className="bg-black/40 border border-white/10 rounded-lg p-3 text-xs font-mono" />
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Network Frequency</label>
+                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Environment</label>
                                     <div className="flex gap-2">
                                         <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-xs">TESTNET</button>
                                         <button className="flex-1 bg-white/5 text-slate-500 border border-white/10 font-bold py-2 rounded-lg text-xs opacity-50">MAINNET</button>

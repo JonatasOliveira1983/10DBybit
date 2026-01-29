@@ -10,7 +10,7 @@ class BankrollManager:
     def __init__(self):
         self.max_slots = settings.MAX_SLOTS
         self.risk_cap = settings.RISK_CAP_PERCENT # 0.20 (20%)
-        self.margin_per_slot = 0.01 # 1% per slot (Sniper mode)
+        self.margin_per_slot = 0.05 # 5% per slot (Sniper mode: 4 slots = 20%)
         self.initial_slots = settings.INITIAL_SLOTS # 4
         self.last_log_times = {} # Cooldown for logs
 
@@ -23,9 +23,10 @@ class BankrollManager:
         logger.info("Starting Slot <-> Exchange Synchronization...")
         try:
             # 1. Fetch Exchange Data
-            positions = await asyncio.to_thread(bybit_rest_service.get_active_positions)
+            positions = await bybit_rest_service.get_active_positions()
             # Map symbol -> position_data
-            exchange_map = {p["symbol"]: p for p in positions}
+            # NOTE: We use normalized symbols for comparison
+            exchange_map = {bybit_rest_service._strip_p(p["symbol"]): p for p in positions}
             active_symbols = list(exchange_map.keys())
             logger.info(f"Exchange Positions ({len(active_symbols)}): {active_symbols}")
 
@@ -33,10 +34,28 @@ class BankrollManager:
             slots = await firebase_service.get_active_slots()
             db_symbols = {s["symbol"]: s["id"] for s in slots if s.get("symbol")}
 
+            # RECOVERY LOGIC for PAPER MODE:
+            is_server_restart = (bybit_rest_service.execution_mode == "PAPER" and len(exchange_map) == 0)
+
             # 3. Clear Stale Slots (DB has it, Exchange doesn't)
             for slot in slots:
                 symbol = slot.get("symbol")
-                if symbol and symbol not in exchange_map:
+                if not symbol: continue
+                
+                norm_symbol = bybit_rest_service._strip_p(symbol)
+                
+                if is_server_restart and norm_symbol not in exchange_map:
+                    logger.info(f"Sync [PAPER RECOVERY]: Re-adopting {symbol} into memory state.")
+                    bybit_rest_service.paper_positions.append({
+                        "symbol": norm_symbol, "side": slot.get("side"),
+                        "avgPrice": float(slot.get("entry_price", 0)), 
+                        "stopLoss": float(slot.get("current_stop", 0)),
+                        "size": 5.0 / float(slot.get("entry_price", 1)) if float(slot.get("entry_price", 0)) > 0 else 1.0,
+                        "positionValue": 5.0, "unrealisedPnl": 0
+                    })
+                    continue
+
+                if norm_symbol not in exchange_map:
                     logger.warning(f"Sync: Slot {slot['id']} for {symbol} is stale. Fetching result before clearing.")
                     
                     # Try to fetch last closed PnL
@@ -117,10 +136,11 @@ class BankrollManager:
             # In Long: if stop < entry, we still have risk
             # In Short: if stop > entry, we still have risk
             is_risk_free = False
-            if side == "Buy":
+            side_norm = (side or "").lower()
+            if side_norm == "buy":
                 if stop and entry and stop >= entry:
                     is_risk_free = True
-            elif side == "Sell":
+            elif side_norm == "sell":
                 if stop and entry and stop <= entry:
                     is_risk_free = True
             
@@ -158,11 +178,11 @@ class BankrollManager:
             for s in active_slots:
                 entry = s.get("entry_price", 0)
                 stop = s.get("current_stop", 0)
-                side = s.get("side")
+                side_norm = (s.get("side") or "").lower()
                 if entry > 0:
-                    if side == "Buy" and stop >= entry:
+                    if side_norm == "buy" and stop >= entry:
                         risk_free_count += 1
-                    elif side == "Sell" and stop <= entry:
+                    elif side_norm == "sell" and stop <= entry:
                         risk_free_count += 1
             
             allowed_slots = self.initial_slots + risk_free_count
@@ -233,7 +253,8 @@ class BankrollManager:
             return None
 
         # 1. Fetch Current Price
-        ticker = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=symbol)
+        # Use centralized service to handle .P suffix
+        ticker = await bybit_rest_service.get_tickers(symbol=symbol)
         current_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
         
         if current_price == 0:
@@ -279,7 +300,7 @@ class BankrollManager:
         
         # Place Atomic Order
         try:
-            order = await asyncio.wait_for(asyncio.to_thread(bybit_rest_service.place_atomic_order, symbol, side, qty, sl_price, tp_price), timeout=10.0)
+            order = await asyncio.wait_for(bybit_rest_service.place_atomic_order(symbol, side, qty, sl_price, tp_price), timeout=10.0)
         except Exception as e:
             logger.error(f"Timeout/Error placing order for {symbol}: {e}")
             order = None
@@ -319,13 +340,12 @@ class BankrollManager:
                 # BETTER APPROACH: Fetch position from Bybit and close it.
                 
                 try:
-                    # Fetch position to get size
-                    positions = bybit_rest_service.session.get_positions(category="linear", symbol=symbol)
-                    pos_list = positions.get("result", {}).get("list", [])
+                    # Fetch position to get size (Simulation aware)
+                    pos_list = await bybit_rest_service.get_active_positions(symbol=symbol)
                     for pos in pos_list:
                         size = float(pos.get("size", 0))
                         if size > 0:
-                            bybit_rest_service.close_position(symbol, pos["side"], size)
+                            await bybit_rest_service.close_position(symbol, pos["side"], size)
                 except Exception as e:
                     logger.error(f"Error closing {symbol}: {e}")
                 
@@ -338,6 +358,20 @@ class BankrollManager:
         await firebase_service.log_event("Captain", "PANIC BUTTON: All positions closed.", "WARNING")
         await self.update_banca_status()
         return {"status": "success", "message": "All positions closed"}
+
+    async def position_reaper_loop(self):
+        """
+        Background loop that runs every 30s to detect closed positions on Bybit
+        and finalize their data in Firebase (History + Slot clearing).
+        """
+        logger.info("Position Reaper loop active.")
+        while True:
+            try:
+                await self.sync_slots_with_exchange()
+                await self.update_banca_status()
+            except Exception as e:
+                logger.error(f"Error in Position Reaper: {e}")
+            await asyncio.sleep(30) # Scan every 30s
 
 bankroll_manager = BankrollManager()
 import asyncio # Fix missing import in the file context if needed
