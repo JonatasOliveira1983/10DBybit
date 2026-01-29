@@ -3,6 +3,7 @@ import asyncio
 import time
 from services.bybit_rest import bybit_rest_service
 from services.firebase_service import firebase_service
+from services.execution_protocol import execution_protocol
 from config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -79,24 +80,52 @@ class GuardianAgent:
                 if symbol == "VIRTUALUSDT" or symbol == "WLFIUSDT":
                     logger.info(f"[AUDIT] {symbol}: Side={side_norm}, Entry={entry}, Last={last_price}, ROI={pnl_pct:.2f}%")
 
-                # V4.3: Auto-Promotion SNIPER → SURF at 30% ROI
+                # V4.3.1: SNIPER HARD CLOSE - Usa ExecutionProtocol para fechamento ROI-based
                 current_slot_type = slot.get("slot_type", "SNIPER")
-                if current_slot_type == "SNIPER" and pnl_pct >= 30.0:
-                    logger.info(f"🏄 V4.3 PROMOTION: {symbol} upgraded SNIPER → SURF at {pnl_pct:.2f}% ROI!")
-                    await firebase_service.update_slot(slot["id"], {
-                        "slot_type": "SURF",
-                        "target_price": None,  # Remove fixed TP for SURF
-                        "pensamento": f"🏄 PROMOVIDO para SURF! ROI {pnl_pct:.2f}% ultrapassa limite Sniper."
-                    })
-                    await firebase_service.log_event("Guardian", f"🏄 {symbol} PROMOTED: SNIPER → SURF at {pnl_pct:.2f}%", "SUCCESS")
+                
+                if current_slot_type == "SNIPER":
+                    # Build slot_data for ExecutionProtocol
+                    slot_data = {
+                        "symbol": symbol,
+                        "side": side,
+                        "entry_price": entry,
+                        "current_stop": current_stop,
+                        "slot_type": "SNIPER"
+                    }
+                    
+                    # Check if SNIPER should close at 100% ROI
+                    should_close, close_reason = execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
+                    
+                    if should_close:
+                        logger.info(f"🎯 GUARDIAN SNIPER CLOSE: {symbol} | Reason: {close_reason}")
+                        # For REAL mode, we need to close the position
+                        if bybit_rest_service.execution_mode == "REAL":
+                            positions = await bybit_rest_service.get_active_positions(symbol=symbol)
+                            for pos in positions:
+                                size = float(pos.get("size", 0))
+                                if size > 0:
+                                    await bybit_rest_service.close_position(symbol, pos["side"], size)
+                        
+                        # Reset slot in Firebase
+                        await firebase_service.hard_reset_slot(slot["id"], close_reason, pnl_pct)
+                        continue  # Skip to next slot
+                    
+                    # V4.3: Auto-Promotion SNIPER → SURF at 30% ROI (if not closing)
+                    if pnl_pct >= 30.0:
+                        logger.info(f"🏄 V4.3 PROMOTION: {symbol} upgraded SNIPER → SURF at {pnl_pct:.2f}% ROI!")
+                        await firebase_service.update_slot(slot["id"], {
+                            "slot_type": "SURF",
+                            "target_price": None,
+                            "pensamento": f"🏄 PROMOVIDO para SURF! ROI {pnl_pct:.2f}% ultrapassa limite Sniper."
+                        })
+                        await firebase_service.log_event("Guardian", f"🏄 {symbol} PROMOTED: SNIPER → SURF at {pnl_pct:.2f}%", "SUCCESS")
 
-                # Define Trailing Surf Logic (Lucro % -> Novo Stop em relação à entrada %)
-                # Ex: Se lucro é 6%, move stop para +3% da entrada.
+                # V4.3.1: Define Trailing Surf Logic using ExecutionProtocol ladder
                 surf_rules = [
                     {"trigger": 10.0, "stop_pct": 7.0},
-                    {"trigger": 6.0,  "stop_pct": 3.0},
+                    {"trigger": 5.0,  "stop_pct": 3.0},
                     {"trigger": 3.0,  "stop_pct": 1.5},
-                    {"trigger": settings.BREAKEVEN_TRIGGER_PERCENT, "stop_pct": 0.0} # Breakeven
+                    {"trigger": settings.BREAKEVEN_TRIGGER_PERCENT, "stop_pct": 0.0}
                 ]
 
                 target_stop_pct = None
@@ -174,6 +203,7 @@ class GuardianAgent:
             # 2. Position Management (Auto-Breakeven)
             await self.manage_positions()
 
-            await asyncio.sleep(15) # Check every 15s
+            # V4.3.1: Fast loop interval for SNIPER 100% ROI capture
+            await asyncio.sleep(1)
 
 guardian_agent = GuardianAgent()

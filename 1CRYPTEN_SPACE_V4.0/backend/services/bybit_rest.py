@@ -374,63 +374,139 @@ class BybitREST:
 
     async def run_paper_execution_loop(self):
         """
-        Engine de execução para modo PAPER.
-        Monitora preços em tempo real e fecha posições por TP ou SL.
+        V4.3.1: Engine de execução blindada para modo PAPER.
+        Usa ExecutionProtocol para decisões ROI-based e sincroniza com Firebase.
+        Intervalo reduzido para 1s para captura de 100% ROI em SNIPER.
         """
         if self.execution_mode != "PAPER":
             return
 
-        logger.info("🚀 Paper Execution Engine (Exchange Simulator) started.")
+        # Import here to avoid circular imports
+        from services.execution_protocol import execution_protocol
+        from services.firebase_service import firebase_service
+
+        logger.info("🚀 V4.3.1 Paper Execution Engine (Blindagem de Execução) ACTIVATING...")
+        logger.info(f"   - Loop Interval: 1 second (Fast SNIPER capture)")
+        logger.info(f"   - SNIPER Target: {execution_protocol.sniper_target_roi}% ROI")
+        logger.info(f"   - SURF Trailing: Escada de Proteção Ativa")
+        
         while True:
             try:
                 if not self.paper_positions:
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(2)  # Slightly longer sleep when no positions
                     continue
 
-                # Batch fetch tickers for efficiency
+                # 1. Batch fetch tickers for efficiency
                 symbols_to_check = [p["symbol"] for p in self.paper_positions]
-                # Note: get_tickers with no symbol gets all in the category
                 resp = await asyncio.to_thread(self.session.get_tickers, category="linear")
                 ticker_list = resp.get("result", {}).get("list", [])
-                price_map = {t["symbol"]: float(t.get("lastPrice", 0)) for t in ticker_list if t["symbol"] in symbols_to_check}
+                price_map = {t["symbol"]: float(t.get("lastPrice", 0)) for t in ticker_list}
+
+                # 2. Get Firebase slots for correlation
+                slots = await firebase_service.get_active_slots()
+                slots_by_symbol = {}
+                for s in slots:
+                    sym = s.get("symbol")
+                    if sym:
+                        norm_sym = self._strip_p(sym)
+                        slots_by_symbol[norm_sym] = s
 
                 to_close = []
+                to_update_sl = []
+
+                # 3. Process each position with ExecutionProtocol
                 for pos in self.paper_positions:
-                    symbol = pos["symbol"]
+                    symbol = pos["symbol"]  # Already normalized (no .P)
                     current_price = price_map.get(symbol, 0)
-                    if current_price == 0: continue
+                    if current_price == 0: 
+                        continue
 
-                    entry = float(pos["avgPrice"])
-                    sl = float(pos["stopLoss"]) if pos.get("stopLoss") else 0
-                    tp = float(pos["takeProfit"]) if pos.get("takeProfit") else 0
-                    side = pos["side"].lower()
+                    # Find matching Firebase slot
+                    slot = slots_by_symbol.get(symbol)
+                    if not slot:
+                        # Try to find by similar symbol patterns
+                        for sym_key, slot_data in slots_by_symbol.items():
+                            if sym_key == symbol or symbol.startswith(sym_key) or sym_key.startswith(symbol):
+                                slot = slot_data
+                                break
+                    
+                    # Build slot_data for ExecutionProtocol
+                    slot_data = {
+                        "symbol": symbol,
+                        "side": pos.get("side", "Buy"),
+                        "entry_price": float(pos.get("avgPrice", 0)),
+                        "current_stop": float(pos.get("stopLoss", 0)) if pos.get("stopLoss") else 0,
+                        "target_price": float(pos.get("takeProfit", 0)) if pos.get("takeProfit") else 0,
+                        "slot_type": slot.get("slot_type", "SNIPER") if slot else "SNIPER",
+                        "slot_id": slot.get("id") if slot else None
+                    }
 
-                    # Trigger Logic
-                    triggered = False
-                    reason = ""
+                    # 4. Execute Protocol Logic
+                    should_close, reason, new_sl = execution_protocol.process_order_logic(slot_data, current_price)
 
-                    if side == "buy":
-                        if tp > 0 and current_price >= tp:
-                            triggered, reason = True, "TP"
-                        elif sl > 0 and current_price <= sl:
-                            triggered, reason = True, "SL"
-                    else: # Sell/Short
-                        if tp > 0 and current_price <= tp:
-                            triggered, reason = True, "TP"
-                        elif sl > 0 and current_price >= sl:
-                            triggered, reason = True, "SL"
+                    if should_close:
+                        logger.info(f"🎯 [PAPER] CLOSE TRIGGERED: {symbol} | Reason: {reason} | Price: {current_price}")
+                        to_close.append({
+                            "symbol": symbol,
+                            "side": pos["side"],
+                            "size": float(pos["size"]),
+                            "reason": reason,
+                            "slot_id": slot_data.get("slot_id"),
+                            "entry_price": slot_data["entry_price"],
+                            "exit_price": current_price
+                        })
+                    elif new_sl is not None:
+                        # Update trailing stop
+                        to_update_sl.append((symbol, new_sl, slot_data.get("slot_id")))
 
-                    if triggered:
-                        logger.info(f"🎯 [PAPER] {reason} Triggered for {symbol}: Market={current_price}, Trigger={tp if reason=='TP' else sl}")
-                        to_close.append((symbol, side.capitalize(), float(pos["size"])))
-
-                # Execute closures
-                for sym, side, size in to_close:
+                # 5. Execute closures with Firebase sync
+                for close_data in to_close:
+                    sym = close_data["symbol"]
+                    side = close_data["side"]
+                    size = close_data["size"]
+                    slot_id = close_data.get("slot_id")
+                    
+                    # Close position (this updates paper_balance)
                     await self.close_position(sym, side, size)
+                    
+                    # Reset Firebase slot atomically
+                    if slot_id:
+                        # Calculate PNL for logging
+                        entry = close_data["entry_price"]
+                        exit_price = close_data["exit_price"]
+                        side_norm = (side or "").lower()
+                        
+                        pnl = size * (exit_price - entry) if side_norm == "buy" else size * (entry - exit_price)
+                        pnl -= abs(pnl) * 0.001  # ~0.1% fee
+                        
+                        trade_data = {
+                            "symbol": sym,
+                            "side": side,
+                            "entry_price": entry,
+                            "exit_price": exit_price,
+                            "qty": size,
+                            "slot_id": slot_id
+                        }
+                        
+                        await firebase_service.hard_reset_slot(slot_id, close_data["reason"], pnl, trade_data)
+                        logger.info(f"✅ [PAPER] Slot {slot_id} FREED | {sym} | PNL: ${pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
+
+                # 6. Update trailing stops in Firebase
+                for sym, new_sl, slot_id in to_update_sl:
+                    # Update paper position
+                    pos = next((p for p in self.paper_positions if p["symbol"] == sym), None)
+                    if pos:
+                        pos["stopLoss"] = str(new_sl)
+                    
+                    # Update Firebase
+                    if slot_id:
+                        await firebase_service.update_slot(slot_id, {"current_stop": new_sl})
 
             except Exception as e:
-                logger.error(f"Error in Paper Execution Engine: {e}")
+                logger.error(f"Error in Paper Execution Engine V4.3.1: {e}", exc_info=True)
             
-            await asyncio.sleep(5) # Watchdog interval
+            # V4.3.1: Fast loop interval for SNIPER 100% ROI capture
+            await asyncio.sleep(1)
 
 bybit_rest_service = BybitREST()
+

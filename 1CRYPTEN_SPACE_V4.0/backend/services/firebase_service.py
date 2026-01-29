@@ -400,6 +400,44 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error clearing chat history: {e}")
 
+    async def hard_reset_slot(self, slot_id: int, reason: str, pnl: float = 0, trade_data: dict = None):
+        """
+        V4.3.1: Reset atômico de slot após fechamento de ordem.
+        Garante que o Firebase e a memória local liberem o slot instantaneamente.
+        
+        Args:
+            slot_id: ID do slot a resetar
+            reason: Motivo do fechamento (SNIPER_TP_100_ROI, SURF_TRAILING_STOP_HIT, etc.)
+            pnl: PNL realizado
+            trade_data: Dados adicionais do trade para histórico
+        """
+        logger.info(f"🚨 [HARD RESET] Slot {slot_id} | Motivo: {reason} | PNL: ${pnl:.2f}")
+        
+        reset_data = {
+            "symbol": None,
+            "side": None,
+            "entry_price": 0,
+            "current_stop": 0,
+            "target_price": None,
+            "status_risco": "LIVRE",
+            "pnl_percent": 0,
+            "slot_type": None,
+            "pensamento": f"🔄 Reset: {reason}"
+        }
+        
+        # 1. Update slot in Firebase and local cache
+        await self.update_slot(slot_id, reset_data)
+        
+        # 2. Log trade to history if data provided
+        if trade_data:
+            trade_data["close_reason"] = reason
+            trade_data["pnl"] = pnl
+            await self.log_trade(trade_data)
+        
+        # 3. Log event for monitoring
+        emoji = "✅" if pnl >= 0 else "❌"
+        await self.log_event("ExecutionProtocol", f"{emoji} Slot {slot_id} RESET: {reason} | PNL: ${pnl:.2f}", "SUCCESS" if pnl >= 0 else "WARNING")
+
     async def initialize_db(self):
         """Creates initial documents if they don't exist."""
         if not self.is_active: return

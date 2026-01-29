@@ -331,6 +331,59 @@ async def reset_chat():
     return {"status": "success", "message": "Chat history cleared."}
 
 
+# ============ V4.3.1 PREMIUM TTS ENDPOINT ============
+@app.post("/api/tts")
+async def text_to_speech(payload: dict):
+    """
+    Premium Text-to-Speech using Edge-TTS (Free Microsoft Voices).
+    Returns base64 encoded MP3 audio.
+    """
+    import edge_tts
+    import base64
+    import io
+    
+    text = payload.get("text", "")
+    voice = payload.get("voice", "pt-BR-FranciscaNeural")  # Premium Brazilian voice
+    
+    if not text:
+        return {"error": "No text provided"}
+    
+    try:
+        # Generate audio
+        communicate = edge_tts.Communicate(text, voice)
+        audio_data = io.BytesIO()
+        
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data.write(chunk["data"])
+        
+        audio_data.seek(0)
+        audio_base64 = base64.b64encode(audio_data.read()).decode("utf-8")
+        
+        return {
+            "audio": audio_base64,
+            "format": "mp3",
+            "voice": voice
+        }
+    except Exception as e:
+        logger.error(f"TTS Error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/tts/voices")
+async def get_tts_voices():
+    """List available premium voices for TTS."""
+    return {
+        "voices": [
+            {"id": "pt-BR-FranciscaNeural", "name": "Francisca", "lang": "pt-BR", "gender": "Female"},
+            {"id": "pt-BR-AntonioNeural", "name": "Antonio", "lang": "pt-BR", "gender": "Male"},
+            {"id": "en-US-GuyNeural", "name": "Guy", "lang": "en-US", "gender": "Male"},
+            {"id": "en-US-JennyNeural", "name": "Jenny", "lang": "en-US", "gender": "Female"},
+        ],
+        "default": "pt-BR-FranciscaNeural"
+    }
+
+
 @app.post("/test-order")
 async def test_order(symbol: str, side: str, sl: float):
     """Manual test endpoint - DISABLED FOR DEBUGGING"""

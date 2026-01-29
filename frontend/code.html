@@ -333,6 +333,82 @@
             background: rgba(255, 215, 0, 0.2);
             border-radius: 10px;
         }
+
+        /* V4.3.1: Legibilidade Melhorada - Estilo Gemini */
+        /* Aumenta tamanhos mínimos de fonte para melhor leitura em mobile */
+
+        /* Fontes muito pequenas → mínimo 12px */
+        .text-\[8px\],
+        .text-\[9px\],
+        .text-\[10px\] {
+            font-size: 12px !important;
+        }
+
+        /* Fontes xs → 13px */
+        .text-xs {
+            font-size: 13px !important;
+        }
+
+        /* Fontes sm → 14px */
+        .text-sm {
+            font-size: 14px !important;
+        }
+
+        /* Melhorar legibilidade do chat */
+        .message-bubble {
+            font-size: 14px !important;
+            padding: 1rem 1.25rem !important;
+            line-height: 1.6 !important;
+        }
+
+        /* Labels e títulos mais legíveis */
+        .font-bold {
+            letter-spacing: 0.01em;
+        }
+
+        /* Valores numéricos mais claros */
+        .font-mono {
+            font-size: inherit;
+            letter-spacing: -0.01em;
+        }
+
+        /* Espaçamento melhorado para touch */
+        button,
+        .cursor-pointer {
+            min-height: 36px;
+        }
+
+        /* Input de chat mais confortável */
+        input[type="text"],
+        textarea {
+            font-size: 16px !important;
+            /* Previne zoom no iOS */
+            padding: 0.75rem 1rem !important;
+        }
+
+        /* Logo maior */
+        .w-6,
+        .h-6 {
+            width: 2rem !important;
+            height: 2rem !important;
+        }
+
+        .w-8,
+        .h-8 {
+            width: 2.5rem !important;
+            height: 2.5rem !important;
+        }
+
+        /* Ícones Material mais visíveis */
+        .material-icons-round {
+            font-size: 24px !important;
+        }
+
+        /* Navbar items mais espaçados */
+        nav a,
+        nav button {
+            padding: 0.75rem 1rem !important;
+        }
     </style>
 </head>
 
@@ -879,11 +955,63 @@
             return { isListening, transcript, isSupported, startListening, stopListening, setTranscript };
         };
 
-        // Hook for Text-to-Speech (TTS)
+        // Hook for Text-to-Speech (TTS) - V4.3.1 Premium with Edge-TTS
         const useSpeechSynthesis = () => {
             const [isSpeaking, setIsSpeaking] = useState(false);
+            const audioRef = useRef(null);
 
-            const speak = (text) => {
+            const speak = async (text) => {
+                if (!text) return;
+
+                setIsSpeaking(true);
+
+                try {
+                    // Try Premium Edge-TTS API first
+                    const response = await fetch(`${API_BASE}/api/tts`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: text,
+                            voice: 'pt-BR-AntonioNeural' // Premium Microsoft Neural Voice (Masculina)
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.audio) {
+                        // Play the audio from base64
+                        const audioBlob = new Blob(
+                            [Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))],
+                            { type: 'audio/mp3' }
+                        );
+                        const audioUrl = URL.createObjectURL(audioBlob);
+
+                        if (audioRef.current) {
+                            audioRef.current.pause();
+                        }
+
+                        audioRef.current = new Audio(audioUrl);
+                        audioRef.current.onended = () => {
+                            setIsSpeaking(false);
+                            URL.revokeObjectURL(audioUrl);
+                        };
+                        audioRef.current.onerror = () => {
+                            setIsSpeaking(false);
+                            // Fallback to Web Speech API
+                            fallbackSpeak(text);
+                        };
+                        audioRef.current.play();
+                        return;
+                    }
+                } catch (e) {
+                    console.log('Premium TTS unavailable, using fallback:', e);
+                }
+
+                // Fallback to Web Speech API
+                fallbackSpeak(text);
+            };
+
+            const fallbackSpeak = (text) => {
                 if ('speechSynthesis' in window && text) {
                     window.speechSynthesis.cancel();
                     const utterance = new SpeechSynthesisUtterance(text);
@@ -891,7 +1019,6 @@
                     utterance.rate = 1.0;
                     utterance.pitch = 1.0;
 
-                    // Try to find Portuguese voice
                     const voices = window.speechSynthesis.getVoices();
                     const ptVoice = voices.find(v => v.lang.startsWith('pt'));
                     if (ptVoice) utterance.voice = ptVoice;
@@ -901,14 +1028,20 @@
                     utterance.onerror = () => setIsSpeaking(false);
 
                     window.speechSynthesis.speak(utterance);
+                } else {
+                    setIsSpeaking(false);
                 }
             };
 
             const stop = () => {
+                if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current = null;
+                }
                 if ('speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
-                    setIsSpeaking(false);
                 }
+                setIsSpeaking(false);
             };
 
             return { speak, stop, isSpeaking };
