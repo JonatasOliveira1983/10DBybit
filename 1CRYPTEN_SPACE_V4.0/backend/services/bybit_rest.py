@@ -198,9 +198,9 @@ class BybitREST:
         if self.execution_mode == "PAPER":
             logger.info(f"[PAPER] Simulating Atomic Order: {side} {qty} {symbol} @ MARKET")
             # 1. Get current price for entry simulation
+            api_symbol = self._strip_p(symbol)
             try:
                 # Need to fetch real price to simulate entry
-                api_symbol = self._strip_p(symbol)
                 ticker = await asyncio.to_thread(self.session.get_tickers, category="linear", symbol=api_symbol)
                 last_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
                 
@@ -209,7 +209,7 @@ class BybitREST:
 
                 # 2. Create Position Object (Mocking Bybit Schema)
                 new_position = {
-                    "symbol": symbol,
+                    "symbol": api_symbol, # Normalized
                     "side": side,
                     "size": str(qty),
                     "avgPrice": str(last_price),
@@ -222,18 +222,18 @@ class BybitREST:
                 # Check if position already exists (Hedge mode not supported in paper simple impl, assuming One-Way)
                 # If exists, we should technically add size/avg down, but for simplicity we reject or replace?
                 # Let's simple append or replace.
-                existing = next((p for p in self.paper_positions if p["symbol"] == symbol), None)
+                existing = next((p for p in self.paper_positions if p["symbol"] == api_symbol), None)
                 if existing:
-                    logger.warning(f"[PAPER] Overwriting existing position for {symbol} (Simpler than averaging).")
+                    logger.warning(f"[PAPER] Overwriting existing position for {api_symbol} (Simpler than averaging).")
                     self.paper_positions.remove(existing)
                 
                 self.paper_positions.append(new_position)
-                logger.info(f"[PAPER] Position Created: {symbol} Entry={last_price}")
+                logger.info(f"[PAPER] Position Created: {api_symbol} Entry={last_price}")
                 
                 # Return fake order response
                 return {
                     "retCode": 0,
-                    "result": {"orderId": f"PAPER-{symbol}-123", "orderLinkId": f"PAPER-{symbol}-123"}
+                    "result": {"orderId": f"PAPER-{api_symbol}-123", "orderLinkId": f"PAPER-{api_symbol}-123"}
                 }
 
             except Exception as e:
@@ -346,13 +346,14 @@ class BybitREST:
     async def set_trading_stop(self, category: str, symbol: str, stopLoss: str, slTriggerBy: str = None, tpslMode: str = None, positionIdx: int = 0):
         """Sets the stop loss for a position."""
         if self.execution_mode == "PAPER":
-            logger.info(f"[PAPER] Updating Stop Loss for {symbol} to {stopLoss}")
-            pos = next((p for p in self.paper_positions if p["symbol"] == symbol), None)
+            api_symbol = self._strip_p(symbol)
+            logger.info(f"[PAPER] Updating Stop Loss for {api_symbol} to {stopLoss}")
+            pos = next((p for p in self.paper_positions if p["symbol"] == api_symbol), None)
             if pos:
                 pos["stopLoss"] = str(stopLoss)
                 return {"retCode": 0, "result": {}}
             else:
-                return {"retCode": 10001, "retMsg": "Position not found in Paper Trading"}
+                return {"retCode": 10001, "retMsg": f"Position {api_symbol} not found in Paper Trading"}
 
         try:
             api_symbol = self._strip_p(symbol)

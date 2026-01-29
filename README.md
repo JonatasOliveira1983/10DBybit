@@ -1,64 +1,73 @@
-# 1CRYPTEN Space V4.6.1: Operação Fluxo & Tesouraria 🦅💰
+# 1CRYPTEN Space V4.8.0: Total Stability & Reset 🛡️🚀
 
-Este relatório detalha a arquitetura, a lógica operacional e o estado atual da Nave 1CRYPTEN, consolidando o upgrade de **Sinais de Fluxo v4.3 e Estratégia de Tesouraria**.
+Este relatório detalha a arquitetura, a lógica operacional e o estado atual da Nave 1CRYPTEN, consolidando o upgrade de **Estabilidade e Reset de Sistema v4.8.0**.
 
 ---
 
 ## 1. Conceito e Visão 🎯
+
 O 1CRYPTEN é um Agente de Trading Autônomo que combina análise técnica de volume (CVD) com inteligência linguística superior.
 
-**Versão 4.6.1 (Fluxo Calibrado):** O sistema foi afinado para capturar movimentos de alta convicção em Altcoins (DOGE, SOL, ETH) ajustando a sensibilidade do radar para **$30k de Fluxo Real (Score 75)**. Além disso, a **Gestão de Banca** agora aplica 20% do capital total nos primeiros 4 slots (5% por ordem), maximizando a eficiência do capital inicial.
+**Versão 4.8.0 (Stability & Reset):** Esta versão foca na robustez operacional do backend, eliminando travamentos de inicialização e corrigindo inconsistências críticas no modo Paper Trading. Além disso, introduz uma infraestrutura de reset completo para reinicialização limpa do sistema.
 
 ---
 
-## 2. Hierarquia de Agentes & Identidade 🧠
+## 2. Estabilidade do Backend 🛡️
 
-- **Sovereign Oracle (Chat):** A voz da Nave. Respostas concisas e foco operacional.
-- **Captain Agent:** O executor tático. Utiliza EMAs e CVD ajustado ($30k+) para decisões de elite.
-- **Guardian Agent:** Gestão de Risco e proteção de banca com protocolo de Reversão Inteligente.
-- **Visual Intelligence Module:** Nova camada que traduz dados complexos da Bybit em zonas visuais de lucro/risco.
-- **SlotCard 2.0:** Interface de slots redesenhada com "Hero Profit", barra de combustível estável e indicadores de alvo.
+### Chamadas de IA Assíncronas
+- **Protocolo Anti-Congelamento:** Refatoração do `ai_service.py` para garantir que falhas ou lentidões em provedores de IA (OpenRouter/GLM/Gemini) não bloqueiem o loop de eventos principal.
+- **Fallback Inteligente:** Transição suave entre modelos sem impactar a execução das ordens ou o monitoramento do mercado.
 
----
-
-## 3. Gráfico de Elite & Visual Intelligence (v4.5.0) 📊
-
-A visualização de mercado foi elevada ao padrão institucional:
-
-- **Deep Context (300 Candles):** Triplicamos o histórico visual para permitir que o Comandante e o Capitão vejam a estrutura macro do mercado.
-- **Borda Premium Metallic Gold:** Container do gráfico com efeito de pulso, simbolizando o "Escudo Quântico" da interface.
-- **Trade Zones Dinâmicas:** Sombreamento em tempo real que identifica Zonas de Lucro (Verde) e Zonas de Risco (Vermelho) baseadas na entrada do Capitão.
-- **Camada de Indicadores:** Integração de EMA 20 (Amarela) e EMA 200 (Azul) para alinhamento instantâneo com a tendência.
-- **Volume History (CVD Proxy):** Histograma de volume no fundo do gráfico para monitorar a agressividade dos big players.
+### Gestão de Processos
+- **Prevenção de Conflitos:** Implementação de verificações de porta (5001) para evitar falhas de inicialização causadas por instâncias zumbis do Python.
 
 ---
 
-## 4. Estabilidade & Mobile UX 📡
+## 3. Paper Trading 2.0 📑
 
-- **Mobile Ready TF:** Seletor de Timeframe (1m a 4h) otimizado para toque e visível em qualquer dispositivo.
-- **Memory Security:** Implementação de travas de ciclo de vida (`isMounted`) que eliminam erros de destruição de componentes no console.
-- **WebSocket Resilience:** Protocolo de conexão endurecido para fluxos de dados em tempo real da Bybit.
+### Normalização de Símbolos
+- **Consistência Total:** Correção do mapeamento de símbolos Perpetuais (`.P`). O sistema agora normaliza os pares internamente, eliminando o erro `10001 (Position not found)` que ocorria na gestão de STOP LOSS pelo Guardian Agent.
+- **Sincronização de Fidelidade:** Melhora na detecção de posições simuladas, garantindo que o Status de Risco reflita exatamente a realidade do simulador.
 
 ---
 
-## 5. Roadmap Sugerido 🚀
+## 4. Reset Abrangente do Sistema 🔥
 
-- **A. Neural Heatmaps:** Visualização de zonas de liquidez baseadas em Machine Learning.
-- **B. Voice-over Command:** Execução de comandos por voz para mãos livres.
-- **C. Auto-Backtest Visual:** Execução de simulações históricas diretamente no gráfico.
+Recentemente adicionado o script `reset_system_v2.py`, permitindo uma limpeza profunda:
+
+| Componente | Ação |
+|------------|------|
+| **Sinais** | Exclusão total do histórico de sinais gerados |
+| **Slots** | Limpeza de todos os slots ativos e reinicialização para estado "LIVRE" |
+| **Finanças** | Reset da banca simulada para $100.00 e limpeza do histórico de PNL |
+| **Logs** | Limpeza de todos os registros de eventos do sistema |
+
+---
+
+## 5. Changelog v4.8.0
+
+- ✅ **Async AI Wrapper:** Chamadas de backup de IA agora são não-bloqueantes.
+- ✅ **Symbol Normalization:** Fim dos erros de `Position not found` no Paper Trading.
+- ✅ **Comprehensive Reset:** Novo utilitário para limpeza total do Firebase (v2).
+- ✅ **Port Conflict Fix:** Estabilidade na inicialização e reinício do backend.
+- ✅ **Log Sanity:** Limpeza de ruídos e logs duplicados durante a fase de boot.
 
 ---
 
 ## Como Iniciar 🛠️
 
 1. **Pré-requisitos:** Python 3.10+, `serviceAccountKey.json` e `.env` configurado.
-2. **Boot:** 
+2. **Reset (Opcional):** Para começar do zero:
+   ```powershell
+   python reset_system_v2.py
+   ```
+3. **Boot:** 
    ```powershell
    cd 1CRYPTEN_SPACE_V4.0/backend
    python main.py
    ```
-3. **Interface:** Acesse `http://localhost:5001`.
+4. **Interface:** Acesse `http://localhost:5001`
 
 ---
-**Operação: 10D - Deep Space - V4.6.0 Radar 2.0.**
 
+**Operação: 10D - Deep Space - V4.8.0 Stability Gold.**

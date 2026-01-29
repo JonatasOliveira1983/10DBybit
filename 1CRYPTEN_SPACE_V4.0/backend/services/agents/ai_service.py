@@ -87,13 +87,15 @@ class AIService:
         # 2. Fallback: GLM
         if self.glm_client:
             try:
-                response = self.glm_client.chat.completions.create(
-                    model="glm-4-plus", 
-                    messages=[
-                        {"role": "system", "content": system_instruction},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+                def _glm_sync():
+                    return self.glm_client.chat.completions.create(
+                        model="glm-4-plus", 
+                        messages=[
+                            {"role": "system", "content": system_instruction},
+                            {"role": "user", "content": prompt}
+                        ]
+                    )
+                response = await asyncio.to_thread(_glm_sync)
                 text = response.choices[0].message.content
                 if text: return text.strip()
             except Exception as e:
@@ -115,11 +117,14 @@ class AIService:
                 try:
                     full_prompt = f"{system_instruction}\n\n{prompt}"
                     # If it's a string, we need to create a temporary model object
-                    if isinstance(m_obj, str):
-                        temp_model = genai.GenerativeModel(m_obj)
-                        response = temp_model.generate_content(full_prompt)
-                    else:
-                        response = m_obj.generate_content(full_prompt)
+                    def _gemini_sync():
+                        if isinstance(m_obj, str):
+                            temp_model = genai.GenerativeModel(m_obj)
+                            return temp_model.generate_content(full_prompt)
+                        else:
+                            return m_obj.generate_content(full_prompt)
+                            
+                    response = await asyncio.to_thread(_gemini_sync)
                         
                     if response and hasattr(response, 'text'):
                         return response.text.strip()

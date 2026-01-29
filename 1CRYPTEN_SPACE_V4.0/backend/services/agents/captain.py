@@ -12,6 +12,12 @@ from services.bybit_rest import bybit_rest_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
+def normalize_symbol(symbol: str) -> str:
+    """Normaliza símbolos removendo .P para comparação consistente."""
+    if not symbol:
+        return symbol
+    return symbol.replace(".P", "").upper()
+
 class CaptainAgent:
     def __init__(self):
         self.is_running = False
@@ -30,7 +36,7 @@ class CaptainAgent:
                 
                 # 1.1 Refresh active slots ONCE per cycle to avoid double entry and save Firebase quota
                 active_slots = await firebase_service.get_active_slots()
-                active_symbols = [s["symbol"] for s in active_slots if s.get("symbol")]
+                active_symbols = [normalize_symbol(s["symbol"]) for s in active_slots if s.get("symbol")]
 
                 logger.info(f"Captain scanned {len(signals)} signals. Active: {len(active_symbols)}")
                 
@@ -44,7 +50,8 @@ class CaptainAgent:
                         logger.info(f"Captain: Skipping BTC signal {signal['symbol']}. Used as market compass only.")
                         continue
 
-                    if signal["symbol"] in active_symbols:
+                    # Check if symbol already in active slots (normalized comparison)
+                    if normalize_symbol(signal["symbol"]) in active_symbols:
                         continue
 
                     # Efficiency: Use calibrated threshold (75) to match Signal Generator
@@ -70,11 +77,11 @@ class CaptainAgent:
                     mark_price = float(ticker_data.get("markPrice", 0))
                     
                     # Simple Trend Filter: In Long, mark_price should be >= last_price (bullish pressure)
-                    # or at least not dumping hard. More robust: CVD must align with recent candle.
+                    # Softened filter: 0.5% tolerance to allow more entries
                     price_trend_ok = True
-                    if side == "Buy" and mark_price < last_price * 0.998: # Dumping
+                    if side == "Buy" and mark_price < last_price * 0.995: # Dumping hard
                         price_trend_ok = False
-                    if side == "Sell" and mark_price > last_price * 1.002: # Pumping
+                    if side == "Sell" and mark_price > last_price * 1.005: # Pumping hard
                         price_trend_ok = False
                         
                     if not price_trend_ok:

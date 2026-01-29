@@ -10,6 +10,12 @@ from services.bybit_ws import bybit_ws_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("SignalGenerator")
 
+def normalize_symbol(symbol: str) -> str:
+    """Normaliza símbolos removendo .P para comparação consistente."""
+    if not symbol:
+        return symbol
+    return symbol.replace(".P", "").upper()
+
 class SignalGenerator:
     def __init__(self):
         self.is_running = False
@@ -39,23 +45,23 @@ class SignalGenerator:
                 # 1. Scan all active symbols from WS service
                 active_symbols_ws = bybit_ws_service.active_symbols
                 
-                # Fetch active slots symbols to avoid redundant signals
+                # Fetch active slots symbols to avoid redundant signals (normalized)
                 slots = await firebase_service.get_active_slots()
-                occupied_symbols = [s["symbol"] for s in slots if s.get("symbol")]
+                occupied_symbols = [normalize_symbol(s["symbol"]) for s in slots if s.get("symbol")]
 
                 for symbol in active_symbols_ws:
-                    # Sniper Rule: Don't scan symbols already in operation
-                    if symbol in occupied_symbols:
+                    # Sniper Rule: Don't scan symbols already in operation (use normalized comparison)
+                    if normalize_symbol(symbol) in occupied_symbols:
                         continue
 
                     cvd_val = bybit_ws_service.get_cvd_score(symbol)
                     abs_cvd = abs(cvd_val)
                     
                     # Sniper Rule (Radar 2.0): Threshold based on USD Money Flow
-                    # $30k+ CVD delta in recent history is a valid signal start
-                    if abs_cvd > 30000: 
-                        # Calibrated: $150k USD delta = ~85 score, $400k+ = 99 score
-                        score = min(99, int(75 + (abs_cvd / 15000)))
+                    # $15k+ CVD delta in recent history is a valid signal start (lowered from $30k)
+                    if abs_cvd > 15000: 
+                        # Calibrated: $75k USD delta = ~85 score, $200k+ = 99 score
+                        score = min(99, int(75 + (abs_cvd / 7500)))
                         
                         if score >= 75:
                             logger.info(f"Sniper detected ELITE opportunity: {symbol} | CVD: {cvd_val:.2f} | Score: {score}")

@@ -176,6 +176,13 @@ async def health_check():
         "symbols_monitored": 0
     }
 
+@app.get("/banca/ui")
+async def get_banca_ui():
+    """Serve the Banca Command Center HTML page."""
+    banca_html_path = os.path.join(FRONTEND_DIR, "banca_command_center_v4.0", "code.html")
+    if os.path.exists(banca_html_path):
+        return FileResponse(banca_html_path)
+    return {"error": "Banca UI file not found"}
 
 @app.get("/banca")
 async def get_banca():
