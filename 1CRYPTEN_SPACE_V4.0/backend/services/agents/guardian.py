@@ -79,6 +79,17 @@ class GuardianAgent:
                 if symbol == "VIRTUALUSDT" or symbol == "WLFIUSDT":
                     logger.info(f"[AUDIT] {symbol}: Side={side_norm}, Entry={entry}, Last={last_price}, ROI={pnl_pct:.2f}%")
 
+                # V4.3: Auto-Promotion SNIPER → SURF at 30% ROI
+                current_slot_type = slot.get("slot_type", "SNIPER")
+                if current_slot_type == "SNIPER" and pnl_pct >= 30.0:
+                    logger.info(f"🏄 V4.3 PROMOTION: {symbol} upgraded SNIPER → SURF at {pnl_pct:.2f}% ROI!")
+                    await firebase_service.update_slot(slot["id"], {
+                        "slot_type": "SURF",
+                        "target_price": None,  # Remove fixed TP for SURF
+                        "pensamento": f"🏄 PROMOVIDO para SURF! ROI {pnl_pct:.2f}% ultrapassa limite Sniper."
+                    })
+                    await firebase_service.log_event("Guardian", f"🏄 {symbol} PROMOTED: SNIPER → SURF at {pnl_pct:.2f}%", "SUCCESS")
+
                 # Define Trailing Surf Logic (Lucro % -> Novo Stop em relação à entrada %)
                 # Ex: Se lucro é 6%, move stop para +3% da entrada.
                 surf_rules = [
@@ -131,12 +142,16 @@ class GuardianAgent:
                     
                     ret_code = resp.get("retCode")
                     if ret_code in [0, 34040]: # 0 = OK, 34040 = Already set
-                        status_msg = f"SURF_ACTIVE ({target_stop_pct}% ROI)" if target_stop_pct > 0 else "RISK_FREE (GUARDIAN)"
+                        if target_stop_pct > 0:
+                            status_msg = f"SURFING (+{target_stop_pct}% ROI)"
+                        else:
+                            status_msg = "ZERO RISK (BE)"
+                        
                         await firebase_service.update_slot(slot["id"], {
                             "current_stop": new_stop_price,
                             "status_risco": status_msg,
                             "pnl_percent": pnl_pct,
-                            "pensamento": f"🏄 Surfando {symbol}: Lucro de {pnl_pct:.2f}% atingido. Stop movido para +{target_stop_pct:.1f}% ROI."
+                            "pensamento": f"🛡️ Guardian: {symbol} protegido. Lucro de {pnl_pct:.2f}% sustentado. Stop em {status_msg}."
                         })
                         if ret_code == 0:
                             await firebase_service.log_event("Guardian", f"🏄 SURF: {symbol} SL moved to {new_stop_price:.5f}. Profit: {pnl_pct:.2f}%", "SUCCESS")

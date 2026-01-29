@@ -1,10 +1,17 @@
 import logging
+import asyncio
+import time
 from services.firebase_service import firebase_service
 from services.bybit_rest import bybit_rest_service
+from services.vault_service import vault_service
 from config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BankrollManager")
+
+def get_slot_type(slot_id: int) -> str:
+    """Returns SNIPER for slots 1-5, SURF for slots 6-10."""
+    return "SNIPER" if slot_id <= 5 else "SURF"
 
 class BankrollManager:
     def __init__(self):
@@ -13,6 +20,9 @@ class BankrollManager:
         self.margin_per_slot = 0.05 # 5% per slot (Sniper mode: 4 slots = 20%)
         self.initial_slots = settings.INITIAL_SLOTS # 4
         self.last_log_times = {} # Cooldown for logs
+        # V4.2: Sniper TP = +2% price = 100% ROI @ 50x
+        self.sniper_tp_percent = 0.02  # 2% price movement
+        self.execution_lock = asyncio.Lock() # Iron Lock Atomic Protector
 
     async def sync_slots_with_exchange(self):
         """
@@ -44,7 +54,17 @@ class BankrollManager:
                 
                 norm_symbol = bybit_rest_service._strip_p(symbol)
                 
+                # V4.2.6: Persistence Shield - Don't clear if opened in the last 60 seconds
+                # to avoid "flicker" during sync delays.
+                entry_ts = slot.get("timestamp_last_update") or 0
+                if (time.time() - entry_ts) < 60:
+                     continue
+
                 if is_server_restart and norm_symbol not in exchange_map:
+                    # Avoid double recovery of the same symbol if it exists in slots multiple times with/without .P
+                    if any(p["symbol"] == norm_symbol for p in bybit_rest_service.paper_positions):
+                        continue
+                        
                     logger.info(f"Sync [PAPER RECOVERY]: Re-adopting {symbol} into memory state.")
                     bybit_rest_service.paper_positions.append({
                         "symbol": norm_symbol, "side": slot.get("side"),
@@ -53,6 +73,8 @@ class BankrollManager:
                         "size": 5.0 / float(slot.get("entry_price", 1)) if float(slot.get("entry_price", 0)) > 0 else 1.0,
                         "positionValue": 5.0, "unrealisedPnl": 0
                     })
+                    # Add to local exchange_map immediately to prevent next loop iteration from thinking it's still missing
+                    exchange_map[norm_symbol] = bybit_rest_service.paper_positions[-1]
                     continue
 
                 if norm_symbol not in exchange_map:
@@ -84,30 +106,38 @@ class BankrollManager:
                     })
             
             # 4. Recover Missing Slots (Exchange has it, DB doesn't)
+            # V4.3.1: Use normalized symbols for comparison to avoid duplicates
+            db_symbols_normalized = {bybit_rest_service._strip_p(s.get("symbol", "")): s["id"] for s in slots if s.get("symbol")}
+            
             for symbol, pos in exchange_map.items():
-                if symbol not in db_symbols:
-                    # Find empty slot
-                    empty_slot = next((s for s in slots if not s.get("symbol")), None)
-                    if not empty_slot:
-                        logger.warning(f"Sync: Could not import {symbol} - No empty slots!")
-                        continue
-                    
-                    # Import Data
-                    entry = float(pos.get("avgPrice", 0))
-                    side = pos.get("side") # Buy/Sell
-                    stop_loss = float(pos.get("stopLoss", 0))
-                    
-                    logger.info(f"Sync: Recovering {symbol} into Slot {empty_slot['id']}. Entry: {entry}")
-                    await firebase_service.update_slot(empty_slot["id"], {
-                        "symbol": symbol,
-                        "side": side,
-                        "entry_price": entry,
-                        "current_stop": stop_loss,
-                        "status_risco": "RECOVERED",
-                        "pnl_percent": 0 # Guardian will update this
-                    })
-                    # Refresh local list to avoid double assignment if we had multiple
-                    slots = await firebase_service.get_active_slots()
+                # V4.3.1: Check normalized symbol to prevent duplicates like ONDOUSDT.P vs ONDOUSDT
+                if symbol in db_symbols_normalized:
+                    continue  # Already exists, skip recovery
+                
+                # Find empty slot
+                empty_slot = next((s for s in slots if not s.get("symbol")), None)
+                if not empty_slot:
+                    logger.warning(f"Sync: Could not import {symbol} - No empty slots!")
+                    continue
+                
+                # Import Data
+                entry = float(pos.get("avgPrice", 0))
+                side = pos.get("side") # Buy/Sell
+                stop_loss = float(pos.get("stopLoss", 0))
+                
+                logger.info(f"Sync: Recovering {symbol} into Slot {empty_slot['id']}. Entry: {entry}")
+                await firebase_service.update_slot(empty_slot["id"], {
+                    "symbol": symbol,
+                    "side": side,
+                    "entry_price": entry,
+                    "current_stop": stop_loss,
+                    "status_risco": "RECOVERED",
+                    "pnl_percent": 0 # Guardian will update this
+                })
+                # Refresh local list to avoid double assignment if we had multiple
+                slots = await firebase_service.get_active_slots()
+                # V4.3.1: Also update the normalized map
+                db_symbols_normalized[symbol] = empty_slot["id"]
 
             await firebase_service.log_event("Bankroll", f"Sync Complete. Active: {len(active_symbols)}", "SUCCESS")
 
@@ -149,33 +179,49 @@ class BankrollManager:
         
         return real_risk
 
-    async def can_open_new_slot(self, symbol: str = None):
+    async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER"):
         """
-        Checks if a new slot can be opened based on:
-        1. 20% risk cap (Hard Limit)
-        2. Progressive Expansion Rules (Captain's Rule):
-           - Max 4 initial slots.
-           - Open 5th+ ONLY if previous trades are 'Risk Free' (SL >= Entry).
+        V4.3: Checks if a new slot can be opened based on:
+        1. Duplicate Guard (absolute - no symbol in any slot)
+        2. Slot Type Separation (SNIPER=1-5, SURF=6-10)
+        3. 20% risk cap (Hard Limit)
+        4. Progressive Expansion per slot type
         """
-        # 1. Hard Risk Cap Check
+        slots = await firebase_service.get_active_slots()
+        
+        # 1. ABSOLUTE Duplicate Guard (normalize symbol for comparison)
+        if symbol:
+            norm_symbol = symbol.replace(".P", "").upper()
+            for s in slots:
+                existing_sym = (s.get("symbol") or "").replace(".P", "").upper()
+                if existing_sym == norm_symbol:
+                    logger.warning(f"V4.3 Duplicate Guard: {symbol} already in Slot {s['id']}. BLOCKED.")
+                    return None
+        
+        # 2. Slot Type Separation
+        if slot_type == "SNIPER":
+            type_slots = [s for s in slots if s["id"] <= 5]
+            slot_range = range(1, 6)
+        else:  # SURF
+            type_slots = [s for s in slots if s["id"] >= 6]
+            slot_range = range(6, 11)
+        
+        active_type_slots = [s for s in type_slots if s.get("symbol")]
+        active_count = len(active_type_slots)
+        
+        # 3. Hard Risk Cap Check (global)
         real_risk = await self.calculate_real_risk()
         if (real_risk + self.margin_per_slot) > self.risk_cap:
-             logger.warning(f"Risk Cap Reached: {real_risk*100:.1f}% + {self.margin_per_slot*100}% > {self.risk_cap*100}%")
-             return None
-
-        slots = await firebase_service.get_active_slots()
-        active_slots = [s for s in slots if s.get("symbol")]
-        active_count = len(active_slots)
+            logger.warning(f"Risk Cap Reached: {real_risk*100:.1f}% + {self.margin_per_slot*100}% > {self.risk_cap*100}%")
+            return None
         
-        # 2. Progressive Expansion Logic
-        if active_count < self.initial_slots:
-            # Under initial limit (0-3), allow open if slot available
-            pass
-        else:
-            # Over initial limit, check for 'Risk Free' slots
-            # A slot is Risk Free if current_stop matches or exceeds entry (in favor)
+        # 4. Progressive Expansion Logic (per slot type)
+        max_initial = 2 if slot_type == "SNIPER" else 2  # Start with 2 of each type
+        
+        if active_count >= max_initial:
+            # Check for Risk Free in this slot type
             risk_free_count = 0
-            for s in active_slots:
+            for s in active_type_slots:
                 entry = s.get("entry_price", 0)
                 stop = s.get("current_stop", 0)
                 side_norm = (s.get("side") or "").lower()
@@ -185,27 +231,23 @@ class BankrollManager:
                     elif side_norm == "sell" and stop <= entry:
                         risk_free_count += 1
             
-            allowed_slots = self.initial_slots + risk_free_count
-            
-            if active_count >= allowed_slots:
+            allowed = max_initial + risk_free_count
+            if active_count >= allowed:
                 import time
                 now = time.time()
-                last = self.last_log_times.get("progression_cap", 0)
+                log_key = f"progression_cap_{slot_type}"
+                last = self.last_log_times.get(log_key, 0)
                 if now - last > 60:
-                    logger.info(f"Progression Cap: Active({active_count}) >= Allowed({allowed_slots}) [Initial {self.initial_slots} + RiskFree {risk_free_count}]")
-                    self.last_log_times["progression_cap"] = now
+                    logger.info(f"V4.3 {slot_type} Cap: Active({active_count}) >= Allowed({allowed}) [Initial {max_initial} + RiskFree {risk_free_count}]")
+                    self.last_log_times[log_key] = now
                 return None
-
-        # 3. New Duplicate Symbol Guard
-        if symbol:
-            duplicate = next((s for s in slots if s.get("symbol") == symbol), None)
-            if duplicate:
-                logger.warning(f"Duplicate Guard: {symbol} is already active in Slot {duplicate['id']}.")
-                return None
-
-        # If we get here, find an ID
-        available_id = next((s["id"] for s in slots if not s.get("symbol")), None)
-        return available_id
+        
+        # 5. Find available slot in the correct range
+        for s in slots:
+            if s["id"] in slot_range and not s.get("symbol"):
+                return s["id"]
+        
+        return None
 
     async def update_banca_status(self):
         """Updates the banca_status table in Supabase."""
@@ -244,83 +286,112 @@ class BankrollManager:
         except Exception as e:
             logger.error(f"Error updating banca status: {e}")
 
-    async def open_position(self, symbol: str, side: str, sl_price: float = 0, tp_price: float = None, pensamento: str = ""):
-        """Executes the Sniper entry with 20% risk cap and 5% margin per slot."""
-        # Check for duplication and limits
-        slot_id = await self.can_open_new_slot(symbol=symbol)
-        if not slot_id:
-            # We already logged reason in can_open_new_slot
-            return None
+    async def open_position(self, symbol: str, side: str, sl_price: float = 0, tp_price: float = None, pensamento: str = "", slot_type: str = "SNIPER"):
+        """V4.3: Executes Sniper/Surf entry with separated slot types (SNIPER=1-5, SURF=6-10)."""
+        async with self.execution_lock:
+            # 0. Redundant Duplicate Guard
+            active_slots = await firebase_service.get_active_slots()
+            norm_symbol = bybit_rest_service._strip_p(symbol)
+            if any(bybit_rest_service._strip_p(S.get("symbol")) == norm_symbol for S in active_slots if S.get("symbol")):
+                logger.warning(f"Iron Lock: Redundant Guard blocked duplicate {symbol}.")
+                return None
 
-        # 1. Fetch Current Price
-        # Use centralized service to handle .P suffix
-        ticker = await bybit_rest_service.get_tickers(symbol=symbol)
-        current_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
-        
-        if current_price == 0:
-            logger.error(f"Could not fetch price for {symbol}")
-            await firebase_service.log_event("Captain", f"Trade FAILED: Could not fetch price for {symbol}.", "WARNING")
-            return None
-
-        # 2. Dynamic Qty calculation (1% margin per slot at LEVERAGE) with exchange precision
-        info = await asyncio.to_thread(bybit_rest_service.get_instrument_info, symbol)
-        qty_step = float(info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
-        
-        balance = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
-        if balance < 10:
-            logger.warning(f"Balance too low for trading: ${balance}")
-            await firebase_service.log_event("Captain", f"Trade REJECTED: Insufficient balance (${balance:.2f}). Min $10 required.", "WARNING")
-            return None
+        # V4.2: Check if trading is allowed (Admiral's Rest, etc)
+        async with self.execution_lock:
+            trading_allowed, reason = await vault_service.is_trading_allowed()
+            if not trading_allowed:
+                logger.warning(f"Trading blocked: {reason}")
+                await firebase_service.log_event("VAULT", f"Trade BLOCKED: {reason}", "WARNING")
+                return None
             
-        margin = balance * self.margin_per_slot # 1% margin
-        leverage = settings.LEVERAGE # 50x
-        raw_qty = (margin * leverage) / current_price
-        
-        # Round to qtyStep precision
-        import math
-        if qty_step > 0:
-            precision = max(0, int(-math.log10(qty_step)))
+            # V4.3: Check for duplication and limits (passing slot_type)
+            slot_id = await self.can_open_new_slot(symbol=symbol, slot_type=slot_type)
+            if not slot_id:
+                return None
+            
+            # V4.3: slot_type is now a parameter, not derived from slot_id
+            # V4.2: Check dynamic score threshold from vault (Cautious Mode)
+            min_score = await vault_service.get_min_score_threshold()
+            if min_score > 75:
+                logger.info(f"Cautious Mode active: Min score threshold = {min_score}")
+
+            # 1. Fetch Current Price
+            ticker = await bybit_rest_service.get_tickers(symbol=symbol)
+            current_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
+            
+            if current_price == 0:
+                logger.error(f"Could not fetch price for {symbol}")
+                await firebase_service.log_event("Captain", f"Trade FAILED: Could not fetch price for {symbol}.", "WARNING")
+                return None
+
+            # 2. Dynamic Qty calculation
+            info = await asyncio.to_thread(bybit_rest_service.get_instrument_info, symbol)
+            qty_step = float(info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
+            
+            balance = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
+            if balance < 10:
+                logger.warning(f"Balance too low for trading: ${balance}")
+                return None
+                
+            margin = balance * self.margin_per_slot # Exactly 5%
+            leverage = settings.LEVERAGE # 50x
+            raw_qty = (margin * leverage) / current_price
+            
+            # Round to qtyStep precision
+            import math
+            precision = max(0, int(-math.log10(qty_step))) if qty_step > 0 else 3
             qty = round(raw_qty, precision)
-        else:
-            qty = round(raw_qty, 3)
+            if qty <= 0: qty = qty_step # Use minimum lot
 
-        # Final SL Safety Check (Liquid-Proof enforcement)
-        if side == "Buy":
-             # Ensure SL is below entry. If not or zero, set to 2% below.
-             if sl_price >= current_price or sl_price <= 0:
-                 sl_price = current_price * 0.98
-        else:
-             # Ensure SL is above entry. If not or zero, set to 2% above.
-             if sl_price <= current_price or sl_price <= 0:
-                 sl_price = current_price * 1.02
+            # 3. Final SL Safety Check
+            final_sl = sl_price
+            if final_sl <= 0:
+                final_sl = current_price * 0.98 if side == "Buy" else current_price * 1.02
+            
+            if side == "Buy" and final_sl >= current_price: final_sl = current_price * 0.98
+            if side == "Sell" and final_sl <= current_price: final_sl = current_price * 1.02
+            
+            # V4.2: SNIPER vs SURF TP
+            final_tp = tp_price
+            if slot_type == "SNIPER":
+                if side == "Buy":
+                    final_tp = current_price * (1 + self.sniper_tp_percent)
+                else:
+                    final_tp = current_price * (1 - self.sniper_tp_percent)
+                logger.info(f"[SNIPER] Slot {slot_id}: TP set at {final_tp:.5f}")
+            else:
+                final_tp = None  # SURF: No TP
+                logger.info(f"[SURF] Slot {slot_id}: No TP (Managed by Guardian)")
 
-        await firebase_service.log_event("Captain", f"SNIPER DEPLOYED: {side} {qty} {symbol} @ {current_price} | HARD STOP: {sl_price}", "SUCCESS")
-        logger.info(f"[Safety] Atomic Order for {symbol} triggered with Hard Stop at {sl_price}")
+            squadron_emoji = "🎯" if slot_type == "SNIPER" else "🏄"
+            await firebase_service.log_event("Captain", f"{squadron_emoji} {slot_type} DEPLOYED: {side} {qty} {symbol} @ {current_price} | HARD STOP: {final_sl}", "SUCCESS")
 
-        
-        # Place Atomic Order
-        try:
-            order = await asyncio.wait_for(bybit_rest_service.place_atomic_order(symbol, side, qty, sl_price, tp_price), timeout=10.0)
-        except Exception as e:
-            logger.error(f"Timeout/Error placing order for {symbol}: {e}")
-            order = None
-        
-        if order:
-            await firebase_service.update_slot(slot_id, {
-                "symbol": symbol,
-                "side": side,
-                "entry_price": current_price,
-                "current_stop": sl_price,
-                "status_risco": "ATIVO",
-                "pnl_percent": 0.0,
-                "pensamento": pensamento
-            })
-            await self.update_banca_status()
-            return order
-        else:
-            await firebase_service.log_event("Captain", f"Trade FAILED: Order placement rejected by Exchange.", "WARNING")
-        
-        return None
+            # Place Atomic Order
+            try:
+                order = await asyncio.wait_for(bybit_rest_service.place_atomic_order(symbol, side, qty, final_sl, final_tp), timeout=10.0)
+            except Exception as e:
+                logger.error(f"Timeout/Error placing order for {symbol}: {e}")
+                order = None
+            
+            if order:
+                await firebase_service.update_slot(slot_id, {
+                    "symbol": symbol,
+                    "side": side,
+                    "entry_price": current_price,
+                    "current_stop": final_sl,
+                    "target_price": final_tp,
+                    "slot_type": slot_type,
+                    "status_risco": "ATIVO",
+                    "pnl_percent": 0.0,
+                    "pensamento": pensamento,
+                    "timestamp_last_update": time.time()
+                })
+                await self.update_banca_status()
+                return order
+            else:
+                await firebase_service.log_event("Captain", f"Trade FAILED: Order placement rejected by Exchange.", "WARNING")
+            
+            return None
 
 
     async def emergency_close_all(self):
@@ -373,5 +444,20 @@ class BankrollManager:
                 logger.error(f"Error in Position Reaper: {e}")
             await asyncio.sleep(30) # Scan every 30s
 
+    async def register_sniper_win(self, trade_data: dict):
+        """
+        V4.2: Registra uma vitória Sniper no ciclo de 20 trades.
+        Chamado pelo Position Reaper quando um trade SNIPER fecha com lucro.
+        """
+        try:
+            slot_type = trade_data.get("slot_type", "SNIPER")
+            pnl = trade_data.get("pnl", 0)
+            
+            # Only register if it's a SNIPER win
+            if slot_type == "SNIPER" and pnl > 0:
+                await vault_service.register_sniper_win(trade_data)
+                logger.info(f"Sniper Win registered: {trade_data.get('symbol')} +${pnl:.2f}")
+        except Exception as e:
+            logger.error(f"Error registering sniper win: {e}")
+
 bankroll_manager = BankrollManager()
-import asyncio # Fix missing import in the file context if needed

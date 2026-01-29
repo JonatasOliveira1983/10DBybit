@@ -21,3 +21,36 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+
+// V4.2 Push Notifications
+self.addEventListener('push', (event) => {
+    const data = event.data ? event.data.json() : { title: '1Crypten Alerta', body: 'Nova transmissão do Capitão.' };
+
+    const options = {
+        body: data.body,
+        icon: '/logo10D.png',
+        badge: '/logo10D.png',
+        vibrate: [100, 50, 100],
+        data: {
+            dateOfArrival: Date.now(),
+            primaryKey: 1
+        },
+        actions: [
+            { action: 'explore', title: 'Ver Dashboard', icon: '/logo10D.png' },
+            { action: 'close', title: 'Fechar', icon: '/logo10D.png' },
+        ]
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, options)
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    if (event.action === 'explore') {
+        event.waitUntil(
+            clients.openWindow('/')
+        );
+    }
+});

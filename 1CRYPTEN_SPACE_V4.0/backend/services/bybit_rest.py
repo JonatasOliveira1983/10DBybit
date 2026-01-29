@@ -17,7 +17,7 @@ class BybitREST:
         self.paper_balance = settings.BYBIT_SIMULATED_BALANCE
         self.paper_positions = [] # List of dicts matching Bybit schema
         self.paper_orders_history = [] 
-
+        self._paper_engine_task = None
     def _strip_p(self, symbol: str) -> str:
         """Strips the .P suffix for Bybit API calls."""
         if not symbol: return symbol
@@ -371,4 +371,66 @@ class BybitREST:
         except Exception as e:
             logger.error(f"Error setting SL for {symbol}: {e}")
             return {"retCode": -1, "retMsg": str(e)}
+
+    async def run_paper_execution_loop(self):
+        """
+        Engine de execução para modo PAPER.
+        Monitora preços em tempo real e fecha posições por TP ou SL.
+        """
+        if self.execution_mode != "PAPER":
+            return
+
+        logger.info("🚀 Paper Execution Engine (Exchange Simulator) started.")
+        while True:
+            try:
+                if not self.paper_positions:
+                    await asyncio.sleep(5)
+                    continue
+
+                # Batch fetch tickers for efficiency
+                symbols_to_check = [p["symbol"] for p in self.paper_positions]
+                # Note: get_tickers with no symbol gets all in the category
+                resp = await asyncio.to_thread(self.session.get_tickers, category="linear")
+                ticker_list = resp.get("result", {}).get("list", [])
+                price_map = {t["symbol"]: float(t.get("lastPrice", 0)) for t in ticker_list if t["symbol"] in symbols_to_check}
+
+                to_close = []
+                for pos in self.paper_positions:
+                    symbol = pos["symbol"]
+                    current_price = price_map.get(symbol, 0)
+                    if current_price == 0: continue
+
+                    entry = float(pos["avgPrice"])
+                    sl = float(pos["stopLoss"]) if pos.get("stopLoss") else 0
+                    tp = float(pos["takeProfit"]) if pos.get("takeProfit") else 0
+                    side = pos["side"].lower()
+
+                    # Trigger Logic
+                    triggered = False
+                    reason = ""
+
+                    if side == "buy":
+                        if tp > 0 and current_price >= tp:
+                            triggered, reason = True, "TP"
+                        elif sl > 0 and current_price <= sl:
+                            triggered, reason = True, "SL"
+                    else: # Sell/Short
+                        if tp > 0 and current_price <= tp:
+                            triggered, reason = True, "TP"
+                        elif sl > 0 and current_price >= sl:
+                            triggered, reason = True, "SL"
+
+                    if triggered:
+                        logger.info(f"🎯 [PAPER] {reason} Triggered for {symbol}: Market={current_price}, Trigger={tp if reason=='TP' else sl}")
+                        to_close.append((symbol, side.capitalize(), float(pos["size"])))
+
+                # Execute closures
+                for sym, side, size in to_close:
+                    await self.close_position(sym, side, size)
+
+            except Exception as e:
+                logger.error(f"Error in Paper Execution Engine: {e}")
+            
+            await asyncio.sleep(5) # Watchdog interval
+
 bybit_rest_service = BybitREST()

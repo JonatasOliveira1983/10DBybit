@@ -103,6 +103,12 @@ async def lifespan(app: FastAPI):
             logger.info("Step 5: DB setup ENABLED.")
             await firebase_service.initialize_db()
             await bankroll_manager.update_banca_status()
+
+            # 6. Start Paper Execution Engine (Simulator only)
+            if bybit_rest_service.execution_mode == "PAPER":
+                logger.info("Step 6: Paper Execution Engine ACTIVATING...")
+                asyncio.create_task(bybit_rest_service.run_paper_execution_loop())
+
             logger.info("✅ System Services started successfully (minimal mode).")
         except Exception as e:
             logger.error(f"❌ Error during background startup: {e}", exc_info=True)
@@ -183,6 +189,14 @@ async def get_banca_ui():
     if os.path.exists(banca_html_path):
         return FileResponse(banca_html_path)
     return {"error": "Banca UI file not found"}
+
+@app.get("/vault/ui")
+async def get_vault_ui():
+    """Serve the Vault Management HTML page."""
+    vault_html_path = os.path.join(FRONTEND_DIR, "vault_v4.0", "code.html")
+    if os.path.exists(vault_html_path):
+        return FileResponse(vault_html_path)
+    return {"error": "Vault UI file not found"}
 
 @app.get("/banca")
 async def get_banca():
@@ -302,9 +316,8 @@ async def chat_with_captain(payload: dict):
     if not message:
         return {"error": "No message provided"}
     
-    # 1. Log the user message first for UI consistency (CLEAN, NO PREFIXES)
-    await firebase_service.log_event("USER", message, "INFO")
     
+    # Captain handles logging internally now
     # 2. Process via Captain (symbol is passed only here for internal context)
     response = await captain_agent.process_chat(message, symbol=symbol)
     
@@ -325,8 +338,96 @@ async def test_order(symbol: str, side: str, sl: float):
 
 @app.post("/panic")
 async def panic_button():
-    """Emergency endpoint - DISABLED FOR DEBUGGING"""
-    return {"error": "Trading functions disabled for debugging"}
+    """Emergency Kill Switch - V4.2 ENABLED"""
+    try:
+        result = await bankroll_manager.emergency_close_all()
+        return result
+    except Exception as e:
+        logger.error(f"Panic button error: {e}")
+        return {"status": "error", "message": str(e)}
+
+# ============ V4.2 VAULT ENDPOINTS ============
+
+from services.vault_service import vault_service
+
+@app.get("/api/vault/status")
+async def get_vault_status():
+    """Returns current cycle status and vault totals."""
+    try:
+        status = await vault_service.get_cycle_status()
+        calc = await vault_service.calculate_withdrawal_amount()
+        return {
+            **status,
+            "recommended_withdrawal": calc.get("recommended_20pct", 0)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching vault status: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/vault/history")
+async def get_vault_history(limit: int = 20):
+    """Returns withdrawal history."""
+    try:
+        return await vault_service.get_withdrawal_history(limit=limit)
+    except Exception as e:
+        logger.error(f"Error fetching vault history: {e}")
+        return []
+
+@app.post("/api/vault/withdraw")
+async def register_withdrawal(payload: dict):
+    """Registers a manual withdrawal to the vault."""
+    amount = payload.get("amount", 0)
+    if amount <= 0:
+        return {"error": "Amount must be greater than 0"}
+    
+    try:
+        success = await vault_service.execute_withdrawal(float(amount))
+        if success:
+            return {"status": "success", "amount": amount}
+        return {"status": "error", "message": "Failed to register withdrawal"}
+    except Exception as e:
+        logger.error(f"Error registering withdrawal: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/vault/new-cycle")
+async def start_new_cycle():
+    """Starts a new trading cycle."""
+    try:
+        result = await vault_service.start_new_cycle()
+        return {"status": "success", "cycle": result}
+    except Exception as e:
+        logger.error(f"Error starting new cycle: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/system/cautious-mode")
+async def toggle_cautious_mode(payload: dict):
+    """Toggles cautious mode (increased score threshold)."""
+    enabled = payload.get("enabled", False)
+    min_score = payload.get("min_score", 85)
+    
+    try:
+        await vault_service.set_cautious_mode(enabled, min_score)
+        return {"status": "success", "cautious_mode": enabled, "min_score": min_score}
+    except Exception as e:
+        logger.error(f"Error toggling cautious mode: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/system/admiral-rest")
+async def toggle_admiral_rest(payload: dict):
+    """Activates/deactivates Admiral's Rest mode."""
+    activate = payload.get("activate", False)
+    hours = payload.get("hours", 24)
+    
+    try:
+        if activate:
+            await vault_service.activate_admiral_rest(hours)
+            return {"status": "success", "admiral_rest": True, "hours": hours}
+        else:
+            await vault_service.deactivate_admiral_rest()
+            return {"status": "success", "admiral_rest": False}
+    except Exception as e:
+        logger.error(f"Error toggling admiral rest: {e}")
+        return {"error": str(e)}
 
 # Mount Local Static fallback (highest priority for assets)
 if os.path.isdir(INTERNAL_STATIC_DIR):

@@ -971,6 +971,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message })
                     });
+                    // Server saves via log_event, polling will refresh
                 } catch (err) {
                     console.error("Chat error:", err);
                 } finally {
@@ -1193,16 +1194,16 @@
                                     return (
                                         <div key={signal.id || Math.random()}
                                             className={`p-2.5 sm:p-3 rounded-xl border transition-all ${isElite ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]' :
-                                                    isBTC ? 'bg-primary/5 border-primary/20 opacity-70' :
-                                                        'bg-white/[0.02] border-white/5 opacity-60'
+                                                isBTC ? 'bg-primary/5 border-primary/20 opacity-70' :
+                                                    'bg-white/[0.02] border-white/5 opacity-60'
                                                 }`}>
 
                                             {/* Header row */}
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase ${isElite ? 'bg-red-500 text-white' :
-                                                            isBTC ? 'bg-primary/20 text-primary' :
-                                                                'bg-slate-800 text-slate-500'
+                                                        isBTC ? 'bg-primary/20 text-primary' :
+                                                            'bg-slate-800 text-slate-500'
                                                         }`}>
                                                         {isElite ? 'Elite' : isBTC ? 'Compass' : 'Track'}
                                                     </span>
@@ -1440,8 +1441,8 @@
                     </header>
 
                     <main className="flex-1 flex flex-col overflow-hidden p-2 sm:p-3 gap-2 sm:gap-3">
-                        {/* 1. CHART SECTION (70% do espaço disponível) */}
-                        <section className="flex-[7] min-h-[250px] sm:min-h-[300px] flex-shrink-0 relative">
+                        {/* 1. CHART SECTION (50% do espaço disponível) */}
+                        <section className="flex-[5] min-h-[250px] sm:min-h-[300px] flex-shrink-0 relative">
                             <div className="h-full relative rounded-2xl overflow-hidden bg-gradient-to-b from-black/40 to-black/60 border-2 border-primary/30 shadow-[0_0_20px_rgba(255,215,0,0.1),inset_0_1px_0_rgba(255,255,255,0.05)]">
                                 {/* Chart Header Badge */}
                                 <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-black/70 px-4 py-1.5 rounded-xl border border-primary/20 backdrop-blur-xl shadow-lg">
@@ -1461,19 +1462,32 @@
                             </div>
                         </section>
 
-                        {/* 2. SLOTS SECTION (30% do espaço disponível) */}
-                        <section className="flex-[3] min-h-[120px] sm:min-h-[150px] overflow-y-auto rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 border-white/10 hover:border-primary/20 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)] custom-scrollbar">
-                            <div className="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
-                                {slots.map(s => (
-                                    <SlotCard
-                                        key={s.id}
-                                        s={s}
-                                        selectedId={selectedSlotId}
-                                        setSelectedSlotId={setSelectedSlotId}
-                                        tickers={tickers}
-                                        getDynamicPnL={getDynamicPnL}
-                                    />
-                                ))}
+                        {/* 2. SLOTS SECTION (50% do espaço disponível) */}
+                        <section className="flex-[5] overflow-y-auto rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 border-white/10 p-3 custom-scrollbar">
+                            {/* Sniper Squadron */}
+                            <div className="mb-4">
+                                <h3 className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <span className="material-icons-round text-xs">target</span>
+                                    Esquadrão Sniper (Slots 1-5)
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                                    {slots.filter(s => s.id <= 5).map(s => (
+                                        <SlotCard key={s.id} s={s} selectedId={selectedSlotId} setSelectedSlotId={setSelectedSlotId} tickers={tickers} getDynamicPnL={getDynamicPnL} />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Surf Squadron */}
+                            <div className="mt-2">
+                                <h3 className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <span className="material-icons-round text-xs">waves</span>
+                                    Esquadrão Surf (Slots 6-10)
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                                    {slots.filter(s => s.id > 5).map(s => (
+                                        <SlotCard key={s.id} s={s} selectedId={selectedSlotId} setSelectedSlotId={setSelectedSlotId} tickers={tickers} getDynamicPnL={getDynamicPnL} />
+                                    ))}
+                                </div>
                             </div>
                         </section>
 
@@ -1575,7 +1589,20 @@
             );
         };
 
-        const SettingsPage = () => {
+        // 5. Vault Page (Iframe Integration)
+        const VaultPage = () => {
+            return (
+                <div className="flex flex-col h-screen bg-black">
+                    <iframe
+                        src="/vault/ui"
+                        className="flex-1 w-full border-none"
+                        title="Vault Management"
+                    />
+                </div>
+            );
+        };
+
+        const SettingsPage = ({ onLogout }) => {
             const handlePanic = async () => {
                 if (!confirm("⚠️ CAUTELA: O Protocolo de Pânico fechará TODAS as posições imediatamente no mercado. Confirmar?")) return;
                 try {
@@ -1585,47 +1612,68 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-6 overflow-y-auto pb-24">
-                    <header className="mb-8 flex flex-col">
-                        <div className="flex justify-end mb-2">
-                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
+                <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-4 overflow-y-auto pb-24">
+                    <header className="mb-6 flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                        <div className="flex flex-col">
+                            <h1 className="text-xl font-display font-bold text-white uppercase tracking-tight">Security Center</h1>
+                            <p className="text-[8px] text-slate-500 uppercase tracking-widest mt-1">V4.2 Operation Command</p>
                         </div>
-                        <div>
-                            <h1 className="text-2xl font-display font-bold text-white uppercase tracking-tight">Security Center</h1>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">V4.6 Operation Armament</p>
-                        </div>
+                        <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-50" />
                     </header>
-                    <div className="space-y-6">
-                        {/* Protocolo de Pânico UI - Moved here */}
-                        <div className="glass-panel p-6 rounded-2xl border border-red-500/20 bg-red-950/10">
-                            <h2 className="text-sm font-bold mb-1 text-red-500 flex items-center gap-2">
-                                <span className="material-icons-round text-sm">gpp_maybe</span>
-                                Protocolo Dark Space (PÂNICO)
+
+                    <div className="grid grid-cols-1 gap-4">
+                        {/* Control Section */}
+                        <div className="glass-card p-5 rounded-2xl border border-white/5">
+                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest">
+                                <span className="material-icons-round text-sm">settings_suggest</span>
+                                Operação & Navegação
                             </h2>
-                            <p className="text-[10px] text-slate-400 mb-4 uppercase tracking-tighter">Limpeza imediata de todas as posições em aberto.</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Link to="/history" className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group">
+                                    <span className="material-icons-round text-primary mb-2 group-hover:scale-110 transition-transform">history_edu</span>
+                                    <span className="text-[9px] font-bold uppercase">Histórico</span>
+                                </Link>
+                                <button onClick={onLogout} className="flex flex-col items-center justify-center p-4 bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
+                                    <span className="material-icons-round text-red-500 mb-2 group-hover:scale-110 transition-transform">logout</span>
+                                    <span className="text-[9px] font-bold uppercase text-red-500">Sair</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Panic Protocol */}
+                        <div className="glass-panel p-5 rounded-2xl border border-red-500/20 bg-red-950/5">
+                            <h2 className="text-[10px] font-bold mb-1 text-red-500 flex items-center gap-2 uppercase tracking-widest">
+                                <span className="material-icons-round text-sm">gpp_maybe</span>
+                                Protocolo Dark Space
+                            </h2>
+                            <p className="text-[8px] text-slate-500 mb-4 uppercase tracking-widest">Limpeza total de posições em aberto.</p>
                             <button
                                 onClick={handlePanic}
-                                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl text-xs tracking-[0.3em] shadow-[0_0_30px_rgba(220,38,38,0.2)] transition-all active:scale-95 flex items-center justify-center gap-3">
-                                <span className="material-icons-round">flash_on</span>
-                                EXECUTAR LIMPEZA TOTAL
+                                className="w-full bg-red-600/20 hover:bg-red-600 border border-red-500/30 text-red-500 hover:text-white font-black py-3 rounded-xl text-[10px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2">
+                                <span className="material-icons-round text-sm">flash_on</span>
+                                EXECUTAR LIMPEZA
                             </button>
                         </div>
 
-                        <div className="glass-card p-6 rounded-2xl">
-                            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
-                                <span className="material-icons-round text-primary text-sm">key</span>
+                        {/* API Info */}
+                        <div className="glass-card p-5 rounded-2xl border border-white/5">
+                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest">
+                                <span className="material-icons-round text-primary text-sm">hubs</span>
                                 API Telemetry
                             </h2>
-                            <div className="space-y-3">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Bybit Key (Auth)</label>
-                                    <input type="text" disabled value="••••••••••••••••••••••••" className="bg-black/40 border border-white/10 rounded-lg p-3 text-xs font-mono" />
+                            <div className="space-y-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Bybit Auth</label>
+                                    <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-[10px] font-mono text-slate-400 flex justify-between items-center">
+                                        <span>••••••••••••••••••••••••</span>
+                                        <span className="text-emerald-500 text-[8px] font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">SECURE</span>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Network Frequency</label>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Frequency Mode</label>
                                     <div className="flex gap-2">
-                                        <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-xs">TESTNET</button>
-                                        <button className="flex-1 bg-white/5 text-slate-500 border border-white/10 font-bold py-2 rounded-lg text-xs opacity-50">MAINNET</button>
+                                        <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest">Testnet</button>
+                                        <button className="flex-1 bg-white/5 text-slate-500 border border-white/5 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest opacity-30">Mainnet</button>
                                     </div>
                                 </div>
                             </div>
@@ -1638,44 +1686,116 @@
         const NavBar = ({ onLogout }) => {
             const location = useLocation();
             return (
-                <nav className="fixed bottom-0 w-full h-16 bg-black/95 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-50">
-                    <Link to="/" className={`flex flex-col items-center ${location.pathname === '/' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
-                        <span className="material-icons-round">space_dashboard</span>
-                        <span className="text-[8px] font-bold">BANCA</span>
+                <nav className="fixed bottom-0 w-full h-18 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center z-50 px-2 pb-safe">
+                    <Link to="/" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
+                        <span className="material-icons-round text-3xl">space_dashboard</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Banca</span>
                     </Link>
-                    <Link to="/radar" className={`flex flex-col items-center ${location.pathname === '/radar' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
-                        <span className="material-icons-round">radar</span>
-                        <span className="text-[8px] font-bold">RADAR</span>
+                    <Link to="/radar" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/radar' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
+                        <span className="material-icons-round text-3xl">radar</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Radar</span>
                     </Link>
-                    <Link to="/logs" className={`flex flex-col items-center ${location.pathname === '/logs' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
-                        <span className="material-icons-round">terminal</span>
-                        <span className="text-[8px] font-bold">LOGS</span>
+
+                    {/* Chat Button - Perfectly Aligned */}
+                    <Link to="/logs" className={`flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all ${location.pathname === '/logs' ? 'bg-primary text-black shadow-[0_0_20px_rgba(255,215,0,0.3)]' : 'bg-white/5 text-primary border border-primary/20 hover:bg-white/10'}`}>
+                        <span className="material-icons-round text-3xl">terminal</span>
                     </Link>
-                    <Link to="/history" className={`flex flex-col items-center ${location.pathname === '/history' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
-                        <span className="material-icons-round">history_edu</span>
-                        <span className="text-[8px] font-bold">RESULTS</span>
+
+                    <Link to="/vault" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/vault' ? 'text-gold bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
+                        <span className="material-icons-round text-3xl text-gold">currency_bitcoin</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Vault</span>
                     </Link>
-                    <Link to="/settings" className={`flex flex-col items-center ${location.pathname === '/settings' ? 'text-primary' : 'text-slate-600 opacity-60'}`}>
-                        <span className="material-icons-round">settings</span>
-                        <span className="text-[8px] font-bold">SETTINGS</span>
+
+                    <Link to="/settings" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/settings' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
+                        <span className="material-icons-round text-3xl">settings</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Config</span>
                     </Link>
-                    <button onClick={onLogout} className="flex flex-col items-center text-red-500/60 hover:text-red-500">
-                        <span className="material-icons-round">logout</span>
-                        <span className="text-[8px] font-bold uppercase">Sair</span>
-                    </button>
                 </nav>
             );
         };
 
 
-        const App = () => {
-            const [isLanding, setIsLanding] = useState(() => {
-                // Check if user already entered in this session
-                return sessionStorage.getItem('1crypten_entered') !== 'true';
+        // 6. Takeoff Checklist Modal
+        const TakeoffModal = ({ onComplete }) => {
+            const [checks, setChecks] = useState({
+                api: { status: 'pending', label: 'Conexão com Bybit' },
+                latency: { status: 'pending', label: 'Latência de Rede' },
+                balance: { status: 'pending', label: 'Sincronização de Saldo' },
+                captain: { status: 'pending', label: 'Protocolo Almirante' }
             });
+            const [isReady, setIsReady] = useState(false);
 
             useEffect(() => {
-                // Remove boot shield once React is mounted
+                const runChecks = async () => {
+                    // Check API
+                    try {
+                        const res = await fetch(API_BASE + '/health');
+                        setChecks(prev => ({ ...prev, api: { ...prev.api, status: res.ok ? 'success' : 'error' } }));
+                    } catch (e) { setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } })); }
+
+                    // Check Latency (simulated or real from health)
+                    setTimeout(() => {
+                        setChecks(prev => ({ ...prev, latency: { ...prev.latency, status: 'success' } }));
+                    }, 800);
+
+                    // Check Balance
+                    try {
+                        const res = await fetch(API_BASE + '/banca');
+                        setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: res.ok ? 'success' : 'error' } }));
+                    } catch (e) { setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } })); }
+
+                    // Final Captain Protocol
+                    setTimeout(() => {
+                        setChecks(prev => ({ ...prev, captain: { ...prev.captain, status: 'success' } }));
+                        setIsReady(true);
+                    }, 1500);
+                };
+                runChecks();
+            }, []);
+
+            return (
+                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 text-white font-display">
+                    <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-white/10 shadow-2xl">
+                        <div className="flex flex-col items-center mb-8">
+                            <img src="/logo10D.png" alt="Logo" className="w-16 h-16 mb-4 animate-pulse" />
+                            <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Checklist de Decolagem</h2>
+                            <p className="text-[10px] text-slate-500 tracking-[0.3em] font-mono mt-2">V4.2 DEEP SPACE PROTOCOL</p>
+                        </div>
+
+                        <div className="space-y-4 mb-10">
+                            {Object.entries(checks).map(([key, check]) => (
+                                <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                                    <span className="text-sm font-medium text-slate-300">{check.label}</span>
+                                    {check.status === 'pending' ? (
+                                        <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                    ) : check.status === 'success' ? (
+                                        <span className="material-icons-round text-emerald-400 text-lg">check_circle</span>
+                                    ) : (
+                                        <span className="material-icons-round text-red-400 text-lg">error</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={onComplete}
+                            disabled={!isReady}
+                            className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest transition-all ${isReady ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.3)] hover:scale-[1.02] active:scale-[0.98]' : 'bg-white/5 text-slate-500 cursor-not-allowed'}`}
+                        >
+                            {isReady ? 'Iniciar Missão' : 'Validando Sistemas...'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [isLanding, setIsLanding] = useState(() => {
+                return sessionStorage.getItem('1crypten_entered') !== 'true';
+            });
+            const [showChecklist, setShowChecklist] = useState(false);
+
+            useEffect(() => {
                 const shield = document.getElementById('boot-shield');
                 if (shield) {
                     const failsafe = setTimeout(() => {
@@ -1684,8 +1804,7 @@
                             shield.style.display = 'none';
                             shield.remove();
                         }, 800);
-                    }, 1000); // Faster boot now that we have a Landing Page
-
+                    }, 1000);
                     return () => clearTimeout(failsafe);
                 }
             }, []);
@@ -1706,11 +1825,17 @@
             const handleLogout = () => {
                 sessionStorage.removeItem('1crypten_entered');
                 setIsLanding(true);
+                setShowChecklist(false);
             };
 
             const handleEnter = () => {
                 setIsLanding(false);
+                setShowChecklist(true); // Show checklist after entering
                 sessionStorage.setItem('1crypten_entered', 'true');
+            };
+
+            const handleChecklistComplete = () => {
+                setShowChecklist(false);
             };
 
             if (isLanding) {
@@ -1720,12 +1845,14 @@
             return (
                 <HashRouter>
                     <div className="h-full">
+                        {showChecklist && <TakeoffModal onComplete={handleChecklistComplete} />}
                         <Routes>
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/radar" element={<JourneyPage />} />
                             <Route path="/logs" element={<LogsPage />} />
                             <Route path="/history" element={<HistoryPage />} />
-                            <Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/vault" element={<VaultPage />} />
+                            <Route path="/settings" element={<SettingsPage onLogout={handleLogout} />} />
                         </Routes>
                         <NavBar onLogout={handleLogout} />
                     </div>

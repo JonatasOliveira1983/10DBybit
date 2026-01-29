@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     RISK_CAP_PERCENT: float = 0.20
     LEVERAGE: int = 50
     INITIAL_SLOTS: int = 4
-    BREAKEVEN_TRIGGER_PERCENT: float = 2.5 # 2.5% profit triggers move to entry
+    BREAKEVEN_TRIGGER_PERCENT: float = 5.0 # Increased to 5% ROI to avoid premature exits
     
     # Fast API context
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

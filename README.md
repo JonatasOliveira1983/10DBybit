@@ -1,73 +1,68 @@
-# 1CRYPTEN Space V4.8.0: Total Stability & Reset 🛡️🚀
+# 1CRYPTEN Space V4.3.1 DEEP SPACE 🦅🚀
 
-Este relatório detalha a arquitetura, a lógica operacional e o estado atual da Nave 1CRYPTEN, consolidando o upgrade de **Estabilidade e Reset de Sistema v4.8.0**.
-
----
-
-## 1. Conceito e Visão 🎯
-
-O 1CRYPTEN é um Agente de Trading Autônomo que combina análise técnica de volume (CVD) com inteligência linguística superior.
-
-**Versão 4.8.0 (Stability & Reset):** Esta versão foca na robustez operacional do backend, eliminando travamentos de inicialização e corrigindo inconsistências críticas no modo Paper Trading. Além disso, introduz uma infraestrutura de reset completo para reinicialização limpa do sistema.
+Sistema de Trading Autônomo com Escalabilidade Geométrica, Vault Management e Interface de Voz.
 
 ---
 
-## 2. Estabilidade do Backend 🛡️
+## Novidades V4.3.1
 
-### Chamadas de IA Assíncronas
-- **Protocolo Anti-Congelamento:** Refatoração do `ai_service.py` para garantir que falhas ou lentidões em provedores de IA (OpenRouter/GLM/Gemini) não bloqueiem o loop de eventos principal.
-- **Fallback Inteligente:** Transição suave entre modelos sem impactar a execução das ordens ou o monitoramento do mercado.
+### Execução Serial de Ordens
+- **Anti-Race Condition:** Cada ordem é processada e persistida antes da próxima
+- **Delay 0.5s:** Entre ordens para garantir persistência no Firebase
 
-### Gestão de Processos
-- **Prevenção de Conflitos:** Implementação de verificações de porta (5001) para evitar falhas de inicialização causadas por instâncias zumbis do Python.
+### Guarda de Duplicação Absoluta
+- **Símbolo Normalizado:** ONDOUSDT = ONDOUSDT.P (sem duplicatas)
+- **Bloqueio Global:** Nenhum símbolo em 2 slots simultâneos
 
----
+### Sistema de Promoção Automática
+- **SNIPER → SURF:** Quando ROI > 30%, slot é promovido automaticamente
+- **Remove TP Fixo:** Passa a usar Trailing Stop do Guardian
 
-## 3. Paper Trading 2.0 📑
-
-### Normalização de Símbolos
-- **Consistência Total:** Correção do mapeamento de símbolos Perpetuais (`.P`). O sistema agora normaliza os pares internamente, eliminando o erro `10001 (Position not found)` que ocorria na gestão de STOP LOSS pelo Guardian Agent.
-- **Sincronização de Fidelidade:** Melhora na detecção de posições simuladas, garantindo que o Status de Risco reflita exatamente a realidade do simulador.
-
----
-
-## 4. Reset Abrangente do Sistema 🔥
-
-Recentemente adicionado o script `reset_system_v2.py`, permitindo uma limpeza profunda:
-
-| Componente | Ação |
-|------------|------|
-| **Sinais** | Exclusão total do histórico de sinais gerados |
-| **Slots** | Limpeza de todos os slots ativos e reinicialização para estado "LIVRE" |
-| **Finanças** | Reset da banca simulada para $100.00 e limpeza do histórico de PNL |
-| **Logs** | Limpeza de todos os registros de eventos do sistema |
+### Detector de Tipo de Sinal
+- **SURF:** Score >= 82 + CVD >= 30,000
+- **SNIPER:** Demais sinais
 
 ---
 
-## 5. Changelog v4.8.0
-
-- ✅ **Async AI Wrapper:** Chamadas de backup de IA agora são não-bloqueantes.
-- ✅ **Symbol Normalization:** Fim dos erros de `Position not found` no Paper Trading.
-- ✅ **Comprehensive Reset:** Novo utilitário para limpeza total do Firebase (v2).
-- ✅ **Port Conflict Fix:** Estabilidade na inicialização e reinício do backend.
-- ✅ **Log Sanity:** Limpeza de ruídos e logs duplicados durante a fase de boot.
+## Slot Squadron Logic V4.3
+- **Sniper (Slots 1-5):** Alvo fixo +2% preço = 100% ROI @ 50x alavancagem
+- **Surf (Slots 6-10):** Sem alvo, trailing stop dinâmico pelo Guardian
+- **Inicialização:** 2 SNIPER + 2 SURF (expansão via RiskFree)
 
 ---
 
-## Como Iniciar 🛠️
+## Endpoints V4.2
 
-1. **Pré-requisitos:** Python 3.10+, `serviceAccountKey.json` e `.env` configurado.
-2. **Reset (Opcional):** Para começar do zero:
-   ```powershell
-   python reset_system_v2.py
-   ```
-3. **Boot:** 
-   ```powershell
-   cd 1CRYPTEN_SPACE_V4.0/backend
-   python main.py
-   ```
-4. **Interface:** Acesse `http://localhost:5001`
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/vault/status` | GET | Status do ciclo e vault |
+| `/api/vault/history` | GET | Histórico de retiradas |
+| `/api/vault/withdraw` | POST | Registrar retirada |
+| `/api/vault/new-cycle` | POST | Iniciar novo ciclo |
+| `/api/system/cautious-mode` | POST | Toggle modo cautela |
+| `/api/system/admiral-rest` | POST | Toggle Admiral's Rest |
+| `/panic` | POST | Kill switch (fechar tudo) |
 
 ---
 
-**Operação: 10D - Deep Space - V4.8.0 Stability Gold.**
+## Frontend V4.2
+
+- **Vault Page:** `/vault_v4.0/code.html` - Ciclo, retiradas, controles
+- **Voice Interaction:** Ícone de microfone no Banca Command Center
+- **Quick Commands:** Botões de atalho para Status, Cautela, Ciclo
+- **Navegação:** Links funcionais entre todas as páginas
+
+---
+
+## Como Iniciar
+
+```powershell
+cd 1CRYPTEN_SPACE_V4.0/backend
+python main.py
+```
+
+Acesse `http://localhost:5001`
+
+---
+
+**Operação: 10D - Deep Space - V4.2 Almirante Edition.**

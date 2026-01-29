@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Vault Management v4.2</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00E0FF",
+                        gold: "#FFD700",
+                        danger: "#FF4D4D",
+                        success: "#22C55E",
+                        "background-dark": "#050505",
+                        card: "#121212",
+                    },
+                    fontFamily: {
+                        display: ["Space Grotesk", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #050505;
+        }
+
+        .gold-glow {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+            border: 1px solid rgba(255, 215, 0, 0.5);
+        }
+
+        .cyan-glow {
+            box-shadow: 0 0 20px rgba(0, 224, 255, 0.3);
+            border: 1px solid rgba(0, 224, 255, 0.5);
+        }
+
+        .glass {
+            background: rgba(18, 18, 18, 0.85);
+            backdrop-filter: blur(10px);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #00E0FF, #FFD700);
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark text-white min-h-screen">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-gray-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a href="/" class="text-gray-400 hover:text-white transition">
+                    <span class="material-icons-round">arrow_back</span>
+                </a>
+                <h1 class="text-xl font-semibold text-gold">🏦 Vault Management</h1>
+            </div>
+            <div id="system-status" class="flex items-center gap-2 text-sm">
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span class="text-gray-400">Sistema Online</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <!-- Active Balance Card -->
+            <div class="glass rounded-xl p-6 border border-gray-800">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-primary">account_balance_wallet</span>
+                    <span class="text-gray-400 text-sm">Banca Ativa</span>
+                </div>
+                <p id="active-balance" class="text-3xl font-bold text-white">$0.00</p>
+                <p id="balance-change" class="text-sm text-green-400 mt-1">+0.0% hoje</p>
+            </div>
+
+            <!-- Vault Total Card -->
+            <div class="glass rounded-xl p-6 border border-gold/30 gold-glow">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-gold">currency_bitcoin</span>
+                    <span class="text-gray-400 text-sm">Cofre (Vault)</span>
+                </div>
+                <p id="vault-total" class="text-3xl font-bold text-gold">$0.00</p>
+                <p id="vault-withdrawals" class="text-sm text-gray-400 mt-1">0 retiradas</p>
+            </div>
+
+            <!-- Cycle Progress Card -->
+            <div class="glass rounded-xl p-6 border border-primary/30 cyan-glow">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-primary">rotate_right</span>
+                    <span class="text-gray-400 text-sm">Ciclo Atual</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <p id="cycle-number" class="text-3xl font-bold text-white">#1</p>
+                    <p id="sniper-wins" class="text-xl text-primary">0/20</p>
+                </div>
+                <div class="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div id="cycle-progress" class="progress-bar h-full transition-all duration-500" style="width: 0%">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Alerts -->
+        <div id="alert-container" class="mb-6 hidden">
+            <div id="admiral-rest-alert"
+                class="hidden bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-3">
+                <span class="material-icons-round text-yellow-500">bedtime</span>
+                <div>
+                    <p class="font-medium text-yellow-400">Admiral's Rest Ativo</p>
+                    <p class="text-sm text-gray-400">Sistema em standby até <span id="rest-until">--</span></p>
+                </div>
+                <button onclick="deactivateRest()"
+                    class="ml-auto bg-yellow-500/20 hover:bg-yellow-500/30 px-4 py-2 rounded-lg text-yellow-400 transition">
+                    Despertar
+                </button>
+            </div>
+            <div id="cautious-mode-alert"
+                class="hidden bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex items-center gap-3 mt-3">
+                <span class="material-icons-round text-orange-500">shield</span>
+                <div>
+                    <p class="font-medium text-orange-400">Modo Cautela Ativo</p>
+                    <p class="text-sm text-gray-400">Threshold de score: <span id="min-score-threshold">85</span></p>
+                </div>
+                <button onclick="toggleCautiousMode(false)"
+                    class="ml-auto bg-orange-500/20 hover:bg-orange-500/30 px-4 py-2 rounded-lg text-orange-400 transition">
+                    Desativar
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <button onclick="showWithdrawModal()"
+                class="glass rounded-xl p-4 border border-gray-700 hover:border-gold/50 transition flex flex-col items-center gap-2">
+                <span class="material-icons-round text-gold text-3xl">payments</span>
+                <span class="text-sm text-gray-300">Registrar Retirada</span>
+            </button>
+            <button onclick="startNewCycle()"
+                class="glass rounded-xl p-4 border border-gray-700 hover:border-primary/50 transition flex flex-col items-center gap-2">
+                <span class="material-icons-round text-primary text-3xl">replay</span>
+                <span class="text-sm text-gray-300">Novo Ciclo</span>
+            </button>
+            <button onclick="toggleCautiousMode(true)"
+                class="glass rounded-xl p-4 border border-gray-700 hover:border-orange-500/50 transition flex flex-col items-center gap-2">
+                <span class="material-icons-round text-orange-500 text-3xl">security</span>
+                <span class="text-sm text-gray-300">Modo Cautela</span>
+            </button>
+            <button onclick="activateRest()"
+                class="glass rounded-xl p-4 border border-gray-700 hover:border-yellow-500/50 transition flex flex-col items-center gap-2">
+                <span class="material-icons-round text-yellow-500 text-3xl">hotel</span>
+                <span class="text-sm text-gray-300">Admiral's Rest</span>
+            </button>
+        </div>
+
+        <!-- Withdrawal History -->
+        <div class="glass rounded-xl border border-gray-800 overflow-hidden">
+            <div class="p-4 border-b border-gray-800 flex items-center justify-between">
+                <h2 class="font-semibold text-white flex items-center gap-2">
+                    <span class="material-icons-round text-gold">history</span>
+                    Histórico de Retiradas
+                </h2>
+                <span id="total-withdrawn" class="text-sm text-gray-400">Total: $0.00</span>
+            </div>
+            <div id="withdrawal-list" class="max-h-72 overflow-y-auto custom-scroll divide-y divide-gray-800">
+                <div class="p-6 text-center text-gray-500">
+                    <span class="material-icons-round text-4xl mb-2">inbox</span>
+                    <p>Nenhuma retirada registrada</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Withdraw Modal -->
+    <div id="withdraw-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="glass rounded-2xl p-6 w-full max-w-md mx-4 border border-gray-700">
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="material-icons-round text-gold">payments</span>
+                Registrar Retirada
+            </h3>
+            <div class="mb-4">
+                <label class="text-sm text-gray-400 mb-2 block">Valor Recomendado (20% do lucro)</label>
+                <p id="recommended-amount" class="text-2xl font-bold text-gold mb-3">$0.00</p>
+            </div>
+            <div class="mb-6">
+                <label class="text-sm text-gray-400 mb-2 block">Valor da Retirada</label>
+                <input type="number" id="withdraw-amount" placeholder="0.00"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-gold focus:ring-gold">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeWithdrawModal()"
+                    class="flex-1 bg-gray-700 hover:bg-gray-600 py-3 rounded-lg transition">
+                    Cancelar
+                </button>
+                <button onclick="confirmWithdraw()"
+                    class="flex-1 bg-gold hover:bg-yellow-500 text-black font-semibold py-3 rounded-lg transition">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let vaultData = {};
+
+        async function fetchVaultStatus() {
+            try {
+                const [vaultRes, bancaRes, historyRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/vault/status`),
+                    fetch(`${API_BASE}/banca`),
+                    fetch(`${API_BASE}/api/vault/history?limit=20`)
+                ]);
+
+                const vault = await vaultRes.json();
+                const banca = await bancaRes.json();
+                const history = await historyRes.json();
+
+                vaultData = vault;
+
+                // Update stats
+                document.getElementById('active-balance').textContent = `$${(banca.saldo_total || 0).toFixed(2)}`;
+                document.getElementById('vault-total').textContent = `$${(vault.vault_total || 0).toFixed(2)}`;
+                document.getElementById('cycle-number').textContent = `#${vault.cycle_number || 1}`;
+                document.getElementById('sniper-wins').textContent = `${vault.sniper_wins || 0}/20`;
+
+                const progress = ((vault.sniper_wins || 0) / 20) * 100;
+                document.getElementById('cycle-progress').style.width = `${progress}%`;
+
+                // Update alerts
+                const alertContainer = document.getElementById('alert-container');
+                const restAlert = document.getElementById('admiral-rest-alert');
+                const cautiousAlert = document.getElementById('cautious-mode-alert');
+
+                if (vault.in_admiral_rest) {
+                    restAlert.classList.remove('hidden');
+                    document.getElementById('rest-until').textContent = vault.rest_until || '--';
+                    alertContainer.classList.remove('hidden');
+                } else {
+                    restAlert.classList.add('hidden');
+                }
+
+                if (vault.cautious_mode) {
+                    cautiousAlert.classList.remove('hidden');
+                    document.getElementById('min-score-threshold').textContent = vault.min_score_threshold || 85;
+                    alertContainer.classList.remove('hidden');
+                } else {
+                    cautiousAlert.classList.add('hidden');
+                }
+
+                if (!vault.in_admiral_rest && !vault.cautious_mode) {
+                    alertContainer.classList.add('hidden');
+                }
+
+                // Update recommended amount
+                document.getElementById('recommended-amount').textContent = `$${(vault.recommended_withdrawal || 0).toFixed(2)}`;
+
+                // Update history
+                renderWithdrawalHistory(history);
+
+            } catch (error) {
+                console.error('Error fetching vault status:', error);
+            }
+        }
+
+        function renderWithdrawalHistory(history) {
+            const container = document.getElementById('withdrawal-list');
+
+            if (!history || history.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <span class="material-icons-round text-4xl mb-2">inbox</span>
+                        <p>Nenhuma retirada registrada</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let totalWithdrawn = 0;
+            container.innerHTML = history.map(w => {
+                totalWithdrawn += w.amount || 0;
+                const date = new Date(w.timestamp).toLocaleDateString('pt-BR');
+                return `
+                    <div class="p-4 flex items-center justify-between hover:bg-gray-800/50">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-round text-gold">arrow_circle_up</span>
+                            <div>
+                                <p class="font-medium text-white">$${(w.amount || 0).toFixed(2)}</p>
+                                <p class="text-xs text-gray-500">Ciclo #${w.cycle_number || 1}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm text-gray-400">${date}</span>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('total-withdrawn').textContent = `Total: $${totalWithdrawn.toFixed(2)}`;
+            document.getElementById('vault-withdrawals').textContent = `${history.length} retiradas`;
+        }
+
+        function showWithdrawModal() {
+            document.getElementById('withdraw-modal').classList.remove('hidden');
+            document.getElementById('withdraw-modal').classList.add('flex');
+            document.getElementById('withdraw-amount').value = (vaultData.recommended_withdrawal || 0).toFixed(2);
+        }
+
+        function closeWithdrawModal() {
+            document.getElementById('withdraw-modal').classList.add('hidden');
+            document.getElementById('withdraw-modal').classList.remove('flex');
+        }
+
+        async function confirmWithdraw() {
+            const amount = parseFloat(document.getElementById('withdraw-amount').value);
+            if (!amount || amount <= 0) return alert('Digite um valor válido');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/vault/withdraw`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    closeWithdrawModal();
+                    fetchVaultStatus();
+                } else {
+                    alert(data.error || 'Erro ao registrar retirada');
+                }
+            } catch (e) {
+                alert('Erro de conexão');
+            }
+        }
+
+        async function startNewCycle() {
+            if (!confirm('Iniciar novo ciclo? O contador de trades será resetado.')) return;
+            try {
+                await fetch(`${API_BASE}/api/vault/new-cycle`, { method: 'POST' });
+                fetchVaultStatus();
+            } catch (e) {
+                alert('Erro ao iniciar novo ciclo');
+            }
+        }
+
+        async function toggleCautiousMode(enabled) {
+            try {
+                await fetch(`${API_BASE}/api/system/cautious-mode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled, min_score: 85 })
+                });
+                fetchVaultStatus();
+            } catch (e) {
+                alert('Erro ao alterar modo cautela');
+            }
+        }
+
+        async function activateRest() {
+            if (!confirm('Ativar Admiral\'s Rest por 24h?')) return;
+            try {
+                await fetch(`${API_BASE}/api/system/admiral-rest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activate: true, hours: 24 })
+                });
+                fetchVaultStatus();
+            } catch (e) {
+                alert('Erro ao ativar descanso');
+            }
+        }
+
+        async function deactivateRest() {
+            try {
+                await fetch(`${API_BASE}/api/system/admiral-rest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activate: false })
+                });
+                fetchVaultStatus();
+            } catch (e) {
+                alert('Erro ao desativar descanso');
+            }
+        }
+
+        // Initial load
+        fetchVaultStatus();
+        // Refresh every 30 seconds
+        setInterval(fetchVaultStatus, 30000);
+    </script>
+</body>
+
+</html>

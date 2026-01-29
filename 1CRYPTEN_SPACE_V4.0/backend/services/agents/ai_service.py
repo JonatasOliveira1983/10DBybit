@@ -28,7 +28,7 @@ class AIService:
         if glm_key:
             try:
                 self.glm_client = ZhipuAI(api_key=glm_key)
-                logger.info("GLM-4.7 Client Initialized.")
+                logger.info("GLM-4-Flash Client Initialized.")
             except Exception as e:
                 logger.error(f"Failed to initialize GLM Client: {e}")
 
@@ -89,7 +89,7 @@ class AIService:
             try:
                 def _glm_sync():
                     return self.glm_client.chat.completions.create(
-                        model="glm-4-plus", 
+                        model="glm-4-flash", 
                         messages=[
                             {"role": "system", "content": system_instruction},
                             {"role": "user", "content": prompt}

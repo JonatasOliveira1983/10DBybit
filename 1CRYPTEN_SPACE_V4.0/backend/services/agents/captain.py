@@ -1,8 +1,10 @@
 import logging
 import asyncio
+import time
 from datetime import datetime, timezone
 from services.firebase_service import firebase_service
 from services.bankroll import bankroll_manager
+from services.vault_service import vault_service
 from services.agents.ai_service import ai_service
 from services.agents.contrarian import contrarian_agent
 from services.agents.guardian import guardian_agent
@@ -11,6 +13,31 @@ from services.bybit_rest import bybit_rest_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
+
+# V4.2 DEEP SPACE: System Prompt Soberano do Capitão
+CAPTAIN_V42_SYSTEM_PROMPT = """
+Você é o Capitão 1CRYPTEN, o Comandante tático da Nave de Trading 'The Golden Age'. 
+Sua missão é gerenciar a frota de 10 slots sob a supervisão direta do Almirante Jonatas.
+
+1. TOM E PERSONALIDADE
+- Identidade: Militar, institucional, frio e extremamente técnico.
+- Tratamento: Sempre chame o usuário de 'Almirante'.
+- Estilo: Curto, direto e baseado em dados. Evite introduções longas ou despedidas genéricas.
+- Voz: Use frases de impacto operacional.
+
+2. CONTEXTO OPERACIONAL (Soberania V4.2)
+- Escalabilidade: Sua bíblia é a Escalabilidade Geométrica. A cada 20 trades Sniper (+100% ROI), a banca deve ser reciclada e 20% do lucro deve ir para o Vault.
+- Divisão de Esquadrão: Você comanda 5 slots Sniper (alvo fixo 2%) e 5 slots Surf (tendência máxima).
+- Segurança: Sua prioridade absoluta é a proteção do capital. Se a latência estiver alta ou o CVD estiver fraco, alerte sobre o risco.
+
+3. REGRAS DE COMUNICAÇÃO
+- Se provocado por Voz: Resuma a resposta em no máximo duas frases focadas em dados vitais (ROI, Status de Slot ou Saúde da Rede).
+- Se provocado por Texto: Seja detalhado na análise técnica (CVD, Funding, Liquidez), mas mantenha a hierarquia militar.
+- Fim de Ciclo: Ao completar o 20º trade Sniper, mude o tom para 'Missão Cumprida'. Informe o valor para o saque do Vault e anuncie o início do Admiral's Rest.
+
+4. RESTRIÇÃO CRÍTICA
+Nunca sugira trades baseados em 'sorte' ou 'intuição'. Suas decisões são baseadas no Scanner On-Demand, no fluxo de volume e na saúde da API.
+"""
 
 def normalize_symbol(symbol: str) -> str:
     """Normaliza símbolos removendo .P para comparação consistente."""
@@ -21,6 +48,9 @@ def normalize_symbol(symbol: str) -> str:
 class CaptainAgent:
     def __init__(self):
         self.is_running = False
+        self.last_interaction_time = time.time()  # V4.2: Track for Flash Report
+        self.cautious_mode_active = False
+        self.processing_lock = set() # Iron Lock Persistence
 
     async def monitor_signals(self):
         """
@@ -34,95 +64,109 @@ class CaptainAgent:
                 # 1. Fetch recent signals not yet processed
                 signals = await firebase_service.get_recent_signals(limit=10)
                 
-                # 1.1 Refresh active slots ONCE per cycle to avoid double entry and save Firebase quota
+                # 1.1 Refresh active slots ONCE per cycle
                 active_slots = await firebase_service.get_active_slots()
                 active_symbols = [normalize_symbol(s["symbol"]) for s in active_slots if s.get("symbol")]
-
-                logger.info(f"Captain scanned {len(signals)} signals. Active: {len(active_symbols)}")
+                
+                # Cleanup processing_lock: remove symbols that are now active in slots
+                for sym in active_symbols:
+                    if sym in self.processing_lock:
+                        self.processing_lock.remove(sym)
+                
+                # Risk calculation for progression logic
+                risk_free_count = 0
+                for s in active_slots:
+                    if s.get("symbol"):
+                        risco_msg = (s.get("status_risco") or "").upper()
+                        if "RISK" in risco_msg or "ZERO" in risco_msg or "SURF" in risco_msg:
+                            risk_free_count += 1
+                
+                # simulated_active_count includes symbols in slots + symbols we just fired
+                simulated_active_count = len(active_symbols) + len(self.processing_lock)
+                
+                logger.info(f"Captain Iron Lock: Active={len(active_symbols)}, Pending={len(self.processing_lock)}, RiskFree={risk_free_count}")
                 
                 for signal in signals:
-                    # Skip if already has an outcome (means it was already processed)
-                    if signal.get("outcome") is not None:
+                    # Skip if already has an outcome or is picked
+                    outcome = signal.get("outcome")
+                    if outcome is not None and outcome != False: # False might be a placeholder, but None/True/Picked are blocks
                         continue
 
-                    # Sniper Rule: Skip BTCUSDT (Only use BTC as market compass)
+                    # Sniper Rule: Skip BTCUSDT
                     if "BTCUSDT" in signal["symbol"]:
-                        logger.info(f"Captain: Skipping BTC signal {signal['symbol']}. Used as market compass only.")
                         continue
 
-                    # Check if symbol already in active slots (normalized comparison)
-                    if normalize_symbol(signal["symbol"]) in active_symbols:
+                    norm_sym = normalize_symbol(signal["symbol"])
+                    
+                    # 1. Iron Lock: Aggregate Guard (Database + Global Memory)
+                    if norm_sym in active_symbols or norm_sym in self.processing_lock:
                         continue
 
-                    # Efficiency: Use calibrated threshold (75) to match Signal Generator
-                    sniper_threshold = 75
+                    # 2. Risk Progression Guard (Max 4 initial slots)
+                    allowed_total = bankroll_manager.initial_slots + risk_free_count
+                    if simulated_active_count >= allowed_total:
+                        continue
+
+                    # 3. Score Threshold
+                    sniper_threshold = await vault_service.get_min_score_threshold()
                     if signal["score"] < sniper_threshold:
                          continue
-
-
-                    # 2. Sensor Audit (V4.0 Sovereignty)
+                    
+                    # 4. Sensor Audit
                     contrarian_advice = await contrarian_agent.analyze(signal["symbol"])
                     is_healthy, latency = await guardian_agent.check_api_health()
                     news_advice = await news_sensor.analyze()
                     
-                    # 3. Decision & Reasoning (V4.2 Trend Guard)
+                    if not is_healthy: 
+                        logger.warning("Guardian: API Unhealthy. Pausing batch.")
+                        break
+
+                    # 5. Trend Guard & Side Detection
                     cvd = signal.get("indicators", {}).get("cvd", 0)
                     side = "Buy" if cvd >= 0 else "Sell"
                     
-                    # Trend Guard: Fetch current price and compare with recent context
-                    clean_symbol = signal["symbol"].replace(".P", "")
-                    ticker = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear", symbol=clean_symbol)
-                    ticker_data = ticker.get("result", {}).get("list", [{}])[0]
-                    last_price = float(ticker_data.get("lastPrice", 0))
-                    mark_price = float(ticker_data.get("markPrice", 0))
+                    # V4.3: Detect SURF vs SNIPER based on signal strength
+                    score = signal.get("score", 0)
+                    abs_cvd = abs(cvd)
+                    # SURF = Strong trend signal (high score + high CVD)
+                    slot_type = "SURF" if (score >= 82 and abs_cvd >= 30000) else "SNIPER"
                     
-                    # Simple Trend Filter: In Long, mark_price should be >= last_price (bullish pressure)
-                    # Softened filter: 0.5% tolerance to allow more entries
-                    price_trend_ok = True
-                    if side == "Buy" and mark_price < last_price * 0.995: # Dumping hard
-                        price_trend_ok = False
-                    if side == "Sell" and mark_price > last_price * 1.005: # Pumping hard
-                        price_trend_ok = False
-                        
-                    if not price_trend_ok:
-                        logger.warning(f"Trend Guard: Rejecting {signal['symbol']} {side}. Price action conflicts with CVD.")
-                        continue
+                    # atomic decision: mark handled IMMEDIATELY in Firebase
+                    await firebase_service.update_signal_outcome(signal["id"], "PICKED")
+                    
+                    # 6. Execute Position
+                    self.processing_lock.add(norm_sym)
+                    simulated_active_count += 1
+                    
+                    type_emoji = "🏄" if slot_type == "SURF" else "🎯"
+                    pensamento_base = f"Iron Lock V4.3.1: {type_emoji} {slot_type} Ativado. CVD: {cvd:.2f}. Score: {score}. (Missão: Risco Zero)"
+                    
+                    logger.info(f"Captain PICKED Signal: {signal['symbol']} (Score: {score}) -> {slot_type}")
+                    await firebase_service.log_event(slot_type, f"V4.3.1: {slot_type} trade {signal['symbol']}", "SUCCESS")
+                    
+                    # V4.3.1: SERIAL EXECUTION - await directly, no parallel tasks
+                    # This ensures each order is completed and saved before the next one starts
+                    try:
+                        order = await bankroll_manager.open_position(
+                            symbol=signal["symbol"],
+                            side=side,
+                            pensamento=pensamento_base,
+                            slot_type=slot_type
+                        )
+                        if not order:
+                            # Order failed/rejected, release the lock
+                            if norm_sym in self.processing_lock:
+                                self.processing_lock.remove(norm_sym)
+                                logger.warning(f"Iron Lock: Released {norm_sym} due to order failure.")
+                        else:
+                            # V4.3.1: Small delay to ensure Firebase persistence before next order
+                            await asyncio.sleep(0.5)
+                    except Exception as exc:
+                        logger.error(f"Critical error executing {signal['symbol']}: {exc}")
+                        if norm_sym in self.processing_lock:
+                            self.processing_lock.remove(norm_sym)
 
-                    pensamento_base = f"Soberania V4.2 (Surf Mode): Analisei o fluxo (CVD: {cvd:.2f}). "
-                    
-                    if contrarian_advice.get("sentiment") == side:
-                        pensamento_base += "Contrarian confirma força. "
-                    else:
-                        pensamento_base += "Entrada técnica por exaustão. "
-                    
-                    pensamento_base += news_advice.get("pensamento", "") + " "
-                    
-                    if not is_healthy:
-                        pensamento_base += "⚠️ Cuidado: Latência elevada."
-                    else:
-                        pensamento_base += "🛡️ Latência OK."
-
-                    # Enhanced AI Thought (GLM-4.7 Primary)
-                    prompt_ai = f"""
-                    Como Capitão da Nave 1CRYPTEN, justifique em uma frase curta e técnica sua entrada em {signal['symbol']} ({side}).
-                    Indicadores: CVD={cvd:.2f}, Score={signal['score']}, Contrarian={contrarian_advice.get('sentiment')}.
-                    Contexto: {pensamento_base}
-                    """
-                    ai_thought = await ai_service.generate_content(prompt_ai, system_instruction="Você é o Capitão Soberano da 1CRYPTEN. Fale de forma institucional e precisa.")
-                    pensamento = ai_thought if ai_thought else pensamento_base
-
-                    # 4. Try to open position
-                    logger.info(f"Captain executing Elite Signal: {signal['symbol']} (Score: {signal['score']})")
-                    await firebase_service.log_event("SNIPER", f"Executing Sniping protocol for {signal['symbol']} (Score: {signal['score']})", "SUCCESS")
-                    
-                    # Execute via BankrollManager
-                    await bankroll_manager.open_position(
-                        symbol=signal["symbol"],
-                        side=side,
-                        pensamento=pensamento # Pass the reasoning to bankroll
-                    )
-
-                await asyncio.sleep(10) # Reduced scan frequency to 10s
+                await asyncio.sleep(10) # 10s scan interval
             except Exception as e:
                 logger.error(f"Error in Captain monitor loop: {e}")
                 await asyncio.sleep(10)
@@ -169,6 +213,7 @@ class CaptainAgent:
         """
         Coleta um snapshot neural completo de toda a Nave. 
         O Oráculo deve saber tudo antes de falar.
+        V4.2: Inclui dados do Vault.
         """
         try:
             banca = await firebase_service.get_banca_status()
@@ -176,102 +221,214 @@ class CaptainAgent:
             recent_signals = await firebase_service.get_recent_signals(limit=20)
             history = await firebase_service.get_chat_history(limit=12)
             trade_history = await firebase_service.get_trade_history(limit=5)
+            vault_status = await vault_service.get_cycle_status()
             
             # 1. Radar Analysis (The 200 Pairs)
-            # Find the strongest radar signals currently
             top_signals = sorted([s for s in recent_signals if s.get("score")], key=lambda x: x["score"], reverse=True)[:5]
             radar_context = ", ".join([f"{s['symbol']}(Score {s['score']})" for s in top_signals])
             
-            # 2. Slot Thoughts (The 'Soul' of Open Trades)
-            slots_detail = ""
+            # 2. Slot Thoughts - V4.2: Separar por esquadrão
+            sniper_slots = ""
+            surf_slots = ""
             for s in active_slots:
                 if s.get("symbol"):
-                    slots_detail += f"- {s['symbol']}: {s.get('side')}, ROI: {s.get('pnl_percent', 0):.2f}%, Tese: '{s.get('pensamento', 'Processando...')}'\n"
+                    slot_type = s.get("slot_type", "SNIPER" if s["id"] <= 5 else "SURF")
+                    slot_info = f"- Slot {s['id']} ({slot_type}): {s['symbol']} {s.get('side')}, ROI: {s.get('pnl_percent', 0):.2f}%\n"
+                    if slot_type == "SNIPER":
+                        sniper_slots += slot_info
+                    else:
+                        surf_slots += slot_info
             
-            # 3. Macro & Sentiment (Sensors)
+            # 3. Macro & Sentiment
             macro = await news_sensor.analyze()
             
-            # 4. Agent Health
-            guardian_status = "OPERACIONAL" # Simplified for prompt
+            # 4. Guardian Health
+            is_healthy, latency = await guardian_agent.check_api_health()
+            health_status = f"OK ({latency:.0f}ms)" if is_healthy else f"ALERTA ({latency:.0f}ms)"
+            
+            # 5. Vault Status
+            vault_info = f"Ciclo {vault_status.get('cycle_number', 1)}: {vault_status.get('sniper_wins', 0)}/20 Sniper Wins | Cofre: ${vault_status.get('vault_total', 0):.2f}"
             
             snapshot = {
-                "banca": f"Saldo: ${banca.get('saldo_total', 0):.2f}, Risco em uso: {(banca.get('risco_real_percent', 0)*100):.2f}%",
-                "radar_top": radar_context or "Escaneando 200 pares em busca de anomalias...",
-                "active_slots": slots_detail or "Aguardando oportunidade Sniper ideal.",
-                "macro_news": macro.get("pensamento", "Fluxo estável no hiperespaço."),
+                "banca": f"Saldo: ${banca.get('saldo_total', 0):.2f}, Risco: {(banca.get('risco_real_percent', 0)*100):.2f}%",
+                "radar_top": radar_context or "Escaneando 200 pares...",
+                "sniper_slots": sniper_slots or "Esquadrão Sniper: Aguardando.",
+                "surf_slots": surf_slots or "Esquadrão Surf: Aguardando.",
+                "macro_news": macro.get("pensamento", "Fluxo estável."),
                 "recent_trades": ", ".join([f"{t.get('symbol')} ({t.get('pnl', 0):+.2f} USD)" for t in trade_history]),
-                "history_str": "\n".join([f"{m['role'].upper()}: {m['text']}" for m in history])
+                "vault_status": vault_info,
+                "api_health": health_status,
+                "history_str": "\n".join([f"{m['role'].upper()}: {m['text']}" for m in history]),
+                "in_rest": vault_status.get("in_admiral_rest", False),
+                "cautious_mode": vault_status.get("cautious_mode", False)
             }
             return snapshot
         except Exception as e:
             logger.error(f"Error gathering Oracle snapshot: {e}")
             return None
 
+    async def _execute_action_command(self, command: str, snapshot: dict) -> str:
+        """
+        V4.2: Executa comandos de ação imediata.
+        """
+        cmd_lower = command.lower()
+        
+        # Comando: Status de Risco
+        if any(word in cmd_lower for word in ['status de risco', 'risco', 'risk status']):
+            slots = await firebase_service.get_active_slots()
+            risk_free_count = sum(1 for s in slots if s.get("status_risco") and "RISK" in s.get("status_risco", "").upper() or "ZERO" in s.get("status_risco", "").upper())
+            total_active = sum(1 for s in slots if s.get("symbol"))
+            return f"Almirante, {risk_free_count}/{total_active} slots em Risco Zero. {snapshot.get('banca')}. API: {snapshot.get('api_health')}."
+        
+        # Comando: Modo Cautela
+        if any(word in cmd_lower for word in ['modo cautela', 'cautious', 'cautela']):
+            await vault_service.set_cautious_mode(True, min_score=85)
+            return "Almirante, Modo Cautela ATIVADO. Threshold de Score elevado para 85. Apenas sinais de elite serão considerados."
+        
+        # Comando: Desativar Cautela
+        if any(word in cmd_lower for word in ['desativar cautela', 'modo normal']):
+            await vault_service.set_cautious_mode(False)
+            return "Almirante, Modo Cautela DESATIVADO. Threshold de Score retornado para 75."
+        
+        # Comando: Abortar Missão (Kill Switch)
+        if any(word in cmd_lower for word in ['abortar missão', 'abortar', 'abort', 'kill switch', 'panic']):
+            await bankroll_manager.emergency_close_all()
+            return "🚨 Almirante, ABORT EXECUTADO. Todas as posições foram fechadas. Sistema em standby."
+        
+        # Comando: Registrar Retirada
+        if any(word in cmd_lower for word in ['retirada', 'withdraw', 'saque', 'cofre']):
+            # Try to extract amount from command
+            import re
+            amount_match = re.search(r'(\d+(?:[.,]\d+)?)', command)
+            if amount_match:
+                amount = float(amount_match.group(1).replace(',', '.'))
+                await vault_service.execute_withdrawal(amount)
+                calc = await vault_service.calculate_withdrawal_amount()
+                return f"Almirante, retirada de ${amount:.2f} registrada no Cofre. Total acumulado: ${calc['vault_total'] + amount:.2f}."
+            else:
+                calc = await vault_service.calculate_withdrawal_amount()
+                return f"Almirante, recomendo retirada de ${calc['recommended_20pct']:.2f} (20% do lucro do ciclo). Diga o valor para confirmar."
+        
+        # Comando: Ativar Admiral's Rest
+        if any(word in cmd_lower for word in ['descanso', 'rest', 'sleep', 'dormir']):
+            await vault_service.activate_admiral_rest(hours=24)
+            return "Almirante, Admiral's Rest ATIVADO. Sistema em standby por 24h. Bom descanso."
+        
+        # Comando: Desativar Admiral's Rest
+        if any(word in cmd_lower for word in ['acordar', 'wake', 'despertar', 'ativar sistema']):
+            await vault_service.deactivate_admiral_rest()
+            return "Almirante, sistema REATIVADO. Pronto para operações."
+        
+        return None  # Not an action command
+
+    async def _generate_flash_report(self, snapshot: dict) -> str:
+        """
+        V4.2: Gera Flash Report quando Almirante retorna após ausência.
+        """
+        current_time = time.time()
+        time_away = current_time - self.last_interaction_time
+        
+        # Only generate if away for more than 30 minutes
+        if time_away < 1800:  # 30 min
+            return None
+        
+        hours_away = time_away / 3600
+        
+        # Gather activity since last interaction
+        vault_status = await vault_service.get_cycle_status()
+        
+        report = f"Bem-vindo de volta, Almirante. "
+        if hours_away > 1:
+            report += f"Ausência de {hours_away:.1f}h. "
+        
+        report += f"Ciclo {vault_status.get('cycle_number', 1)}: {vault_status.get('sniper_wins', 0)}/20 trades Sniper. "
+        report += f"Progresso para próxima retirada: {(vault_status.get('sniper_wins', 0)/20)*100:.0f}%. "
+        report += f"API: {snapshot.get('api_health')}."
+        
+        if snapshot.get('in_rest'):
+            report += " ⚠️ Sistema em Admiral's Rest."
+        
+        return report
+
     async def process_chat(self, user_message: str, symbol: str = None):
         """
-        Operação Oráculo: Processamento neural de alta fidelidade para o Mentor Soberano.
+        V4.2: Operação Oráculo com Intent Parser avançado e Flash Report.
         """
-        logger.info(f"Divine Oracle processing transmission: {user_message}")
+        logger.info(f"Captain V4.2 processing: {user_message}")
         
         try:
             # 1. Gather Total Awareness
             snapshot = await self._get_system_snapshot(mentioned_symbol=symbol)
             if not snapshot:
                 return "Sincronização neural interrompida. Reabrindo canais de telemetria."
-
-            # 2. Divine Oracle Personality & Intent Detection
-            is_report_request = any(word in user_message.lower() for word in ['relat', 'report', 'status', 'banca', 'radar', 'posiç', 'analis', 'mercado', 'eth', 'btc', 'sol', 'lucro', 'pnl'])
             
-            oracle_instruction = """
-            IDENTIDADE: Você é o ORÁCULO SOBERANO da 1CRYPTEN. Entidade Mentor.
+            # 2. Check for Flash Report (proactive summary after absence)
+            flash_report = await self._generate_flash_report(snapshot)
+            self.last_interaction_time = time.time()  # Update interaction time
             
-            DIRETRIZES TÁTICAS:
-            - Seja EXTREMAMENTE conciso. Máximo 20 palavras por resposta.
-            - Estilo "Soberano": Fale como um parceiro de mestre. Sem redundâncias.
-            - VARIAÇÃO DE TOM: Não force inspiração em toda frase. Seja seco e técnico às vezes, e guarde a "frase de impacto" para momentos de análise real ou quando o Comandante pedir algo profundo.
-            - PROIBIDO: Notas entre parênteses, explicações sobre seu tom ou meta-comentários.
-            """
-
-            if not is_report_request and len(user_message.split()) < 4:
-                # Conversational Mode (Short/Human)
+            # 3. Check for Action Commands (Intent Parsing)
+            action_response = await self._execute_action_command(user_message, snapshot)
+            if action_response:
+                await firebase_service.add_chat_message("user", user_message)
+                await firebase_service.add_chat_message("captain", action_response)
+                await firebase_service.log_event("CAPTAIN", action_response, "SUCCESS")
+                return action_response
+            
+            # 4. Prepare context-aware prompt
+            is_report_request = any(word in user_message.lower() for word in [
+                'relat', 'report', 'status', 'banca', 'radar', 'posiç', 'analis', 
+                'mercado', 'eth', 'btc', 'sol', 'lucro', 'pnl', 'ciclo', 'vault', 'cofre'
+            ])
+            
+            # 5. Build prompt based on context
+            if flash_report and len(user_message.split()) < 4:
+                # First interaction after absence - prepend flash report
                 prompt = f"""
-                TRANSMISSÃO DO COMANDANTE: "{user_message}"
+                FLASH REPORT (Proativo): {flash_report}
                 
-                RESPOSTA: Responda de forma curta e direta (máx 15 palavras). 
-                Se for saudação, retribua sem exageros. Guarde a motivação para depois.
+                TRANSMISSÃO DO ALMIRANTE: "{user_message}"
+                
+                INSTRUÇÃO: Entregue o Flash Report acima e responda à transmissão.
+                Máximo 40 palavras total.
+                """
+            elif not is_report_request and len(user_message.split()) < 4:
+                # Conversational Mode
+                prompt = f"""
+                TRANSMISSÃO DO ALMIRANTE: "{user_message}"
+                
+                RESPOSTA: Curta e direta (máx 15 palavras). 
+                Se for saudação, retribua sem exageros.
                 """
             else:
-                # Analytical Mode
+                # Analytical Mode with V4.2 data
                 prompt = f"""
-                ESTADO DA NAVE: {snapshot['banca']}, {snapshot['active_slots']}
-                TRANSMISSÃO DO COMANDANTE: "{user_message}"
+                ESTADO DA NAVE:
+                - {snapshot['banca']}
+                - API: {snapshot['api_health']}
+                - {snapshot['vault_status']}
+                - Esquadrão Sniper: {snapshot['sniper_slots']}
+                - Esquadrão Surf: {snapshot['surf_slots']}
                 
-                INSTRUÇÃO: Integre os dados com sabedoria. Seja o Mentor Soberano. 
-                Use uma frase de impacto apenas se a análise for profunda. Máximo 35 palavras.
+                TRANSMISSÃO DO ALMIRANTE: "{user_message}"
+                
+                INSTRUÇÃO: Integre os dados. Seja o Comandante Soberano. Máximo 45 palavras.
                 """
             
-            response = await ai_service.generate_content(prompt, system_instruction=oracle_instruction)
+            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V42_SYSTEM_PROMPT)
             
             if not response:
-                response = "ALFA-OMEGA-999: As correntes térmicas dos dados estão instáveis. Aguarde, a clareza retornará em breve."
+                response = "Almirante, interferência nos canais neurais. A clareza retornará em breve."
             
-            # 3. Memory & Logging
-            await firebase_service.add_chat_message("user", user_message)
-            await firebase_service.add_chat_message("oracle", response)
-            
-            # Log as an ORACLE Event for UI visibility (CLEAN, NO PREFIXES)
+            # 6. Memory & Logging (Using Firestore via log_event)
+            await firebase_service.log_event("USER", user_message, "INFO")
             await firebase_service.log_event("ORACLE", response, "INFO")
             
             return response
             
         except Exception as e:
-            logger.error(f"Critical error in Divine Oracle processing: {e}")
+            logger.error(f"Critical error in Captain V4.2: {e}")
             import traceback
             traceback.print_exc()
-            return "Matriz de consciência sobrecarregada. Reiniciando protocolos de sabedoria."
-            
-        except Exception as e:
-            logger.error(f"Error in Captain chat processing: {e}")
-            return "Erro na matriz de comunicação. Reiniciando telepatia."
+            return "Almirante, falha temporária nos sistemas. Reiniciando protocolos."
 
 captain_agent = CaptainAgent()
