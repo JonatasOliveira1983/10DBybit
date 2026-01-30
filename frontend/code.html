@@ -474,18 +474,25 @@
             const channelRef = useRef('NONE'); // RTDB or REST
 
             useEffect(() => {
+                let unsubscribe = null;
                 // Primary: Firebase RTDB
-                const pulseRef = rtdb.ref('system_pulse');
-                const unsubscribe = pulseRef.on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    if (data && data.timestamp) {
-                        lastUpdateRef.current = Date.now();
-                        const lat = Date.now() - data.timestamp;
-                        setLatency(Math.max(0, lat));
-                        setStatus('ONLINE');
-                        channelRef.current = 'RTDB';
+                if (rtdb) {
+                    try {
+                        const pulseRef = rtdb.ref('system_pulse');
+                        unsubscribe = pulseRef.on('value', (snapshot) => {
+                            const data = snapshot.val();
+                            if (data && data.timestamp) {
+                                lastUpdateRef.current = Date.now();
+                                const lat = Date.now() - data.timestamp;
+                                setLatency(Math.max(0, lat));
+                                setStatus('ONLINE');
+                                channelRef.current = 'RTDB';
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Pulse RTDB Error:", e);
                     }
-                });
+                }
 
                 // Secondary: REST API Pulse (Dual Heartbeat)
                 const onRestPulse = () => {
@@ -506,7 +513,11 @@
                 }, 5000);
 
                 return () => {
-                    pulseRef.off('value', unsubscribe);
+                    if (unsubscribe) {
+                        try {
+                            rtdb.ref('system_pulse').off('value', unsubscribe);
+                        } catch (e) { }
+                    }
                     window.removeEventListener('rest-pulse', onRestPulse);
                     clearInterval(checker);
                 };
