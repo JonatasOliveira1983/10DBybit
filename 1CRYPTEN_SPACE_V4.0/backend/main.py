@@ -39,35 +39,51 @@ logger = logging.getLogger("1CRYPTEN-MAIN")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.0 Backend...")
+    # V4.3.2: Cloud Run Optimized Startup - FULLY NON-BLOCKING
+    # Health checks must succeed BEFORE services are fully initialized
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.5.0 Backend...")
+    logger.info("☁️ Cloud Run Mode: Fast startup, async service initialization")
     
     async def start_services():
+        """Background service initialization - does NOT block app startup"""
         try:
-            # 1. Initialize Firebase (Mandatory for DB features)
-            logger.info("Step 1: Initializing Firebase...")
-            await firebase_service.initialize()
+            # Give Cloud Run time to confirm health check first
+            await asyncio.sleep(2)
             
-            # 2. Fetch Top 100 Symbols
+            # 1. Initialize Firebase with timeout protection
+            logger.info("Step 1: Initializing Firebase (background)...")
+            try:
+                await asyncio.wait_for(firebase_service.initialize(), timeout=30.0)
+                logger.info("Step 1: Firebase initialized ✅")
+            except asyncio.TimeoutError:
+                logger.warning("Step 1: Firebase init timeout - continuing in offline mode")
+            
+            # 2. Fetch Top Symbols with timeout
             logger.info("Step 2: Fetching Top Symbols...")
-            symbols = await asyncio.to_thread(bybit_rest_service.get_top_200_usdt_pairs)
-            logger.info(f"Step 2.1: Tracking top {len(symbols)} symbols.")
+            try:
+                symbols = await asyncio.wait_for(
+                    asyncio.to_thread(bybit_rest_service.get_top_200_usdt_pairs),
+                    timeout=30.0
+                )
+                logger.info(f"Step 2.1: Tracking top {len(symbols)} symbols.")
+            except asyncio.TimeoutError:
+                logger.warning("Step 2: Symbol fetch timeout - using defaults")
+                symbols = ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P"]
             
-            # 2.2 Sync Slots with Bybit & Force Recalculation
-            logger.info("Step 2.2: Resetting PNL and syncing slots for high-fidelity ROI...")
-            await bankroll_manager.sync_slots_with_exchange()
+            # 2.2 Sync Slots with Bybit (non-critical)
+            logger.info("Step 2.2: Syncing slots...")
+            try:
+                await asyncio.wait_for(bankroll_manager.sync_slots_with_exchange(), timeout=15.0)
+            except Exception as e:
+                logger.warning(f"Step 2.2: Slot sync skipped: {e}")
             
-            # Additional safety: force PNL=0 for all slots in DB on startup to trigger Guardian refresh
-            slots = await firebase_service.get_active_slots()
-            for s in slots:
-                if s.get("symbol"):
-                    await firebase_service.update_slot(s["id"], {"pnl_percent": 0.0})
-
-            # 3. Start WebSocket monitoring (ENABLED)
-
+            # 3. Start WebSocket monitoring
             if symbols:
                 logger.info("Step 3: WebSocket Monitoring ENABLED.")
-                await bybit_ws_service.start(symbols)
+                try:
+                    await bybit_ws_service.start(symbols)
+                except Exception as e:
+                    logger.error(f"Step 3: WebSocket start error: {e}")
             
             # 4. Start Background Tasks
             logger.info("Step 4: Background loops ENABLED.")
@@ -78,7 +94,6 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(signal_generator.radar_loop())
             asyncio.create_task(captain_agent.monitor_signals())
             asyncio.create_task(captain_agent.monitor_active_positions_loop())
-            # asyncio.create_task(gemini_agent.analyze_journey_and_recalibrate()) # Disabled for Sniper Mode
             
             # Start Pulse Monitor Loop (V4.0 Heartbeat)
             async def pulse_loop():
@@ -86,7 +101,7 @@ async def lifespan(app: FastAPI):
                     try:
                         await firebase_service.update_pulse()
                     except Exception: pass
-                    await asyncio.sleep(2) # 2s heartbeat (over-provisioning for stability)
+                    await asyncio.sleep(2)
             asyncio.create_task(pulse_loop())
 
             # Start Bankroll Sync Loop
@@ -101,19 +116,28 @@ async def lifespan(app: FastAPI):
             
             # 5. Initial Bankroll & DB Setup
             logger.info("Step 5: DB setup ENABLED.")
-            await firebase_service.initialize_db()
-            await bankroll_manager.update_banca_status()
+            try:
+                await asyncio.wait_for(firebase_service.initialize_db(), timeout=15.0)
+                await asyncio.wait_for(bankroll_manager.update_banca_status(), timeout=15.0)
+            except Exception as e:
+                logger.warning(f"Step 5: DB setup error (non-fatal): {e}")
 
             # 6. Start Paper Execution Engine (Simulator only)
             if bybit_rest_service.execution_mode == "PAPER":
                 logger.info("Step 6: Paper Execution Engine ACTIVATING...")
                 asyncio.create_task(bybit_rest_service.run_paper_execution_loop())
 
-            logger.info("✅ System Services started successfully (minimal mode).")
+            logger.info("✅ All background services started successfully!")
         except Exception as e:
             logger.error(f"❌ Error during background startup: {e}", exc_info=True)
-    # Kick off background startup - COMPLETELY NON-BLOCKING FOR APP BOOT
+    
+    # V4.3.2: Start services in background - DO NOT AWAIT
+    # This allows FastAPI to start responding to health checks immediately
     asyncio.create_task(start_services())
+    
+    # Signal to Cloud Run that we're ready BEFORE services finish
+    logger.info("✅ FastAPI app ready - accepting connections")
+    logger.info(f"🔗 Listening on port {os.environ.get('PORT', 5001)}")
     
     yield
     # Shutdown logic
