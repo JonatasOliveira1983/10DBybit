@@ -144,8 +144,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V4.9.2 API",
-    version="4.9.2",
+    title="1CRYPTEN SPACE V4.9.4.2 API",
+    version="4.9.4.2",
     lifespan=lifespan
 )
 
@@ -199,13 +199,13 @@ async def root():
         return FileResponse(index_path)
     return {"message": "Backend Online. Dashboard not found."}
 
-@app.get("/health") # Renamed from "/" to "/health" to avoid conflict with root()
+@app.get("/health")
 async def health_check():
     return {
         "status": "online", 
-        "version": "4.0", 
-        "guardian": "disabled",
-        "symbols_monitored": 0
+        "version": "4.9.4.2", 
+        "protocol": "Elite Elite",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
 @app.get("/banca/ui")
@@ -382,6 +382,7 @@ async def text_to_speech(payload: dict):
     if not text:
         return {"error": "No text provided"}
     
+    logger.info(f"🎤 TTS Request: '{text[:30]}...' using voice {voice}")
     try:
         # Generate audio
         communicate = edge_tts.Communicate(text, voice)

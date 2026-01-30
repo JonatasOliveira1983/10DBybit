@@ -341,7 +341,7 @@
         /* Tamanhos aumentados significativamente para visualização confortável */
 
         /* BASE: Define font-size maior para todo o app */
-        /* V4.9.1: Otimização Micro-Compact (V4.9.1) */
+        /* V4.9.4.2: Otimização Micro-Compact (V4.9.4.2) */
         html {
             font-size: 14px !important;
         }
@@ -1531,7 +1531,10 @@
                             // Fallback to Web Speech API
                             fallbackSpeak(text);
                         };
-                        audioRef.current.play();
+                        audioRef.current.play().catch(err => {
+                            console.warn("Auto-play blocked or failed:", err);
+                            fallbackSpeak(text);
+                        });
                         return;
                     }
                 } catch (e) {
@@ -1551,7 +1554,7 @@
                     utterance.pitch = 1.0;
 
                     const voices = window.speechSynthesis.getVoices();
-                    // V4.9.2: Aggressive male voice search
+                    // V4.9.4.2: Aggressive male voice search
                     let maleVoice = voices.find(v =>
                         v.lang.startsWith('pt') &&
                         (v.name.toLowerCase().includes('antonio') || v.name.toLowerCase().includes('daniel') || v.name.toLowerCase().includes('male'))
@@ -1646,11 +1649,17 @@
                 setIsSending(true);
 
                 try {
-                    await fetch(API_BASE + '/api/chat', {
+                    const response = await fetch(API_BASE + '/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message })
                     });
+                    const data = await response.json();
+
+                    // V4.9.4.2: Auto-speak Captain's response
+                    if (data.response) {
+                        speak(data.response);
+                    }
                     // Server saves via log_event, polling will refresh
                 } catch (err) {
                     console.error("Chat error:", err);
@@ -1670,7 +1679,7 @@
 
             return (
                 <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 overflow-hidden">
-                    {/* Sidebar Menu - V4.9.2 */}
+                    {/* Sidebar Menu - V4.9.4.2 */}
                     {isMenuOpen && (
                         <div className="fixed inset-0 z-[100] flex">
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
@@ -1694,7 +1703,7 @@
                                     ))}
                                 </div>
                                 <div className="mt-auto pt-8 border-t border-white/5">
-                                    <p className="text-[10px] text-slate-600 uppercase tracking-widest text-center">Protocol V4.9.2</p>
+                                    <p className="text-[10px] text-slate-600 uppercase tracking-widest text-center">Protocol V4.9.4.2</p>
                                 </div>
                             </div>
                         </div>
@@ -1811,7 +1820,7 @@
                     </main>
 
                     {/* Input Area - Above Mobile Nav */}
-                    {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar - V4.9.2.2 FLUSH */}
+                    {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar - V4.9.4.2.2 FLUSH */}
                     <footer className="flex-shrink-0 px-3 sm:px-6 pt-3 pb-[env(safe-area-inset-bottom,12px)] bg-black/95 backdrop-blur-3xl border-t border-white/10 relative z-40">
                         <div className="max-w-4xl mx-auto flex flex-col gap-2">
                             <div className="flex gap-2 items-end">
@@ -1831,7 +1840,7 @@
                                     </button>
                                 )}
 
-                                {/* Premium Text Input - V4.9.2.2 Multiline */}
+                                {/* Premium Text Input - V4.9.4.2.2 Multiline */}
                                 <div className="flex-1 relative">
                                     <textarea
                                         ref={inputRef}
@@ -1876,7 +1885,7 @@
                             </div>
 
                             <p className="text-center text-[10px] text-slate-600 uppercase tracking-widest opacity-60">
-                                {isListening ? '🎤 Escuta ativa habilitada...' : 'V4.9.2 Micro-Compact Chat'}
+                                {isListening ? '🎤 Escuta ativa habilitada...' : 'V4.9.4.2 Micro-Compact Chat'}
                             </p>
                         </div>
                     </footer>
@@ -2342,7 +2351,7 @@
                             </div>
                             <div className="flex justify-between items-center mt-3">
                                 <p className="text-xs text-slate-400 capitalize">{history.length} operações encerradas</p>
-                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">V4.9.2 Micro-Compact Optimized</span>
+                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">V4.9.4.2 Micro-Compact Optimized</span>
                             </div>
                         </div>
                     </header>
@@ -2507,7 +2516,7 @@
                             </div>
                         </div>
 
-                        {/* Version Info - V4.9.1 */}
+                        {/* Version Info - V4.9.4.2 */}
                         <div className="glass-card p-4 rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
                             <h2 className="text-[10px] font-bold mb-3 flex items-center gap-2 text-primary uppercase tracking-wider">
                                 <span className="material-icons-round" style={{ fontSize: '18px' }}>verified</span>
@@ -2646,7 +2655,7 @@
                                 <img src="/logo10D.png" alt="Logo" className="w-20 h-20 relative z-10 opacity-90" />
                             </div>
                             <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Inicialização</h2>
-                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-2">v4.9.1 Protocol Check</p>
+                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-2">V4.9.4.2 Protocol Check</p>
                         </div>
 
                         <div className="space-y-3 mb-10">
