@@ -337,36 +337,66 @@
             border-radius: 10px;
         }
 
-        /* V4.3.1: Legibilidade Melhorada - Estilo Gemini */
-        /* Aumenta tamanhos mínimos de fonte para melhor leitura em mobile */
+        /* V4.3.3: Legibilidade MÁXIMA Mobile - Estilo Gemini */
+        /* Tamanhos aumentados significativamente para visualização confortável */
 
-        /* Fontes muito pequenas → mínimo 12px */
+        /* BASE: Define font-size maior para todo o app */
+        html {
+            font-size: 18px !important;
+            /* Base size aumentada */
+        }
+
+        /* Fontes muito pequenas → mínimo 16px */
         .text-\[8px\],
         .text-\[9px\],
         .text-\[10px\] {
-            font-size: 13px !important;
+            font-size: 16px !important;
+            line-height: 1.4 !important;
         }
 
-        /* Fontes xs → 14px */
+        /* Fontes xs → 17px */
         .text-xs {
-            font-size: 14px !important;
+            font-size: 17px !important;
+            line-height: 1.4 !important;
         }
 
-        /* Fontes sm → 15px */
+        /* Fontes sm → 18px */
         .text-sm {
-            font-size: 15px !important;
+            font-size: 18px !important;
+            line-height: 1.5 !important;
+        }
+
+        /* Fontes base → 19px */
+        .text-base {
+            font-size: 19px !important;
+            line-height: 1.5 !important;
+        }
+
+        /* Fontes lg → 22px */
+        .text-lg {
+            font-size: 22px !important;
+        }
+
+        /* Fontes xl → 26px */
+        .text-xl {
+            font-size: 26px !important;
+        }
+
+        /* Fontes 2xl → 32px */
+        .text-2xl {
+            font-size: 32px !important;
         }
 
         /* Melhorar legibilidade do chat */
         .message-bubble {
-            font-size: 14px !important;
-            padding: 1rem 1.25rem !important;
-            line-height: 1.6 !important;
+            font-size: 18px !important;
+            padding: 1.25rem 1.5rem !important;
+            line-height: 1.7 !important;
         }
 
         /* Labels e títulos mais legíveis */
         .font-bold {
-            letter-spacing: 0.01em;
+            letter-spacing: 0.02em;
         }
 
         /* Valores numéricos mais claros */
@@ -378,39 +408,73 @@
         /* Espaçamento melhorado para touch */
         button,
         .cursor-pointer {
-            min-height: 36px;
+            min-height: 44px;
+            /* Apple recomenda 44px */
         }
 
         /* Input de chat mais confortável */
         input[type="text"],
         textarea {
-            font-size: 16px !important;
-            /* Previne zoom no iOS */
-            padding: 0.75rem 1rem !important;
+            font-size: 18px !important;
+            padding: 1rem 1.25rem !important;
         }
 
         /* Logo maior */
         .w-6,
         .h-6 {
-            width: 2rem !important;
-            height: 2rem !important;
+            width: 2.25rem !important;
+            height: 2.25rem !important;
         }
 
         .w-8,
         .h-8 {
-            width: 2.5rem !important;
-            height: 2.5rem !important;
+            width: 2.75rem !important;
+            height: 2.75rem !important;
         }
 
         /* Ícones Material mais visíveis */
         .material-icons-round {
-            font-size: 24px !important;
+            font-size: 28px !important;
         }
 
-        /* Navbar items mais espaçados */
+        /* Bottom Navigation - Super legível */
         nav a,
         nav button {
-            padding: 0.75rem 1rem !important;
+            padding: 1rem 1.25rem !important;
+            font-size: 14px !important;
+        }
+
+        /* Labels da nav inferior */
+        nav .text-\[10px\],
+        nav .text-\[9px\],
+        nav .text-xs {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.05em !important;
+        }
+
+        /* Header text */
+        header .text-sm,
+        header .text-xs {
+            font-size: 18px !important;
+        }
+
+        /* SlotCards - Valores de PNL maiores */
+        .font-mono.text-2xl {
+            font-size: 36px !important;
+        }
+
+        /* Slot symbol name */
+        .tracking-wider {
+            font-size: 18px !important;
+            letter-spacing: 0.1em !important;
+        }
+
+        /* Status badges (LONG/SHORT) */
+        .rounded .text-\[9px\],
+        .px-1\.5 .text-\[9px\] {
+            font-size: 14px !important;
+            padding: 4px 8px !important;
         }
     </style>
 </head>
