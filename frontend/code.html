@@ -839,7 +839,11 @@
                 if (!activeSymbols || activeSymbols.length === 0) return;
 
                 const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-                const topics = activeSymbols.map(s => `tickers.${s}`).filter(Boolean);
+                // Strip .P suffix for Bybit WebSocket subscription (Bybit uses ETHUSDT, not ETHUSDT.P)
+                const topics = activeSymbols.map(s => {
+                    const cleanSymbol = s.replace('.P', '').replace('.p', '');
+                    return `tickers.${cleanSymbol}`;
+                }).filter(Boolean);
 
                 ws.onopen = () => {
                     if (topics.length > 0) {
@@ -866,7 +870,9 @@
             const [displayPnl, setDisplayPnl] = useState(0);
             const isActive = s.symbol;
             const pnlFallback = s.pnl_percent || 0;
-            const currentPrice = tickers[s.symbol];
+            // Strip .P suffix to match Bybit ticker format
+            const cleanSymbol = s.symbol ? s.symbol.replace('.P', '').replace('.p', '') : null;
+            const currentPrice = tickers[cleanSymbol];
             const smoothingRef = useRef(0);
             const entryAmount = 5; // Captain's Fixed Entry
 
