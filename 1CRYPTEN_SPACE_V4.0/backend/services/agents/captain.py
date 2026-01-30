@@ -101,15 +101,10 @@ class CaptainAgent:
                     else:
                         slots_at_risk += 1
                 
-                # simulated_active_count includes symbols in slots + symbols we just fired
-                simulated_slots_at_risk = slots_at_risk + len(self.processing_lock)
-                
-                logger.info(f"V4.8 Risk Protocol: AtRisk={slots_at_risk}/{MAX_SLOTS_AT_RISK}, RiskZero={slots_risk_zero}, Pending={len(self.processing_lock)}, CanOpen={simulated_slots_at_risk < MAX_SLOTS_AT_RISK}")
-                
                 for signal in signals:
-                    # Skip if already has an outcome or is picked
+                    # Skip if already handled
                     outcome = signal.get("outcome")
-                    if outcome is not None and outcome != False: # False might be a placeholder, but None/True/Picked are blocks
+                    if outcome is not None and outcome != False:
                         continue
 
                     # Sniper Rule: Skip BTCUSDT
@@ -118,24 +113,8 @@ class CaptainAgent:
 
                     norm_sym = normalize_symbol(signal["symbol"])
                     
-                    # 1. Iron Lock: Aggregate Guard (Database + Global Memory)
-                    if norm_sym in active_symbols or norm_sym in self.processing_lock:
-                        continue
-
-                    # 2. V4.8: Risk Progression Guard - MÁXIMO 4 SLOTS EM RISCO ATIVO
-                    if simulated_slots_at_risk >= MAX_SLOTS_AT_RISK:
-                        continue
-
-                    # 3. Score Threshold
-                    sniper_threshold = await vault_service.get_min_score_threshold()
-                    if signal["score"] < sniper_threshold:
-                         continue
-                    
-                    # 4. Sensor Audit
-                    contrarian_advice = await contrarian_agent.analyze(signal["symbol"])
+                    # Sensor Audit
                     is_healthy, latency = await guardian_agent.check_api_health()
-                    news_advice = await news_sensor.analyze()
-                    
                     if not is_healthy: 
                         logger.warning("Guardian: API Unhealthy. Pausing batch.")
                         break
@@ -153,18 +132,11 @@ class CaptainAgent:
                     # atomic decision: mark handled IMMEDIATELY in Firebase
                     await firebase_service.update_signal_outcome(signal["id"], "PICKED")
                     
-                    # 6. Execute Position - V4.8: Novo slot entra EM RISCO
-                    self.processing_lock.add(norm_sym)
-                    simulated_slots_at_risk += 1
-                    
                     type_emoji = "🏄" if slot_type == "SURF" else "🎯"
                     pensamento_base = f"V4.8 Elite: {type_emoji} {slot_type} Ativado. CVD: {cvd:.2f}. Score: {score}. (Missão: Risco Zero)"
                     
                     logger.info(f"Captain PICKED Signal: {signal['symbol']} (Score: {score}) -> {slot_type}")
-                    await firebase_service.log_event(slot_type, f"V4.3.1: {slot_type} trade {signal['symbol']}", "SUCCESS")
                     
-                    # V4.3.1: SERIAL EXECUTION - await directly, no parallel tasks
-                    # This ensures each order is completed and saved before the next one starts
                     try:
                         order = await bankroll_manager.open_position(
                             symbol=signal["symbol"],
@@ -172,18 +144,14 @@ class CaptainAgent:
                             pensamento=pensamento_base,
                             slot_type=slot_type
                         )
-                        if not order:
-                            # Order failed/rejected, release the lock
-                            if norm_sym in self.processing_lock:
-                                self.processing_lock.remove(norm_sym)
-                                logger.warning(f"Iron Lock: Released {norm_sym} due to order failure.")
+                        if order:
+                            logger.info(f"Iron Lock: Order executed for {signal['symbol']}")
+                            await asyncio.sleep(0.5) # Persistence delay
                         else:
-                            # V4.3.1: Small delay to ensure Firebase persistence before next order
-                            await asyncio.sleep(0.5)
-                    except Exception as exc:
-                        logger.error(f"Critical error executing {signal['symbol']}: {exc}")
-                        if norm_sym in self.processing_lock:
-                            self.processing_lock.remove(norm_sym)
+                            # If rejected (Risk Cap), outcome remains PICKED to avoid spamming
+                            pass
+                    except Exception as exe:
+                        logger.error(f"Captain execution error: {exe}")
 
                 await asyncio.sleep(10) # 10s scan interval
             except Exception as e:
