@@ -442,11 +442,29 @@
         // Firebase Config
         const firebaseConfig = {
             projectId: "projeto-teste-firestore-3b00e",
-            databaseURL: "https://projeto-teste-firestore-3b00e-default-rtdb.firebaseio.com/" // Update to the real URL if different
+            databaseURL: "https://projeto-teste-firestore-3b00e-default-rtdb.firebaseio.com/"
         };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+        } catch (err) {
+            console.error("Firebase init error:", err);
+        }
+
         const db = firebase.firestore();
-        const rtdb = firebase.database();
+        let rtdb = null;
+        try {
+            // Only initialize RTDB if the URL is likely valid
+            if (firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes('default-rtdb')) {
+                rtdb = firebase.database();
+            } else {
+                console.warn("RTDB URL is default or missing. Pulse monitoring might be limited.");
+            }
+        } catch (e) {
+            console.error("RTDB init failed:", e);
+        }
 
         // --- Hook: Pulse Monitor (V4.0 Heartbeat) ---
         const usePulseMonitor = () => {
@@ -2030,8 +2048,20 @@
                     // Final Captain Protocol
                     setTimeout(() => {
                         setChecks(prev => ({ ...prev, captain: { ...prev.captain, status: 'success' } }));
+
+                        // AUTO-PROCEED: If API is success, we can eventually force allow entry even if others lag
                         setIsReady(true);
                     }, 1500);
+
+                    // Failsafe: If checks take too long (e.g. 5s), allow entry if API or Balance worked
+                    setTimeout(() => {
+                        setChecks(prev => {
+                            if (prev.api.status === 'success' || prev.balance.status === 'success') {
+                                setIsReady(true);
+                            }
+                            return prev;
+                        });
+                    }, 5000);
                 };
                 runChecks();
             }, []);
