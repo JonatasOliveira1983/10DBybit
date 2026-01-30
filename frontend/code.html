@@ -526,7 +526,7 @@
 
             return { latency, status, channel: channelRef.current };
         };
-        const TradingChart = ({ symbol, entryPrice, stopLossPrice, side, pnlFallback }) => {
+        const TradingChart = ({ symbol, entryPrice, stopLossPrice, side, pnlFallback, slotId, slotType }) => {
             const chartContainerRef = useRef();
             const chartRef = useRef();
             const seriesRef = useRef();
@@ -760,18 +760,21 @@
                             } catch (e) { }
                         }
 
-                        // Target Line
-                        const target = side === 'Buy' ? ne * 1.05 : ne * 0.95;
-                        try {
-                            linesRef.current.push(seriesRef.current.createPriceLine({
-                                price: target,
-                                color: '#edbc1d',
-                                lineWidth: 1,
-                                lineStyle: LightweightCharts.LineStyle.Dotted,
-                                axisLabelVisible: true,
-                                title: 'TARGET'
-                            }));
-                        } catch (e) { }
+                        // V4.3.2: Target Line - Only for SNIPER orders (slots 1-5)
+                        const isSniper = slotId <= 5 || slotType === 'SNIPER';
+                        if (isSniper) {
+                            const target = side === 'Buy' ? ne * 1.02 : ne * 0.98; // 2% = 100% ROI @ 50x
+                            try {
+                                linesRef.current.push(seriesRef.current.createPriceLine({
+                                    price: target,
+                                    color: '#edbc1d',
+                                    lineWidth: 1,
+                                    lineStyle: LightweightCharts.LineStyle.Dotted,
+                                    axisLabelVisible: true,
+                                    title: 'TARGET 100%'
+                                }));
+                            } catch (e) { }
+                        }
                     }
                 }, 100);
 
@@ -889,9 +892,12 @@
             const profitUSD = (entryAmount * (pnl / 100)); // Raw value
             const isProfit = pnl >= 0;
 
-            // Target Calculation (Simulated 100% ROI Target or fixed based on strategy - utilizing 2% move * 50x)
+            // V4.3.2: SNIPER vs SURF Target Logic
             const entryPrice = Number(s.entry_price) || 0;
-            const targetPrice = s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98; // 2% move for 100% ROI
+            const isSniper = s.id <= 5 || s.slot_type === 'SNIPER';
+            const targetPrice = isSniper ? (s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98) : null;
+            const squadronEmoji = isSniper ? '🎯' : '🏄';
+            const squadronName = isSniper ? 'Esquadrão Sniper' : 'Esquadrão Surf';
 
             return (
                 <div onClick={() => setSelectedSlotId(s.id)}
@@ -919,6 +925,9 @@
                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${s.side === 'Buy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}`}>
                                                 {s.side === 'Buy' ? 'LONG' : 'SHORT'}
                                             </span>
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isSniper ? 'bg-yellow-500/20 text-yellow-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                                                {squadronEmoji}
+                                            </span>
                                         </div>
                                     </div>
                                     {/* Small PnL % */}
@@ -941,8 +950,12 @@
                                         <span className="text-[10px] font-mono text-slate-300">{entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: (entryPrice < 1 ? 4 : 2) })}</span>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[8px] text-slate-500 uppercase font-bold">Alvo (100%)</span>
-                                        <span className="text-[10px] font-mono text-primary/80">{targetPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: (targetPrice < 1 ? 4 : 2) })}</span>
+                                        <span className="text-[8px] text-slate-500 uppercase font-bold">{isSniper ? 'Alvo 100%' : 'Modo SURF'}</span>
+                                        <span className={`text-[10px] font-mono ${isSniper ? 'text-primary/80' : 'text-cyan-400/80'}`}>
+                                            {isSniper
+                                                ? targetPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: (targetPrice < 1 ? 4 : 2) })
+                                                : (s.status_risco || 'Trailing ativo')}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -1703,7 +1716,7 @@
                                 </div>
                                 {/* Chart Content */}
                                 <div className="w-full h-full flex flex-col pt-12">
-                                    <TradingChart key={displaySlot.symbol} symbol={displaySlot.symbol} entryPrice={displaySlot.entry_price} stopLossPrice={displaySlot.current_stop} side={displaySlot.side} pnlFallback={displaySlot.pnl_percent} />
+                                    <TradingChart key={displaySlot.symbol} symbol={displaySlot.symbol} entryPrice={displaySlot.entry_price} stopLossPrice={displaySlot.current_stop} side={displaySlot.side} pnlFallback={displaySlot.pnl_percent} slotId={displaySlot.id} slotType={displaySlot.slot_type} />
                                 </div>
                                 {/* Decorative Corner Accents */}
                                 <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-primary/50 rounded-tl-2xl"></div>
