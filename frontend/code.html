@@ -6,7 +6,7 @@
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
     <title>1Crypten Command - Deep Space v4.1</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#FFD700">
+    <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="/logo10D.png">
 
     <!-- Libraries -->
@@ -1811,6 +1811,34 @@
                                 </div>
                             </div>
                         </div>
+
+                        {/* Version Info - V4.3.2 */}
+                        <div className="glass-card p-5 rounded-2xl border border-primary/20 bg-primary/5">
+                            <h2 className="text-xs font-bold mb-4 flex items-center gap-2 text-primary uppercase tracking-wider">
+                                <span className="material-icons-round" style={{ fontSize: '20px' }}>verified</span>
+                                Versão do Sistema
+                            </h2>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-300">Versão Atual</span>
+                                    <span className="text-lg font-bold text-primary font-mono">V4.3.3</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-400">Build</span>
+                                    <span className="text-sm text-slate-400 font-mono">UI Polish Edition</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-400">Data</span>
+                                    <span className="text-sm text-slate-400 font-mono">29/01/2026</span>
+                                </div>
+                                <div className="border-t border-white/10 pt-3 mt-3">
+                                    <div className="flex items-center gap-2 text-emerald-400">
+                                        <span className="material-icons-round" style={{ fontSize: '18px' }}>check_circle</span>
+                                        <span className="text-sm font-medium">Sistema Atualizado</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )
@@ -1819,29 +1847,29 @@
         const NavBar = ({ onLogout }) => {
             const location = useLocation();
             return (
-                <nav className="fixed bottom-0 w-full h-18 bg-black/95 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center z-50 px-2 pb-safe">
-                    <Link to="/" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
-                        <span className="material-icons-round text-3xl">space_dashboard</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Banca</span>
+                <nav className="fixed bottom-0 w-full h-24 bg-black/98 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center z-50 px-3 pb-4 pt-2">
+                    <Link to="/" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
+                        <span className="material-icons-round" style={{ fontSize: '28px' }}>space_dashboard</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Banca</span>
                     </Link>
-                    <Link to="/radar" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/radar' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
-                        <span className="material-icons-round text-3xl">radar</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Radar</span>
-                    </Link>
-
-                    {/* Chat Button - Perfectly Aligned */}
-                    <Link to="/logs" className={`flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all ${location.pathname === '/logs' ? 'bg-primary text-black shadow-[0_0_20px_rgba(255,215,0,0.3)]' : 'bg-white/5 text-primary border border-primary/20 hover:bg-white/10'}`}>
-                        <span className="material-icons-round text-3xl">terminal</span>
+                    <Link to="/radar" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/radar' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
+                        <span className="material-icons-round" style={{ fontSize: '28px' }}>radar</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Radar</span>
                     </Link>
 
-                    <Link to="/vault" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/vault' ? 'text-gold bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
-                        <span className="material-icons-round text-3xl text-gold">currency_bitcoin</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Vault</span>
+                    {/* Chat Button - Central Highlight */}
+                    <Link to="/logs" className={`flex flex-col items-center justify-center w-16 h-16 rounded-full transition-all ${location.pathname === '/logs' ? 'bg-primary text-black shadow-[0_0_25px_rgba(255,215,0,0.4)]' : 'bg-white/5 text-primary border-2 border-primary/30 hover:bg-white/10'}`}>
+                        <span className="material-icons-round" style={{ fontSize: '32px' }}>terminal</span>
                     </Link>
 
-                    <Link to="/settings" className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all ${location.pathname === '/settings' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-500 opacity-60'}`}>
-                        <span className="material-icons-round text-3xl">settings</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Config</span>
+                    <Link to="/vault" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/vault' ? 'text-gold bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
+                        <span className="material-icons-round text-gold" style={{ fontSize: '28px' }}>currency_bitcoin</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Vault</span>
+                    </Link>
+
+                    <Link to="/settings" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/settings' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
+                        <span className="material-icons-round" style={{ fontSize: '28px' }}>settings</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Config</span>
                     </Link>
                 </nav>
             );
@@ -1887,24 +1915,24 @@
             }, []);
 
             return (
-                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 text-white font-display">
-                    <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-white/10 shadow-2xl">
+                <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-6 text-white font-display">
+                    <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-primary/20 shadow-2xl">
                         <div className="flex flex-col items-center mb-8">
-                            <img src="/logo10D.png" alt="Logo" className="w-16 h-16 mb-4 animate-pulse" />
-                            <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Checklist de Decolagem</h2>
-                            <p className="text-[10px] text-slate-500 tracking-[0.3em] font-mono mt-2">V4.2 DEEP SPACE PROTOCOL</p>
+                            <img src="/logo10D.png" alt="Logo" className="w-20 h-20 mb-4 animate-pulse" />
+                            <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Inicialização</h2>
+                            <p className="text-sm text-slate-400 tracking-wide font-mono mt-2">V4.3.3 • UI Polish Edition</p>
                         </div>
 
-                        <div className="space-y-4 mb-10">
+                        <div className="space-y-3 mb-8">
                             {Object.entries(checks).map(([key, check]) => (
-                                <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
-                                    <span className="text-sm font-medium text-slate-300">{check.label}</span>
+                                <div key={key} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                                    <span className="text-base font-medium text-slate-200">{check.label}</span>
                                     {check.status === 'pending' ? (
-                                        <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                        <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
                                     ) : check.status === 'success' ? (
-                                        <span className="material-icons-round text-emerald-400 text-lg">check_circle</span>
+                                        <span className="material-icons-round text-emerald-400" style={{ fontSize: '24px' }}>check_circle</span>
                                     ) : (
-                                        <span className="material-icons-round text-red-400 text-lg">error</span>
+                                        <span className="material-icons-round text-red-400" style={{ fontSize: '24px' }}>error</span>
                                     )}
                                 </div>
                             ))}
@@ -1913,7 +1941,7 @@
                         <button
                             onClick={onComplete}
                             disabled={!isReady}
-                            className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest transition-all ${isReady ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.3)] hover:scale-[1.02] active:scale-[0.98]' : 'bg-white/5 text-slate-500 cursor-not-allowed'}`}
+                            className={`w-full py-4 rounded-xl text-base font-bold uppercase tracking-widest transition-all ${isReady ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:scale-[1.02] active:scale-[0.98]' : 'bg-white/5 text-slate-500 cursor-not-allowed'}`}
                         >
                             {isReady ? 'Iniciar Missão' : 'Validando Sistemas...'}
                         </button>
