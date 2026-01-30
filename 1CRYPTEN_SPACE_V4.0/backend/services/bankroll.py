@@ -402,6 +402,7 @@ class BankrollManager:
                 await firebase_service.update_slot(slot_id, {
                     "symbol": symbol,
                     "side": side,
+                    "qty": qty,  # V4.9.4.2: Persist qty for USD PnL reporting
                     "entry_price": current_price,
                     "current_stop": final_sl,
                     "target_price": final_tp,

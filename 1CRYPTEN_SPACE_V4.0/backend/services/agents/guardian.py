@@ -165,14 +165,19 @@ class GuardianAgent:
                             if bybit_rest_service.execution_mode == "PAPER":
                                 # Close paper position - check existence first
                                 paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol or p["symbol"] == bybit_rest_service._strip_p(symbol)), None)
+                                
+                                # Accurate qty for PnL calculation
+                                size = float(paper_pos.get("size", 0)) if paper_pos else float(slot.get("qty", 0))
+                                pnl_usd = execution_protocol.calculate_pnl(entry, last_price, size, side)
+
                                 if paper_pos:
-                                    size = float(paper_pos.get("size", 0))
                                     logger.info(f"🔨 [PAPER] GUARDIAN HAMMER: Closing {symbol} | Size: {size}")
                                     await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
-                                    # Reset slot in Firebase ONLY if closure was triggered
+                                    # Reset slot in Firebase after closure
                                     await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                                 else:
-                                    logger.warning(f"⚠️ [PAPER] Position {symbol} already closed by engine.")
+                                    logger.warning(f"⚠️ [PAPER] Position {symbol} already closed. Cleaning up stuck slot.")
+                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                             else:
                                 # Close real position
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
@@ -204,13 +209,17 @@ class GuardianAgent:
                             
                             if bybit_rest_service.execution_mode == "PAPER":
                                 paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol or p["symbol"] == bybit_rest_service._strip_p(symbol)), None)
+                                
+                                size = float(paper_pos.get("size", 0)) if paper_pos else float(slot.get("qty", 0))
+                                pnl_usd = execution_protocol.calculate_pnl(entry, last_price, size, side)
+
                                 if paper_pos:
-                                    size = float(paper_pos.get("size", 0))
                                     logger.info(f"🔨 [PAPER] SURF EXIT: Closing {symbol} | Size: {size}")
                                     await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
                                     await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                                 else:
-                                    logger.warning(f"⚠️ [PAPER] SURF {symbol} already closed by engine.")
+                                    logger.warning(f"⚠️ [PAPER] SURF {symbol} already closed. Cleaning up stuck slot.")
+                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                             else:
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
                                 for pos in positions:
