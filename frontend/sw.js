@@ -1,4 +1,4 @@
-const CACHE_NAME = '1crypten-space-v4-v3';
+const CACHE_NAME = '1crypten-space-v4-v4';
 const ASSETS = [
     '/',
     '/dashboard',

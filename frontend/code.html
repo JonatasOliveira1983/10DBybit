@@ -435,8 +435,9 @@
         const { HashRouter, Routes, Route, Link, useLocation } = ReactRouterDOM;
 
         // Dynamic API Base: Uses the current domain in production, or localhost in dev
-        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:5001'
+        // Dynamic API Base: Uses 127.0.0.1 for local to avoid localhost issues on Windows
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+            ? 'http://127.0.0.1:5001'
             : window.location.origin;
 
         // Firebase Config
@@ -513,7 +514,7 @@
                 }, 5000);
 
                 return () => {
-                    if (unsubscribe) {
+                    if (unsubscribe && rtdb) {
                         try {
                             rtdb.ref('system_pulse').off('value', unsubscribe);
                         } catch (e) { }
