@@ -109,16 +109,6 @@ class GuardianAgent:
                         # Reset slot in Firebase
                         await firebase_service.hard_reset_slot(slot["id"], close_reason, pnl_pct)
                         continue  # Skip to next slot
-                    
-                    # V4.3: Auto-Promotion SNIPER → SURF at 30% ROI (if not closing)
-                    if pnl_pct >= 30.0:
-                        logger.info(f"🏄 V4.3 PROMOTION: {symbol} upgraded SNIPER → SURF at {pnl_pct:.2f}% ROI!")
-                        await firebase_service.update_slot(slot["id"], {
-                            "slot_type": "SURF",
-                            "target_price": None,
-                            "pensamento": f"🏄 PROMOVIDO para SURF! ROI {pnl_pct:.2f}% ultrapassa limite Sniper."
-                        })
-                        await firebase_service.log_event("Guardian", f"🏄 {symbol} PROMOTED: SNIPER → SURF at {pnl_pct:.2f}%", "SUCCESS")
 
                 # V4.3.1: Define Trailing Surf Logic using ExecutionProtocol ladder
                 surf_rules = [

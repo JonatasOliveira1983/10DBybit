@@ -150,6 +150,8 @@ if not os.path.isdir(FRONTEND_DIR):
     logger.warning(f"⚠️ Frontend directory NOT found at {FRONTEND_DIR}. PWA features might failing.")
 else:
     logger.info(f"Frontend directory established at: {FRONTEND_DIR}")
+    # Mount Frontend at root first
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend_static")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -163,7 +165,7 @@ async def get_dashboard():
     # Return the code.html from the frontend folder
     index_path = os.path.join(FRONTEND_DIR, "code.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        return FileResponse(index_path, media_type="text/html")
     return {"error": "Dashboard file not found"}
 
 @app.get("/")
@@ -482,13 +484,9 @@ async def toggle_admiral_rest(payload: dict):
         logger.error(f"Error toggling admiral rest: {e}")
         return {"error": str(e)}
 
-# Mount Local Static fallback (highest priority for assets)
-if os.path.isdir(INTERNAL_STATIC_DIR):
-    app.mount("/", StaticFiles(directory=INTERNAL_STATIC_DIR), name="internal_static")
-
-# Mount Frontend as generic fallback
+# Mount Frontend as main source
 if os.path.isdir(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 if __name__ == "__main__":
     # Forcing reload=False to avoid multi-process complexity during debugging
