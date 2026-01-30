@@ -377,12 +377,16 @@ async def text_to_speech(payload: dict):
     import io
     
     text = payload.get("text", "")
-    voice = payload.get("voice", "pt-BR-AntonioNeural")  # Premium Brazilian voice (Male default)
+    # V5.0.1: FORCE ANTONIO VOICE - User reported Francisca appearing in production
+    voice = payload.get("voice", "pt-BR-AntonioNeural")
+    if "Francisca" in voice:
+        logger.warning(f"⚠️ TTS: Francisca voice requested, OVERRIDING to Antonio")
+        voice = "pt-BR-AntonioNeural"
     
     if not text:
         return {"error": "No text provided"}
     
-    logger.info(f"🎤 TTS Request: '{text[:30]}...' using voice {voice}")
+    logger.info(f"🎤 TTS V5.0.1: '{text[:30]}...' using VOICE={voice}")
     try:
         # Generate audio
         communicate = edge_tts.Communicate(text, voice)
