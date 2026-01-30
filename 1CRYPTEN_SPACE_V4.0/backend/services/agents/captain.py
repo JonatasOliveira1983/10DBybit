@@ -405,66 +405,61 @@ class CaptainAgent:
                 await firebase_service.log_event("CAPTAIN", action_response, "SUCCESS")
                 return action_response
             
-            # 6. Build Context-Enriched Prompt
+            # 6. Build Context-Enriched Prompt (Clean - No internal instructions exposed)
             memory_context = ""
             if facts:
-                memory_context = f"\nFATOS SOBRE O {user_name.upper()}: {', '.join(facts[-5:])}"
+                memory_context = f"Você sabe sobre o usuário: {', '.join(facts[-5:])}"
             
             if flash_report and len(user_message.split()) < 4:
                 prompt = f"""
-                {mode_instruction}
                 {memory_context}
                 
-                FLASH REPORT (Proativo): {flash_report}
+                Resumo proativo: {flash_report}
                 
-                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
+                Mensagem do usuário: "{user_message}"
                 
-                INSTRUÇÃO: Entregue o Flash Report e responda à transmissão. Máximo 40 palavras.
+                Responda naturalmente incluindo o resumo. Máximo 40 palavras.
                 """
             elif mode == "CEO":
                 prompt = f"""
-                {mode_instruction}
                 {memory_context}
                 
-                ESTADO DA NAVE:
+                Dados atuais do sistema:
                 - {snapshot['banca']}
                 - API: {snapshot['api_health']}
                 - {snapshot['vault_status']}
-                - Esquadrão Sniper: {snapshot['sniper_slots']}
-                - Esquadrão Surf: {snapshot['surf_slots']}
+                - Sniper: {snapshot['sniper_slots']}
+                - Surf: {snapshot['surf_slots']}
                 
-                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
+                Mensagem do usuário: "{user_message}"
                 
-                INSTRUÇÃO: Seja o CRO. Analise com precisão. Aponte riscos. Máximo 50 palavras.
+                Responda com análise séria e técnica. Aponte riscos se houver. Máximo 50 palavras.
                 """
             elif mode == "AMIGO":
                 prompt = f"""
-                {mode_instruction}
                 {memory_context}
                 
-                O {user_name} quer conversar sobre basquete/NBA.
+                O usuário quer conversar sobre basquete/NBA.
                 
-                TRANSMISSÃO: "{user_message}"
+                Mensagem: "{user_message}"
                 
-                INSTRUÇÃO: Seja um amigo que acompanha a liga. Dê opiniões. Máximo 40 palavras.
+                Responda como um amigo que acompanha a liga. Dê opiniões. Máximo 40 palavras.
                 """
             elif mode == "CASUAL":
                 prompt = f"""
-                {mode_instruction}
                 {memory_context}
                 
-                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
+                Mensagem do usuário: "{user_message}"
                 
-                INSTRUÇÃO: Resposta curta e amigável. Máximo 15 palavras.
+                Responda de forma curta, amigável e natural. Máximo 15 palavras.
                 """
             else:
                 prompt = f"""
-                {mode_instruction}
                 {memory_context}
                 
-                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
+                Mensagem do usuário: "{user_message}"
                 
-                INSTRUÇÃO: Responda de forma equilibrada. Máximo 30 palavras.
+                Responda de forma equilibrada e natural. Máximo 30 palavras.
                 """
             
             response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V50_SYSTEM_PROMPT)
