@@ -266,12 +266,12 @@ class BybitREST:
     async def close_position(self, symbol: str, side: str, qty: float):
         """Closes a position at market."""
         if self.execution_mode == "PAPER":
-             logger.info(f"[PAPER] Closing position {symbol}")
-             # Find position
-             pos = next((p for p in self.paper_positions if p["symbol"] == symbol), None)
-             if pos:
-                 # Calculate Realized PNL to update Paper Balance
-                 try:
+            logger.info(f"[PAPER] Closing position {symbol}")
+            # Find position
+            pos = next((p for p in self.paper_positions if p["symbol"] == symbol), None)
+            if pos:
+                # Calculate Realized PNL to update Paper Balance
+                try:
                     from services.execution_protocol import execution_protocol
                     api_symbol = self._strip_p(symbol)
                     ticker = await asyncio.to_thread(self.session.get_tickers, category="linear", symbol=api_symbol)
@@ -305,7 +305,7 @@ class BybitREST:
                     if pos in self.paper_positions:
                         self.paper_positions.remove(pos)
                     return {"retCode": 0}
-             return {"retCode": 0}
+            return {"retCode": 0}
 
         try:
             # Side is the current position side, so we sell to close a long
