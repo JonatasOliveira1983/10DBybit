@@ -1,12 +1,16 @@
-# 1CRYPTEN Space V4.9.4.1 MICRO-COMPACT ✨🚀
+# 1CRYPTEN Space V4.9.4.2 MICRO-COMPACT ✨🚀
 
-Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface **Micro-Compact (V4.9.4.1)** e Estabilidade de Execução.
+Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface **Micro-Compact (V4.9.4.2)** e Estabilidade de Execução.
 
 ---
 
-## 🆕 Novidades V4.9.4.1 - Elite Vault Evolution
+## 🆕 Novidades V4.9.4.2 - High-Precision Matrix
 
-### 🏦 Protocolo Elite Vault (Novo)
+### 💎 Precisão Cirúrgica (Novo)
+- **High-Precision Matrix**: Implementação de motor de formatação dinâmica. Moedas de baixo valor (PEPE, SHIB, etc) agora exibem até 8 casas decimais nos cards de slots e histórico.
+- **Sincronização de Alvos**: Alinhamento visual perfeito entre as linhas do gráfico e os dados textuais dos slots.
+
+### 🏦 Protocolo Elite Vault
 - **Ciclo Sniper Puro**: Contador de vitórias (20x) blindado contra perdas. Apenas ordens 100% ROI movem o ciclo.
 - **Stop-Loss Tracker**: Monitoramento em tempo real de perdas acumuladas no ciclo para total transparência.
 - **Surf Ledger**: Lucros e perdas do modo Surf registrados de forma independente, sem interferir no ciclo Sniper.
@@ -46,4 +50,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Elite Vault Evolution - V4.9.4.1.**
+**Operação: 10D - Elite Vault Evolution - V4.9.4.2.**

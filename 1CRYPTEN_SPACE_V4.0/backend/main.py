@@ -29,7 +29,7 @@ print("DEBUG: Logger configured.")
 async def lifespan(app: FastAPI):
     # V4.3.2: Cloud Run Optimized Startup - FULLY NON-BLOCKING
     # Health checks must succeed BEFORE services are fully initialized
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.9.4.1 Backend...")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.9.4.2 Backend...")
     logger.info("☁️ Cloud Run Mode: Fast startup, async service initialization")
     
     async def start_services():
