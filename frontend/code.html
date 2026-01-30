@@ -846,7 +846,7 @@
 
         const { useState, useEffect, useRef } = React;
         const { createRoot } = ReactDOM;
-        const { HashRouter, Routes, Route, Link, useLocation } = ReactRouterDOM;
+        const { HashRouter, Routes, Route, Link, useLocation, useNavigate } = ReactRouterDOM;
 
         // Dynamic API Base: Uses the current domain in production, or localhost in dev
         // Dynamic API Base: Uses 127.0.0.1 for local to avoid localhost issues on Windows
@@ -1657,7 +1657,7 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-28 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 overflow-hidden">
                     {/* Sidebar Menu - V4.9.2 */}
                     {isMenuOpen && (
                         <div className="fixed inset-0 z-[100] flex">
@@ -1799,10 +1799,10 @@
                     </main>
 
                     {/* Input Area - Above Mobile Nav */}
-                    {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar */}
-                    <footer className="flex-shrink-0 px-4 sm:px-6 py-6 sm:py-8 bg-black/95 backdrop-blur-2xl border-t border-white/10 pb-[env(safe-area-inset-bottom,20px)] relative z-40">
-                        <div className="max-w-3xl mx-auto flex flex-col gap-4">
-                            <div className="flex gap-2 items-center">
+                    {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar - V4.9.2.2 FLUSH */}
+                    <footer className="flex-shrink-0 px-3 sm:px-6 pt-3 pb-[env(safe-area-inset-bottom,12px)] bg-black/95 backdrop-blur-3xl border-t border-white/10 relative z-40">
+                        <div className="max-w-4xl mx-auto flex flex-col gap-2">
+                            <div className="flex gap-2 items-end">
                                 {/* Microphone Button */}
                                 {sttSupported && (
                                     <button
@@ -1819,20 +1819,31 @@
                                     </button>
                                 )}
 
-                                {/* Premium Text Input */}
+                                {/* Premium Text Input - V4.9.2.2 Multiline */}
                                 <div className="flex-1 relative">
-                                    <input
+                                    <textarea
                                         ref={inputRef}
-                                        type="text"
+                                        rows="2"
                                         value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
-                                        onKeyDown={handleKeyDown}
+                                        onChange={(e) => {
+                                            setInputValue(e.target.value);
+                                            // Simple auto-resize logic
+                                            e.target.style.height = 'auto';
+                                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(max-width: 768px)').matches) {
+                                                e.preventDefault();
+                                                sendMessage();
+                                            }
+                                        }}
                                         placeholder="Ordens, Capitão?"
                                         disabled={isSending}
-                                        className="w-full bg-[#0F0F11] border border-white/10 rounded-xl px-5 py-4 text-sm sm:text-base text-white placeholder-slate-600 outline-none focus:border-primary/50 focus:bg-black/40 focus:shadow-[0_0_25px_rgba(255,215,0,0.05)] transition-all disabled:opacity-50"
+                                        className="w-full bg-[#0F0F11]/80 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-3 text-sm sm:text-base text-white placeholder-slate-600 outline-none focus:border-primary/50 focus:bg-black/60 focus:shadow-[0_0_25px_rgba(255,215,0,0.1)] transition-all disabled:opacity-50 resize-none overflow-y-auto min-h-[52px]"
+                                        style={{ scrollbarWidth: 'none' }}
                                     />
                                     {isListening && (
-                                        <div className="absolute right-5 top-1/2 -translate-y-1/2 flex gap-1">
+                                        <div className="absolute right-5 bottom-4 flex gap-1">
                                             <span className="w-1 h-4 bg-red-500 rounded-full animate-pulse"></span>
                                             <span className="w-1 h-5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></span>
                                             <span className="w-1 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
@@ -2303,7 +2314,7 @@
             }, []);
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-28 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 overflow-hidden">
                     {/* Premium Header - Gemini Style */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
@@ -2319,7 +2330,7 @@
                             </div>
                             <div className="flex justify-between items-center mt-3">
                                 <p className="text-xs text-slate-400 capitalize">{history.length} operações encerradas</p>
-                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">v4.9.1 Micro-Compact Optimized</span>
+                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">V4.9.2 Micro-Compact Optimized</span>
                             </div>
                         </div>
                     </header>
@@ -2380,7 +2391,7 @@
         // 5. Vault Page (Iframe Integration)
         const VaultPage = () => {
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] pb-28 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] pb-32 sm:pb-24">
                     {/* Header for Vault (since it's an iframe) */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
@@ -2411,13 +2422,13 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-28 sm:pb-24">
+                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
                     <header className="mb-6 bg-black/80 backdrop-blur-xl border-b border-white/5 -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
                                 <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
-                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">v4.9.1 PWA</p>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V4.9.4.1 PWA</p>
                             </div>
                             <div className="w-full"></div> {/* Placeholder for centering */}
                             <div className="flex justify-end">
@@ -2493,7 +2504,7 @@
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <span className="text-[11px] text-slate-300">Versão Atual</span>
-                                    <span className="text-base font-bold text-primary font-mono">V4.9.1</span>
+                                    <span className="text-base font-bold text-primary font-mono">V4.9.2</span>
                                 </div>
                                 <div className="flex justify-between items-center border-t border-white/5 pt-2">
                                     <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Protocolo Elite</span>

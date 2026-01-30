@@ -80,22 +80,32 @@ class BankrollManager:
                 if norm_symbol not in exchange_map:
                     logger.warning(f"Sync: Slot {slot['id']} for {symbol} is stale. Fetching result before clearing.")
                     
-                    # Try to fetch last closed PnL
                     try:
                         closed_list = await asyncio.to_thread(bybit_rest_service.get_closed_pnl, symbol)
                         if closed_list:
                             last_trade = closed_list[0]
+                            pnl = float(last_trade.get("closedPnl", 0))
                             await firebase_service.log_trade({
                                 "symbol": symbol,
                                 "side": last_trade.get("side"),
                                 "entry_price": float(last_trade.get("avgEntryPrice", 0)),
                                 "exit_price": float(last_trade.get("avgExitPrice", 0)),
-                                "pnl": float(last_trade.get("closedPnl", 0)),
+                                "pnl": pnl,
                                 "leverage": last_trade.get("leverage"),
                                 "qty": last_trade.get("qty"),
                                 "closed_at": last_trade.get("updatedTime")
                             })
-                            logger.info(f"Sync: Logged final trade for {symbol}.")
+                            
+                            # V4.9.4: Register Vault metrics optimized
+                            slot_id = slot.get("id")
+                            is_sniper = (slot_id <= 5 or slot.get("slot_type") == "SNIPER")
+                            
+                            if is_sniper:
+                                await self.register_sniper_trade({"symbol": symbol, "pnl": pnl})
+                            else:
+                                await self.register_surf_trade({"symbol": symbol, "pnl": pnl})
+                                
+                            logger.info(f"Sync: Logged final trade for {symbol}. PnL: {pnl}")
                     except Exception as e:
                         logger.error(f"Sync: Error logging closed trade for {symbol}: {e}")
 
@@ -459,20 +469,21 @@ class BankrollManager:
                 logger.error(f"Error in Position Reaper: {e}")
             await asyncio.sleep(30) # Scan every 30s
 
-    async def register_sniper_win(self, trade_data: dict):
+    async def register_sniper_trade(self, trade_data: dict):
         """
-        V4.2: Registra uma vitória Sniper no ciclo de 20 trades.
-        Chamado pelo Position Reaper quando um trade SNIPER fecha com lucro.
+        V4.2/V4.3.1: Registra um trade Sniper no ciclo de 20 trades.
+        Chamado pelo Position Reaper quando um trade SNIPER fecha.
         """
         try:
             slot_type = trade_data.get("slot_type", "SNIPER")
             pnl = trade_data.get("pnl", 0)
             
-            # Only register if it's a SNIPER win
-            if slot_type == "SNIPER" and pnl > 0:
-                await vault_service.register_sniper_win(trade_data)
-                logger.info(f"Sniper Win registered: {trade_data.get('symbol')} +${pnl:.2f}")
+            # Use the updated vault service method
+            if slot_type == "SNIPER":
+                await vault_service.register_sniper_trade(trade_data)
+                status_msg = "Win" if pnl > 0 else "Loss"
+                logger.info(f"Sniper {status_msg} registered in Vault: {trade_data.get('symbol')} ${pnl:.2f}")
         except Exception as e:
-            logger.error(f"Error registering sniper win: {e}")
+            logger.error(f"Error registering sniper trade: {e}")
 
 bankroll_manager = BankrollManager()

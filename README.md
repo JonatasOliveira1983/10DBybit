@@ -1,16 +1,20 @@
-# 1CRYPTEN Space V4.9.1 MICRO-COMPACT ✨🚀
+# 1CRYPTEN Space V4.9.4.1 MICRO-COMPACT ✨🚀
 
-Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface **Micro-Compact (V4.9.1)** e Estabilidade de Execução.
+Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface **Micro-Compact (V4.9.4.1)** e Estabilidade de Execução.
 
 ---
 
-## 🆕 Novidades V4.9.1 - Micro-Compact Evolution
+## 🆕 Novidades V4.9.4.1 - Elite Vault Evolution
+
+### 🏦 Protocolo Elite Vault (Novo)
+- **Ciclo Sniper Puro**: Contador de vitórias (20x) blindado contra perdas. Apenas ordens 100% ROI movem o ciclo.
+- **Stop-Loss Tracker**: Monitoramento em tempo real de perdas acumuladas no ciclo para total transparência.
+- **Surf Ledger**: Lucros e perdas do modo Surf registrados de forma independente, sem interferir no ciclo Sniper.
+- **Redesign Dashboard**: Interface otimizada com 5 cards de telemetria simultânea (Banca, Ciclo, Lucro Sniper, Loss, Surf).
 
 ### 📱 Otimização Micro-Compact (Global)
-- **Escala Reduzida (14px Base):** Redução global de escala para máxima densidade de informação em telas mobile de qualquer tamanho.
-- **Botões Ultra-Eficientes (38px):** Padronização de altura de botões em 38px para equilíbrio entre toque e economia de espaço vertical.
-- **Card Architecture V4.9:** Paddings reduzidos para `p-4` e cantos `rounded-xl` para um design mais "lean" e moderno.
-- **Fix "Leakage":** Implementação de `overflow-hidden` em todos os containers críticos para evitar vazamento de conteúdo em dispositivos pequenos.
+- **Escala Reduzida (14px Base):** Redução global de escala para máxima densidade de informação em telas mobile.
+- **Botões Ultra-Eficientes (38px):** Padronização de altura de botões em 38px.
 
 ### 🛡️ Gerenciamento de Risco Elite
 - **Protocolo 4-Slots Máximo:** Rigoroso limite de 4 ordens em risco simultâneo (20% da banca).
@@ -42,4 +46,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Micro-Compact Evolution - V4.9.1.**
+**Operação: 10D - Elite Vault Evolution - V4.9.4.1.**

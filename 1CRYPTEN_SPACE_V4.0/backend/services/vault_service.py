@@ -54,7 +54,9 @@ class VaultService:
         return {
             "sniper_wins": 0,
             "cycle_number": 1,
-            "cycle_profit": 0.0,
+            "cycle_profit": 0.0,      # Lucro líquido Sniper (Wins - Losses)
+            "cycle_losses": 0.0,      # Apenas perdas acumuladas Sniper
+            "surf_profit": 0.0,       # Lucro líquido exclusivo Surf
             "started_at": datetime.now(timezone.utc).isoformat(),
             "in_admiral_rest": False,
             "rest_until": None,
@@ -79,21 +81,32 @@ class VaultService:
         except Exception as e:
             logger.error(f"Error initializing cycle: {e}")
     
-    async def register_sniper_win(self, trade_data: dict) -> dict:
+    async def register_sniper_trade(self, trade_data: dict) -> dict:
         """
-        Incrementa contador de trades Sniper vencedores.
-        Retorna o novo status do ciclo.
+        V4.9.4: Registra um trade Sniper no ciclo.
+        - Sniper Wins (100% ROI): Sobe o contador de 20x.
+        - Sniper Loss: Não reseta o ciclo, mas acumula em cycle_losses e abate de cycle_profit.
         """
         try:
             if not firebase_service.is_active or not firebase_service.db:
                 return self._default_cycle()
             
             current = await self.get_cycle_status()
-            new_wins = current.get("sniper_wins", 0) + 1
-            new_profit = current.get("cycle_profit", 0) + trade_data.get("pnl", 0)
+            pnl = trade_data.get("pnl", 0)
+            
+            new_wins = current.get("sniper_wins", 0)
+            new_losses = current.get("cycle_losses", 0)
+            
+            if pnl > 0:
+                new_wins += 1
+            else:
+                new_losses += abs(pnl)
+                
+            new_profit = current.get("cycle_profit", 0) + pnl
             
             update_data = {
                 "sniper_wins": new_wins,
+                "cycle_losses": new_losses,
                 "cycle_profit": new_profit
             }
             
@@ -101,18 +114,46 @@ class VaultService:
                 firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
             
             await asyncio.to_thread(_update)
-            await firebase_service.log_event("VAULT", f"🎯 Sniper Win #{new_wins}/20 - Ciclo {current.get('cycle_number', 1)}", "SUCCESS")
             
-            # Check if cycle is complete
+            event_type = "SUCCESS" if pnl > 0 else "WARNING"
+            result_label = "WIN 🎯" if pnl > 0 else "LOSS ❌"
+            result_msg = f"Vault Sniper {result_label} | #{new_wins}/20 | PnL: ${pnl:.2f} | Losses Acc: ${new_losses:.2f}"
+            await firebase_service.log_event("VAULT", result_msg, event_type)
+            
             if new_wins >= 20:
-                await firebase_service.log_event("VAULT", f"🏆 CICLO {current.get('cycle_number', 1)} COMPLETO! Lucro: ${new_profit:.2f}", "SUCCESS")
+                await firebase_service.log_event("VAULT", f"🏆 CICLO {current.get('cycle_number', 1)} COMPLETO! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
             
-            current["sniper_wins"] = new_wins
-            current["cycle_profit"] = new_profit
+            current.update(update_data)
             return current
             
         except Exception as e:
-            logger.error(f"Error registering sniper win: {e}")
+            logger.error(f"Error registering sniper trade: {e}")
+            return self._default_cycle()
+
+    async def register_surf_trade(self, trade_data: dict) -> dict:
+        """
+        V4.9.4: Registra lucro/perda do modo Surf de forma independente.
+        """
+        try:
+            if not firebase_service.is_active or not firebase_service.db:
+                return self._default_cycle()
+            
+            current = await self.get_cycle_status()
+            pnl = trade_data.get("pnl", 0)
+            new_surf_profit = current.get("surf_profit", 0) + pnl
+            
+            update_data = {"surf_profit": new_surf_profit}
+            
+            def _update():
+                firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
+                
+            await asyncio.to_thread(_update)
+            await firebase_service.log_event("VAULT", f"🏄 Surf Trade Registered | PnL: ${pnl:.2f} | Surf Net: ${new_surf_profit:.2f}", "INFO")
+            
+            current.update(update_data)
+            return current
+        except Exception as e:
+            logger.error(f"Error registering surf trade: {e}")
             return self._default_cycle()
     
     async def calculate_withdrawal_amount(self) -> dict:
@@ -204,6 +245,8 @@ class VaultService:
                 "sniper_wins": 0,
                 "cycle_number": new_cycle,
                 "cycle_profit": 0.0,
+                "cycle_losses": 0.0,
+                "surf_profit": 0.0,
                 "started_at": datetime.now(timezone.utc).isoformat(),
                 "in_admiral_rest": current.get("in_admiral_rest", False),
                 "rest_until": current.get("rest_until"),

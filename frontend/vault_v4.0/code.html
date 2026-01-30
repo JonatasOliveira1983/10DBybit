@@ -66,7 +66,7 @@
             border-radius: 10px;
         }
 
-        /* V4.9.1: Otimização Micro-Compact */
+        /* V4.9.4.1: Elite Vault Evolution */
         html {
             font-size: 14px !important;
         }
@@ -170,43 +170,78 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <main class="pt-28 pb-8 px-4 max-w-7xl mx-auto">
+        <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
             <!-- Active Balance Card -->
             <div class="glass rounded-xl p-4 border border-gray-800">
                 <div class="flex items-center gap-3 mb-3">
-                    <span class="material-icons-round text-primary">account_balance_wallet</span>
+                    <span class="material-icons-round text-emerald-400">account_balance_wallet</span>
                     <span class="text-gray-400 text-sm">Banca Ativa</span>
                 </div>
-                <p id="active-balance" class="text-2xl font-bold text-white">$0.00</p>
-                <p id="balance-change" class="text-xs text-green-400 mt-1">+0.0% hoje</p>
+                <p id="active-balance" class="text-xl font-bold text-white">$0.00</p>
+                <p id="balance-change" class="text-[10px] text-green-400 mt-1 uppercase font-bold">Saldo Bybit</p>
             </div>
 
-            <!-- Vault Total Card -->
-            <div class="glass rounded-xl p-4 border border-gold/30 gold-glow">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="material-icons-round text-gold">currency_bitcoin</span>
-                    <span class="text-gray-400 text-sm">Cofre (Vault)</span>
-                </div>
-                <p id="vault-total" class="text-2xl font-bold text-gold">$0.00</p>
-                <p id="vault-withdrawals" class="text-xs text-gray-400 mt-1">0 retiradas</p>
-            </div>
-
-            <!-- Cycle Progress Card -->
+            <!-- Sniper Cycle Card -->
             <div class="glass rounded-xl p-4 border border-primary/30 cyan-glow">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="material-icons-round text-primary">rotate_right</span>
-                    <span class="text-gray-400 text-sm">Ciclo Atual</span>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="material-icons-round text-primary">rotate_right</span>
+                        <span class="text-gray-400 text-sm">Ciclo Sniper</span>
+                    </div>
+                    <p id="cycle-number" class="text-xs font-mono text-primary/60">#1</p>
                 </div>
                 <div class="flex items-baseline gap-2">
-                    <p id="cycle-number" class="text-2xl font-bold text-white">#1</p>
-                    <p id="sniper-wins" class="text-lg text-primary">0/20</p>
+                    <p id="sniper-wins" class="text-2xl font-bold text-white">0/20</p>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">🎯 Wins</p>
                 </div>
-                <div class="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div id="cycle-progress" class="progress-bar h-full transition-all duration-500" style="width: 0%">
+                <div class="mt-3 h-1.5 bg-gray-900 rounded-full overflow-hidden">
+                    <div id="cycle-progress" class="progress-bar h-full transition-all duration-700" style="width: 0%">
                     </div>
                 </div>
+            </div>
+
+            <!-- Sniper Profit Card (Net Result) -->
+            <div class="glass rounded-xl p-4 border border-emerald-500/20">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-emerald-400">trending_up</span>
+                    <span class="text-gray-400 text-sm text-center">Lucro Sniper</span>
+                </div>
+                <p id="cycle-profit" class="text-xl font-bold text-emerald-400">$0.00</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Resultado Ciclo</p>
+            </div>
+
+            <!-- STOP-LOSS TRACKER CARD -->
+            <div class="glass rounded-xl p-4 border border-red-500/30">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-red-500 animate-pulse">dangerous</span>
+                    <span class="text-gray-400 text-sm">Total Stop-Loss</span>
+                </div>
+                <p id="cycle-losses-val" class="text-xl font-bold text-red-500">$0.00</p>
+                <p class="text-[10px] text-red-400/60 mt-1 uppercase font-bold tracking-tighter">Perdas acumuladas no
+                    ciclo</p>
+            </div>
+
+            <!-- Surf Profit Card -->
+            <div class="glass rounded-xl p-4 border border-blue-500/30">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-blue-400">surfing</span>
+                    <span class="text-gray-400 text-sm">Lucro Surf</span>
+                </div>
+                <p id="surf-profit" class="text-xl font-bold text-blue-400">$0.00</p>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Saldo Livre</p>
+            </div>
+
+            <!-- Vault Total Card (Destaque) -->
+            <div class="glass rounded-xl p-4 border border-gold/30 gold-glow bg-gold/5">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="material-icons-round text-gold">account_balance</span>
+                    <span class="text-gray-400 text-sm uppercase tracking-tighter">Cofre Retido</span>
+                </div>
+                <p id="vault-total" class="text-xl font-bold text-gold">$0.00</p>
+                <p id="vault-withdrawals" class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">0
+                    retiradas</p>
             </div>
         </div>
 
@@ -332,34 +367,12 @@
                 document.getElementById('vault-total').textContent = `$${(vault.vault_total || 0).toFixed(2)}`;
                 document.getElementById('cycle-number').textContent = `#${vault.cycle_number || 1}`;
                 document.getElementById('sniper-wins').textContent = `${vault.sniper_wins || 0}/20`;
+                document.getElementById('cycle-profit').textContent = `$${(vault.cycle_profit || 0).toFixed(2)}`;
+                document.getElementById('cycle-losses-val').textContent = `$${(vault.cycle_losses || 0).toFixed(2)}`;
+                document.getElementById('surf-profit').textContent = `$${(vault.surf_profit || 0).toFixed(2)}`;
 
                 const progress = ((vault.sniper_wins || 0) / 20) * 100;
                 document.getElementById('cycle-progress').style.width = `${progress}%`;
-
-                // Update alerts
-                const alertContainer = document.getElementById('alert-container');
-                const restAlert = document.getElementById('admiral-rest-alert');
-                const cautiousAlert = document.getElementById('cautious-mode-alert');
-
-                if (vault.in_admiral_rest) {
-                    restAlert.classList.remove('hidden');
-                    document.getElementById('rest-until').textContent = vault.rest_until || '--';
-                    alertContainer.classList.remove('hidden');
-                } else {
-                    restAlert.classList.add('hidden');
-                }
-
-                if (vault.cautious_mode) {
-                    cautiousAlert.classList.remove('hidden');
-                    document.getElementById('min-score-threshold').textContent = vault.min_score_threshold || 85;
-                    alertContainer.classList.remove('hidden');
-                } else {
-                    cautiousAlert.classList.add('hidden');
-                }
-
-                if (!vault.in_admiral_rest && !vault.cautious_mode) {
-                    alertContainer.classList.add('hidden');
-                }
 
                 // Update recommended amount
                 document.getElementById('recommended-amount').textContent = `$${(vault.recommended_withdrawal || 0).toFixed(2)}`;
