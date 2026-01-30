@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        name="viewport" />
     <title>Synergy Agent Logs v4.0</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
     <link
@@ -64,7 +65,8 @@
 
         .message-bubble {
             position: relative;
-            max-width: 85%;
+            max-width: 90%;
+            padding: 1rem 1.25rem;
         }
 
         .agent-active {
@@ -80,15 +82,15 @@
         /* V4.3.1: Legibilidade Melhorada */
         .text-\[10px\],
         .text-\[11px\] {
-            font-size: 12px !important;
-        }
-
-        .text-xs {
             font-size: 13px !important;
         }
 
-        .text-sm {
+        .text-xs {
             font-size: 14px !important;
+        }
+
+        .text-sm {
+            font-size: 15px !important;
         }
 
         input {
@@ -126,35 +128,35 @@
         <div class="flex overflow-x-auto gap-4 px-5 hide-scrollbar">
             <button class="flex flex-col items-center gap-1 shrink-0 group">
                 <div
-                    class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center agent-active transition-all group-active:scale-95">
+                    class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center agent-active transition-all group-active:scale-95">
                     <span class="material-symbols-outlined text-white text-3xl">flight_takeoff</span>
                 </div>
                 <span class="text-[10px] font-medium text-white/60">Captain</span>
             </button>
             <button class="flex flex-col items-center gap-1 shrink-0 group">
                 <div
-                    class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+                    class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
                     <span class="material-symbols-outlined text-gemini text-3xl">psychology</span>
                 </div>
                 <span class="text-[10px] font-medium text-white/60">Gemini</span>
             </button>
             <button class="flex flex-col items-center gap-1 shrink-0 group">
                 <div
-                    class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+                    class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
                     <span class="material-symbols-outlined text-contrarian text-3xl">visibility</span>
                 </div>
                 <span class="text-[10px] font-medium text-white/60">Eye</span>
             </button>
             <button class="flex flex-col items-center gap-1 shrink-0 group">
                 <div
-                    class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+                    class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
                     <span class="material-symbols-outlined text-guardian text-3xl">shield</span>
                 </div>
                 <span class="text-[10px] font-medium text-white/60">Guardian</span>
             </button>
             <button class="flex flex-col items-center gap-1 shrink-0 group">
                 <div
-                    class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
+                    class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center transition-all group-active:scale-95">
                     <span class="material-symbols-outlined text-white/30 text-3xl">add</span>
                 </div>
                 <span class="text-[10px] font-medium text-white/40">Add</span>

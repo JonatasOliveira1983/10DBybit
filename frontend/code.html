@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        name="viewport" />
     <title>1Crypten Command - Deep Space v4.1</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
@@ -343,17 +344,17 @@
         .text-\[8px\],
         .text-\[9px\],
         .text-\[10px\] {
-            font-size: 12px !important;
-        }
-
-        /* Fontes xs → 13px */
-        .text-xs {
             font-size: 13px !important;
         }
 
-        /* Fontes sm → 14px */
-        .text-sm {
+        /* Fontes xs → 14px */
+        .text-xs {
             font-size: 14px !important;
+        }
+
+        /* Fontes sm → 15px */
+        .text-sm {
+            font-size: 15px !important;
         }
 
         /* Melhorar legibilidade do chat */
@@ -451,7 +452,7 @@
         const usePulseMonitor = () => {
             const [latency, setLatency] = useState(0);
             const [status, setStatus] = useState('OFFLINE');
-            const lastUpdateRef = useRef(0);
+            const lastUpdateRef = useRef(Date.now());
             const channelRef = useRef('NONE'); // RTDB or REST
 
             useEffect(() => {
@@ -1092,7 +1093,10 @@
                 const fetchLogs = async () => {
                     try {
                         const response = await fetch(API_BASE + '/api/logs');
-                        if (response.ok) setLogs(await response.json());
+                        if (response.ok) {
+                            setLogs(await response.json());
+                            window.dispatchEvent(new CustomEvent('rest-pulse'));
+                        }
                     } catch (e) { console.error("Logs Fetch Error", e); }
                 };
                 fetchLogs();
@@ -1134,18 +1138,18 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-16 sm:pb-0">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-32 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
-                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
-                        <div className="max-w-3xl mx-auto flex justify-between items-center">
+                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                        <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1.5">
-                                    <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
-                                    <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
-                                </div>
+                                <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
+                                <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
                             </div>
-                            <h1 className="text-base sm:text-lg font-display font-bold text-white tracking-wide">Capitão</h1>
-                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                            <h1 className="text-base sm:text-lg font-display font-bold text-white tracking-wide text-center uppercase">Capitão</h1>
+                            <div className="flex justify-end">
+                                <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                            </div>
                         </div>
                     </header>
 
@@ -1239,7 +1243,7 @@
                     </main>
 
                     {/* Input Area - Above Mobile Nav */}
-                    <footer className="flex-shrink-0 px-2 sm:px-6 py-2 sm:py-3 bg-black/90 backdrop-blur-xl border-t border-white/10 mb-14 sm:mb-0">
+                    <footer className="flex-shrink-0 px-2 sm:px-6 py-2 sm:py-3 bg-black/90 backdrop-blur-xl border-t border-white/10 mb-16 sm:mb-14">
                         <div className="max-w-3xl mx-auto flex gap-2 items-center">
                             {/* Microphone Button */}
                             {sttSupported && (
@@ -1314,6 +1318,7 @@
                         if (response.ok) {
                             const data = await response.json();
                             setSignals(data);
+                            window.dispatchEvent(new CustomEvent('rest-pulse'));
                             // Detect if any elite signal is present (Hunt Mode)
                             const elite = data.some(s => s.score >= 85 && !s.symbol.includes("BTC"));
                             setIsHuntActive(elite);
@@ -1332,20 +1337,22 @@
             const btcSignalsCount = signals.filter(s => s.symbol.includes("BTC")).length;
 
             return (
-                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'bg-[#0A0A0B]'} text-white pb-16 sm:pb-0`}>
+                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'bg-[#0A0A0B]'} text-white pb-32 sm:pb-24`}>
                     {/* Premium Header - Gemini Style */}
-                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
-                            <div className="flex justify-between items-center">
+                            <div className="grid grid-cols-3 items-center">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
                                     <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
                                 </div>
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white">
-                                    Journey Radar
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white text-center uppercase">
+                                    Radar
                                     {isHuntActive && <span className="ml-2 text-[8px] bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">HUNT</span>}
                                 </h1>
-                                <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                                <div className="flex justify-end">
+                                    <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                                </div>
                             </div>
                             <div className="flex justify-between items-center mt-2">
                                 <p className="text-xs text-slate-400">{filteredSignals.length} sinais ativos • 84 pares 50x</p>
@@ -1444,8 +1451,6 @@
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] animate-pulse"></div>
 
                     <div className="relative z-10 flex flex-col items-center">
-                        <img src="/logo10D.png" alt="Logo" className="w-24 h-24 mb-12 drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]" />
-
                         <button
                             onClick={onEnter}
                             className="group relative px-12 py-4 bg-white/[0.03] border-2 border-primary/30 rounded-2xl overflow-hidden transition-all hover:border-primary hover:shadow-[0_0_40px_rgba(255,215,0,0.2)] active:scale-95"
@@ -1595,7 +1600,7 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#0A0A0B] overflow-hidden">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] overflow-hidden pb-32 sm:pb-24">
                     {pulseStatus === 'OFFLINE' && (
                         <div className="fixed inset-0 z-[100] bg-red-950/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                             <div className="bg-black/80 border border-red-500/50 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-pulse">
@@ -1609,17 +1614,19 @@
                     )}
 
                     {/* Premium Header - Gemini Style */}
-                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5 z-50">
+                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5 z-50">
                         <div className="max-w-3xl mx-auto">
-                            <div className="flex justify-between items-center">
+                            <div className="grid grid-cols-3 items-center">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
                                     <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
-                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : 'STABLE')}
+                                        {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : 'STABLE')}
                                     </span>
                                 </div>
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-tight">Deep Space</h1>
-                                <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-tight text-center">Deep Space</h1>
+                                <div className="flex justify-end">
+                                    <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                                </div>
                             </div>
 
                             <div className="flex justify-between items-end mt-4">
@@ -1715,6 +1722,7 @@
                         const response = await fetch(API_BASE + '/api/history');
                         if (response.ok) {
                             setHistory(await response.json());
+                            window.dispatchEvent(new CustomEvent('rest-pulse'));
                         }
                     } catch (e) {
                         console.error("History Fetch Error:", e);
@@ -1726,21 +1734,23 @@
             }, []);
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-32 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
-                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
-                            <div className="flex justify-between items-center">
+                            <div className="grid grid-cols-3 items-center">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
                                     <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
                                 </div>
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-wide">Mission Ledger</h1>
-                                <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-wide text-center">Ledger</h1>
+                                <div className="flex justify-end">
+                                    <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                                </div>
                             </div>
                             <div className="flex justify-between items-center mt-3">
                                 <p className="text-xs text-slate-400 capitalize">{history.length} operações encerradas</p>
-                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">v4.5.0 Archives</span>
+                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">v4.6.0 PWA Optimized</span>
                             </div>
                         </div>
                     </header>
@@ -1801,13 +1811,15 @@
         // 5. Vault Page (Iframe Integration)
         const VaultPage = () => {
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B]">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] pb-32 sm:pb-24">
                     {/* Header for Vault (since it's an iframe) */}
-                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
-                        <div className="max-w-3xl mx-auto flex justify-between items-center">
+                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                        <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="w-12"></div>
-                            <h1 className="text-base sm:text-lg font-display font-bold text-white">Vault Management</h1>
-                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                            <h1 className="text-base sm:text-lg font-display font-bold text-white text-center uppercase">Vault</h1>
+                            <div className="flex justify-end">
+                                <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                            </div>
                         </div>
                     </header>
 
@@ -1830,15 +1842,18 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-24">
+                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
-                    <header className="mb-6 bg-black/80 backdrop-blur-xl border-b border-white/5 -mx-4 -mt-4 px-4 py-3 sticky top-0 z-50">
-                        <div className="max-w-3xl mx-auto flex justify-between items-center">
+                    <header className="mb-6 bg-black/80 backdrop-blur-xl border-b border-white/5 -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
+                        <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white tracking-wide">Configurações</h1>
-                                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Security Center • V4.5.0</p>
+                                <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">v4.6.0 PWA</p>
                             </div>
-                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                            <div className="w-full"></div> {/* Placeholder for centering */}
+                            <div className="flex justify-end">
+                                <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                            </div>
                         </div>
                     </header>
 
@@ -1950,7 +1965,7 @@
 
             return (
                 <nav className="fixed bottom-0 w-full bg-[#0A0A0B]/95 backdrop-blur-xl border-t border-white/5 z-50 pb-4 pt-2">
-                    <div className="max-w-lg mx-auto flex justify-around items-end px-2">
+                    <div className="max-w-4xl mx-auto flex justify-around items-end px-2">
                         <NavItem to="/" icon="space_dashboard" label="Banca" isActive={location.pathname === '/'} />
                         <NavItem to="/radar" icon="radar" label="Radar" isActive={location.pathname === '/radar'} />
 

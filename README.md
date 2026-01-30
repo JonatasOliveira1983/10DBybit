@@ -1,28 +1,27 @@
-# 1CRYPTEN Space V4.5.0 GEMINI EXPERIENCE ✨🚀
+# 1CRYPTEN Space V4.6.0 PWA OPTIMIZED ✨🚀
 
 Sistema de Trading Autônomo com Escalabilidade Geométrica, Interface Premium inspirada no Gemini e Estabilidade de Execução.
 
 ---
 
-## 🆕 Novidades V4.5.0 - Gemini Experience
+## 🆕 Novidades V4.6.0 - PWA Optimized
 
-### Interface de Chat Redesenhada
-- **Welcome Screen Gemini:** Nova tela de boas-vindas com saudação dinâmica, frase do Capitão e chips de sugestão interativos.
-- **Input de IA Premium:** Campo de entrada com glow dourado e micro-interações de foco.
+### Mobile Scaling & Legibility
+- **Escala Mobile Nativa:** Fontes aumentadas para 14px-15px e remoção de restrições de largura, garantindo visualização perfeita em qualquer celular sem necessidade de zoom.
+- **Layout Full-Width:** NavBar inferior e containers expandidos para ocupar 100% da tela em modo PWA.
+- **Headers de Alta Precisão:** Títulos perfeitamente centralizados e logo ampliado para 48px, proporcionando uma experiência de app nativo.
 
-### Estética Global & headers
-- **Headers Centralizados:** Todas as páginas (Banca, Radar, Vault, Config, History) agora possuem cabeçalhos centralizados, elegantes e minimalistas.
-- **NavBar Refinada:** Menu inferior com ícones proporcionais e botão de chat destacado com sombra dourada.
-- **Status Bar PWA:** Corrigida para preto absoluto (`#000000`) para imersão total em dispositivos móveis.
+### Sincronização & Pulso
+- **Heartbeat Dinâmico:** Monitor de pulso sincronizado entre todas as páginas (Radar, Chat, Histórico), eliminando avisos falsos de "Offline".
+- **Dynamic Viewports:** Uso de `100dvh` para evitar sobreposição por barras de ferramentas de navegadores mobile.
 
-### Estabilidade & PnL
-- **PnL Calibrado:** Lógica de ROI (50x) corrigida com sinalização dinâmica (+/-) e cores verde/vermelho vibrantes.
-- **Gráficos Seguros:** Correção do erro `Object is disposed` no TradingChart, garantindo estabilidade total ao navegar entre abas.
-- **Service Worker v3:** Nova estratégia de cache para garantir carregamento instantâneo das atualizações.
+### Interface de Chat & Estética
+- **Input Area Protegida:** Padding inteligente para garantir que o campo de chat nunca seja coberto pela NavBar em nenhuma resolução.
+- **Acesso Direto:** Landing page simplificada com foco no botão "Acessar Ponte".
 
 ---
 
-## Slot Squadron Logic (Sniper v4.5)
+## Slot Squadron Logic (Sniper v4.6)
 
 | Tipo | Slots | Objetivo |
 |------|-------|---------------|
@@ -42,7 +41,7 @@ Acesse `http://localhost:5001`
 
 ---
 
-## Endpoints V4.5.0
+## Endpoints V4.6.0
 
 | Endpoint | Método | Descrição |
 |----------|--------|-----------|
@@ -53,4 +52,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Deep Space - V4.5.0 Gemini Experience.**
+**Operação: 10D - Deep Space - V4.6.0 PWA Optimized.**
