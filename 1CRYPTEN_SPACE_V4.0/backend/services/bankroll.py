@@ -31,124 +31,98 @@ class BankrollManager:
         1. Clears slots that have no matching position on Bybit (Stale).
         2. Populates empty slots with active Bybit positions (Recovery).
         """
+    async def sync_slots_with_exchange(self):
+        """
+        V4.9.4.3: Persistence Shield 2.0 - FIREBASE IS TRUTH.
+        In PAPER mode, if a slot has a symbol, we ensure it exists in memory.
+        We only clear slots if we explicitly receive a closure command or a CLEAR signal.
+        """
         logger.info("Starting Slot <-> Exchange Synchronization...")
         try:
             # 1. Fetch Exchange Data
             positions = await bybit_rest_service.get_active_positions()
-            # Map symbol -> position_data
-            # NOTE: We use normalized symbols for comparison
-            exchange_map = {bybit_rest_service._strip_p(p["symbol"]): p for p in positions}
+            # Map normalized symbols for comparison
+            exchange_map = {bybit_rest_service._strip_p(p["symbol"]).upper(): p for p in positions}
             active_symbols = list(exchange_map.keys())
             logger.info(f"Exchange Positions ({len(active_symbols)}): {active_symbols}")
 
             # 2. Fetch DB Slots
             slots = await firebase_service.get_active_slots()
-            db_symbols = {s["symbol"]: s["id"] for s in slots if s.get("symbol")}
-
-            # RECOVERY LOGIC for PAPER MODE:
-            is_server_restart = (bybit_rest_service.execution_mode == "PAPER" and len(exchange_map) == 0)
-
-            # 3. Clear Stale Slots (DB has it, Exchange doesn't)
+            
+            # 3. Persistence Logic for PAPER MODE
             for slot in slots:
                 symbol = slot.get("symbol")
                 if not symbol: continue
                 
-                norm_symbol = bybit_rest_service._strip_p(symbol)
-                
-                # V4.2.6: Persistence Shield - Don't clear if opened in the last 120 seconds
-                # to avoid "flicker" during sync delays.
+                norm_symbol = bybit_rest_service._strip_p(symbol).upper()
+                slot_id = slot["id"]
+
+                # V4.2.6: Persistence Shield - Don't even touch if opened in the last 120 seconds
                 entry_ts = slot.get("timestamp_last_update") or 0
                 if (time.time() - entry_ts) < 120:
                      continue
 
-                if is_server_restart and norm_symbol not in exchange_map:
-                    # Avoid double recovery of the same symbol if it exists in slots multiple times with/without .P
-                    if any(p["symbol"] == norm_symbol for p in bybit_rest_service.paper_positions):
-                        continue
+                if bybit_rest_service.execution_mode == "PAPER":
+                    if norm_symbol not in exchange_map:
+                        # RECOVERY INSTEAD OF CLEARING
+                        entry_price = float(slot.get("entry_price", 0))
+                        side = slot.get("side")
                         
-                    logger.info(f"Sync [PAPER RECOVERY]: Re-adopting {symbol} into memory state.")
-                    bybit_rest_service.paper_positions.append({
-                        "symbol": norm_symbol, "side": slot.get("side"),
-                        "avgPrice": float(slot.get("entry_price", 0)), 
-                        "stopLoss": float(slot.get("current_stop", 0)),
-                        "size": 5.0 / float(slot.get("entry_price", 1)) if float(slot.get("entry_price", 0)) > 0 else 1.0,
-                        "positionValue": 5.0, "unrealisedPnl": 0
-                    })
-                    # Add to local exchange_map immediately to prevent next loop iteration from thinking it's still missing
-                    exchange_map[norm_symbol] = bybit_rest_service.paper_positions[-1]
-                    continue
-
-                if norm_symbol not in exchange_map:
-                    logger.warning(f"Sync: Slot {slot['id']} for {symbol} is stale. Fetching result before clearing.")
-                    
-                    try:
-                        closed_list = await asyncio.to_thread(bybit_rest_service.get_closed_pnl, symbol)
-                        if closed_list:
-                            last_trade = closed_list[0]
-                            pnl = float(last_trade.get("closedPnl", 0))
-                            await firebase_service.log_trade({
-                                "symbol": symbol,
-                                "side": last_trade.get("side"),
-                                "entry_price": float(last_trade.get("avgEntryPrice", 0)),
-                                "exit_price": float(last_trade.get("avgExitPrice", 0)),
-                                "pnl": pnl,
-                                "leverage": last_trade.get("leverage"),
-                                "qty": last_trade.get("qty"),
-                                "closed_at": last_trade.get("updatedTime")
-                            })
+                        # V4.9.4.3: Validate before re-adopting
+                        if not side or entry_price <= 0:
+                            logger.warning(f"Sync: Slot {slot_id} ({symbol}) has invalid data (side={side}, entry={entry_price}). Skipping.")
+                            continue
+                        
+                        logger.warning(f"Sync [PAPER PERSISTENCE]: Slot {slot_id} ({symbol}) missing from memory. RE-ADOPTING.")
+                        
+                        qty = float(slot.get("qty", 0))
+                        if qty <= 0:
+                            qty = 5.0 * 50 / entry_price # Fallback calculation
                             
-                            # V4.9.4: Register Vault metrics optimized
-                            slot_id = slot.get("id")
-                            is_sniper = (slot_id <= 5 or slot.get("slot_type") == "SNIPER")
-                            
-                            if is_sniper:
-                                await self.register_sniper_trade({"symbol": symbol, "pnl": pnl})
-                            else:
-                                await self.register_surf_trade({"symbol": symbol, "pnl": pnl})
-                                
-                            logger.info(f"Sync: Logged final trade for {symbol}. PnL: {pnl}")
-                    except Exception as e:
-                        logger.error(f"Sync: Error logging closed trade for {symbol}: {e}")
+                        bybit_rest_service.paper_positions.append({
+                            "symbol": norm_symbol, 
+                            "side": side,
+                            "avgPrice": entry_price, 
+                            "stopLoss": float(slot.get("current_stop", 0)),
+                            "size": qty,
+                            "positionValue": qty * entry_price, 
+                            "unrealisedPnl": 0
+                        })
+                        # Update map so next iteration knows it's there
+                        exchange_map[norm_symbol] = bybit_rest_service.paper_positions[-1]
+                        continue
+                else:
+                    # REAL MODE: Clear if truly stale
+                    if norm_symbol not in exchange_map:
+                        logger.warning(f"Sync [REAL]: Clearing stale slot {slot_id} for {symbol}")
+                        await firebase_service.update_slot(slot_id, {
+                            "symbol": None, "entry_price": 0, "current_stop": 0, 
+                            "status_risco": "IDLE", "side": None, "pnl_percent": 0
+                        })
 
-                    logger.warning(f"Sync: Clearing stale slot {slot['id']} for {symbol}")
-                    await firebase_service.update_slot(slot["id"], {
-                        "symbol": None, "entry_price": 0, "current_stop": 0, 
-                        "status_risco": "IDLE", "side": None, "pnl_percent": 0
-                    })
-            
-            # 4. Recover Missing Slots (Exchange has it, DB doesn't)
-            # V4.3.1: Use normalized symbols for comparison to avoid duplicates
-            db_symbols_normalized = {bybit_rest_service._strip_p(s.get("symbol", "")): s["id"] for s in slots if s.get("symbol")}
-            
+            # 4. Import Missing Positions (Exchange has it, DB doesn't)
             for symbol, pos in exchange_map.items():
-                # V4.3.1: Check normalized symbol to prevent duplicates like ONDOUSDT.P vs ONDOUSDT
-                if symbol in db_symbols_normalized:
-                    continue  # Already exists, skip recovery
-                
+                if any(bybit_rest_service._strip_p(s.get("symbol", "")).upper() == symbol for s in slots):
+                    continue 
+
                 # Find empty slot
                 empty_slot = next((s for s in slots if not s.get("symbol")), None)
                 if not empty_slot:
-                    logger.warning(f"Sync: Could not import {symbol} - No empty slots!")
                     continue
                 
-                # Import Data
-                entry = float(pos.get("avgPrice", 0))
-                side = pos.get("side") # Buy/Sell
-                stop_loss = float(pos.get("stopLoss", 0))
-                
-                logger.info(f"Sync: Recovering {symbol} into Slot {empty_slot['id']}. Entry: {entry}")
+                logger.info(f"Sync: Recovering {symbol} into Slot {empty_slot['id']}.")
                 await firebase_service.update_slot(empty_slot["id"], {
                     "symbol": symbol,
-                    "side": side,
-                    "entry_price": entry,
-                    "current_stop": stop_loss,
+                    "side": pos.get("side"),
+                    "entry_price": float(pos.get("avgPrice", 0)),
+                    "current_stop": float(pos.get("stopLoss", 0)),
                     "status_risco": "RECOVERED",
-                    "pnl_percent": 0 # Guardian will update this
+                    "pnl_percent": 0,
+                    "qty": float(pos.get("size", 0)),
+                    "timestamp_last_update": time.time()
                 })
-                # Refresh local list to avoid double assignment if we had multiple
+                # Refresh local list
                 slots = await firebase_service.get_active_slots()
-                # V4.3.1: Also update the normalized map
-                db_symbols_normalized[symbol] = empty_slot["id"]
 
             await firebase_service.log_event("Bankroll", f"Sync Complete. Active: {len(active_symbols)}", "SUCCESS")
 

@@ -75,11 +75,17 @@ class GuardianAgent:
                 self.overclock_active = False
                 return
 
-            # Batch Ticker Update
+            # Batch Ticker Update - V4.9.4.3: Surgical Normalization
             try:
                 tickers_resp = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear")
                 ticker_list = tickers_resp.get("result", {}).get("list", [])
-                price_map = {t["symbol"]: float(t.get("lastPrice", 0)) for t in ticker_list}
+                
+                # Normalize ALL keys: remove .P, remove USDT, uppercase
+                price_map = {}
+                for t in ticker_list:
+                    base_sym = t["symbol"].replace(".P", "").replace("USDT", "").upper()
+                    price_map[base_sym] = float(t.get("lastPrice", 0))
+                
             except Exception as te:
                 logger.error(f"Guardian batch ticker failure: {te}")
                 return
@@ -97,12 +103,19 @@ class GuardianAgent:
                 if entry == 0: 
                     continue
                     
-                # Get current price
-                last_price = price_map.get(symbol, 0)
-                if last_price == 0 and "." in symbol:
-                    last_price = price_map.get(symbol.split('.')[0], 0)
+                # Get current price using Normalized Key
+                norm_key = symbol.replace(".P", "").replace("USDT", "").upper()
+                last_price = price_map.get(norm_key, 0)
                 
                 if last_price == 0: 
+                    logger.warning(f"Guardian: Price not found for {symbol} (key: {norm_key})")
+                    continue
+
+                # ROI Sanity Guard: Block impossible jumps (e.g. 40x price move due to naming mismatch)
+                # This prevents the -$11k loss bug on SHIB1000 vs ADA
+                price_ratio = last_price / entry if entry > 0 else 1
+                if price_ratio > 20 or price_ratio < 0.05:
+                    logger.error(f"🛑 ROI SANITY BLOCK: {symbol} Entry={entry} | Current={last_price} | Ratio={price_ratio:.1f}x. Check naming.")
                     continue
 
                 # Calculate PnL/ROI
