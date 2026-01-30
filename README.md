@@ -1,28 +1,28 @@
-# 1CRYPTEN Space V4.8.1 ELITE ✨🚀
+# 1CRYPTEN Space V4.9.1 MICRO-COMPACT ✨🚀
 
-Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface Premium e Estabilidade de Execução.
+Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface **Micro-Compact (V4.9.1)** e Estabilidade de Execução.
 
 ---
 
-## 🆕 Novidades V4.8.1 - Protocolo Elite
+## 🆕 Novidades V4.9.1 - Micro-Compact Evolution
+
+### 📱 Otimização Micro-Compact (Global)
+- **Escala Reduzida (14px Base):** Redução global de escala para máxima densidade de informação em telas mobile de qualquer tamanho.
+- **Botões Ultra-Eficientes (38px):** Padronização de altura de botões em 38px para equilíbrio entre toque e economia de espaço vertical.
+- **Card Architecture V4.9:** Paddings reduzidos para `p-4` e cantos `rounded-xl` para um design mais "lean" e moderno.
+- **Fix "Leakage":** Implementação de `overflow-hidden` em todos os containers críticos para evitar vazamento de conteúdo em dispositivos pequenos.
 
 ### 🛡️ Gerenciamento de Risco Elite
 - **Protocolo 4-Slots Máximo:** Rigoroso limite de 4 ordens em risco simultâneo (20% da banca).
-- **Expansão Inteligente:** Novos slots (até 10) são liberados apenas quando ordens existentes atingem **Risk-Zero** (Stop na entrada) ou são concluídas.
-- **Validação Multinível:** Verificação dupla no `Captain` e `BankrollManager` para garantir proteção absoluta do capital.
+- **Expansão Inteligente:** Novos slots (até 10) são liberados apenas quando ordens existentes atingem **Risk-Zero** ou são concluídas.
 
 ### 📊 Interface & Gráficos
 - **Layout Mobile-Full:** Gráficos ocupando 50% da tela com toggle **Fullscreen** ao toque.
-- **Escala de Preços de Alta Precisão:** Suporte dinâmico de 2 a 8 casas decimais para visualização clara de entradas e saídas.
-- **Slots Compactos:** Design 40% mais eficiente para mobile, priorizando informações críticas.
-
-### 🎙️ Voz & IA
-- **Capitão 100% Masculino:** Fixada voz premium `Antonio (Neural)` no backend e fallback inteligente no frontend para manter a identidade masculina do comandante.
-- **Sincronização de Pulso:** Monitor cardíaco entre Radar, Chat e Slots.
+- **Escala de Preços Premium:** Suporte dinâmico para múltiplas casas decimais.
 
 ---
 
-## Slot Squadron Logic (Elite v4.8)
+## Slot Squadron Logic (V4.9.1)
 
 | Tipo | Slots | Comportamento |
 |------|-------|---------------|
@@ -42,15 +42,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-## Endpoints Elite
-
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
-| `/api/tts` | POST | Vozes neurais masculinas padrão |
-| `/api/chat` | POST | Motor de IA do Captain |
-| `/api/slots` | GET | Sincronização de 10 slots |
-| `/panic` | POST | Protocolo de limpeza total |
-
----
-
-**Operação: 10D - Elite Protocol - V4.8.1.**
+**Operação: 10D - Micro-Compact Evolution - V4.9.1.**

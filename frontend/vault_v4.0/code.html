@@ -66,19 +66,40 @@
             border-radius: 10px;
         }
 
-        /* V4.3.3: Legibilidade MÁXIMA Mobile - Estilo Gemini - AJUSTADO V4.9 */
+        /* V4.9.1: Otimização Micro-Compact */
         html {
-            font-size: 16px !important;
+            font-size: 14px !important;
         }
 
-        /* Fontes ajustadas para 4.9 Compact */
+        /* Fontes ajustadas para escala Micro */
         .text-\[8px\],
-        .text-\[9px\] {
-            font-size: 10px !important;
+        .text-\[9px\],
+        .text-\[10px\] {
+            font-size: 9px !important;
         }
 
-        .text-\[10px\] {
+        .text-xs {
             font-size: 11px !important;
+        }
+
+        .text-sm {
+            font-size: 12px !important;
+        }
+
+        .text-base {
+            font-size: 13px !important;
+        }
+
+        .text-lg {
+            font-size: 15px !important;
+        }
+
+        .text-xl {
+            font-size: 18px !important;
+        }
+
+        .text-2xl {
+            font-size: 20px !important;
         }
 
         /* Fontes xs → 17px */
@@ -114,30 +135,19 @@
             font-size: 24px !important;
         }
 
-        /* Melhorar legibilidade de botões e inputs */
         button,
         .cursor-pointer {
-            min-height: 48px !important;
+            min-height: 38px !important;
         }
 
         input {
-            font-size: 18px !important;
-            padding: 1rem 1.25rem !important;
+            font-size: 14px !important;
+            padding: 0.6rem 0.8rem !important;
         }
 
-        /* Ícones Material mais visíveis */
+        /* Ícones Material Micro */
         .material-icons-round {
-            font-size: 28px !important;
-        }
-
-        /* Layout touch-friendly */
-        nav {
-            min-height: 64px !important;
-            padding-top: env(safe-area-inset-top, 20px) !important;
-        }
-
-        .glass {
-            padding: 12px !important;
+            font-size: 20px !important;
         }
     </style>
 </head>

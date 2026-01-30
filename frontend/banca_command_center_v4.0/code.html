@@ -156,27 +156,40 @@
             }
         }
 
-        /* V4.3.3: Legibilidade MÁXIMA Mobile - Estilo Gemini - AJUSTADO V4.9 */
+        /* V4.9.1: Otimização Micro-Compact */
         html {
-            font-size: 16px !important;
+            font-size: 14px !important;
         }
 
-        /* Fontes ajustadas para 4.9 Compact */
-        .text-\[8px\],
-        .text-\[9px\] {
-            font-size: 10px !important;
-        }
-
-        .text-\[10px\] {
-            font-size: 11px !important;
-        }
-
-        /* Fontes muito pequenas → mínimo 16px */
+        /* Fontes ajustadas para escala Micro */
         .text-\[8px\],
         .text-\[9px\],
         .text-\[10px\] {
+            font-size: 9px !important;
+        }
+
+        .text-xs {
+            font-size: 11px !important;
+        }
+
+        .text-sm {
+            font-size: 12px !important;
+        }
+
+        .text-base {
+            font-size: 13px !important;
+        }
+
+        .text-lg {
             font-size: 16px !important;
-            line-height: 1.4 !important;
+        }
+
+        .text-xl {
+            font-size: 18px !important;
+        }
+
+        .text-2xl {
+            font-size: 20px !important;
         }
 
         /* Fontes xs → 17px */
@@ -207,9 +220,26 @@
             font-size: 26px !important;
         }
 
-        /* Fontes 2xl → 24px */
+        /* Fontes 2xl → 22px */
         .text-2xl {
-            font-size: 24px !important;
+            font-size: 22px !important;
+        }
+
+        button,
+        .cursor-pointer {
+            min-height: 38px !important;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            font-size: 14px !important;
+            padding: 0.6rem 0.8rem !important;
+        }
+
+        /* Ícones Material Micro */
+        .material-icons-round {
+            font-size: 22px !important;
         }
 
         /* Melhorar legibilidade de botões e inputs */
@@ -244,7 +274,7 @@
 
         .glass-card,
         .slot-card {
-            padding: 12px !important;
+            padding: 10px !important;
         }
     </style>
     <style>

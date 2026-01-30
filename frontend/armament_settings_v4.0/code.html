@@ -75,59 +75,63 @@
             min-height: max(884px, 100dvh);
         }
 
-        /* V4.3.3: Legibilidade MÁXIMA Mobile - Estilo Gemini - AJUSTADO V4.9 */
+        /* V4.9.1: Otimização Micro-Compact */
         html {
-            font-size: 16px !important;
+            font-size: 14px !important;
         }
 
-        /* Fontes ajustadas para 4.9 Compact */
+        /* Fontes ajustadas para escala Micro */
         .text-\[8px\],
         .text-\[9px\],
         .text-\[10px\] {
+            font-size: 10px !important;
+        }
+
+        .text-xs {
             font-size: 11px !important;
         }
 
-        /* Fontes sm → 17px */
+        /* Fontes sm → 13px */
         .text-sm {
-            font-size: 17px !important;
-            line-height: 1.5 !important;
+            font-size: 12px !important;
+            line-height: 1.4 !important;
         }
 
-        /* Fontes base → 19px */
+        /* Fontes base → 14px */
         .text-base {
-            font-size: 19px !important;
-            line-height: 1.5 !important;
+            font-size: 13px !important;
+            line-height: 1.4 !important;
         }
 
-        /* Fontes lg → 22px */
+        /* Fontes lg → 16px */
         .text-lg {
+            font-size: 16px !important;
+        }
+
+        /* Fontes xl → 20px */
+        .text-xl {
+            font-size: 20px !important;
+        }
+
+        /* Fontes 2xl → 22px */
+        .text-2xl {
             font-size: 22px !important;
         }
 
-        /* Fontes xl → 26px */
-        .text-xl {
-            font-size: 26px !important;
-        }
-
-        /* Fontes 2xl → 24px */
-        .text-2xl {
-            font-size: 24px !important;
-        }
-
-        /* Melhorar legibilidade de botões e inputs */
+        /* Melhorar legibilidade de botões e inputs COMPACTO */
         button,
         .cursor-pointer {
-            min-height: 52px !important;
+            min-height: 38px !important;
         }
 
         input {
-            font-size: 18px !important;
-            padding: 1rem 1.25rem !important;
+            font-size: 14px !important;
+            padding: 0.75rem 1rem !important;
         }
 
-        /* Ícones Material mais visíveis */
+        /* Ícones Material COMPACTO */
         .material-icons-round {
-            font-size: 28px !important;
+            font-size: 22px !important;
         }
 
         /* Layout touch-friendly */
@@ -137,12 +141,12 @@
         }
 
         nav {
-            min-height: 80px !important;
-            padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+            min-height: 64px !important;
+            padding-bottom: env(safe-area-inset-bottom, 12px) !important;
         }
 
         .bg-surface\/50 {
-            padding: 16px !important;
+            padding: 12px !important;
         }
     </style>
 </head>
@@ -156,8 +160,8 @@
                 <img alt="1Crypten Logo" class="w-6 h-6 object-contain"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbA9j0OpJkmXBGPNebsqNk6vCUx8mRLHRHvQl4xnBFVHEOC7FXh_JqaXJa-ZUnMCWOQBzQhSOINv0Y92qK9d3yws0lm4k0bs39ZCzMCg0C0v170IURjerVADlpHluV3r_mgzFkwxMjhc_9eR-xJ3QKZxbklciux5P1J2futXcFbThwWgNm_2ieSUx3PHB9h8zZcPqt5vzQeucyw4CQqrmCBN7iyhfw-gZqz_oaUKlS7r2sh2ANik1zL2SoykTI3FFdVz0n6Dw9fp4" />
             </div>
-            <h1 class="font-display text-lg font-bold tracking-tight text-white uppercase tracking-widest">Armament
-                <span class="text-primary">v4.6.5</span>
+            <h1 class="font-display text-base font-bold tracking-tight text-white uppercase tracking-widest">Armament
+                <span class="text-primary">v4.9.1</span>
             </h1>
         </div>
         <button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors">
@@ -280,12 +284,12 @@
         </section>
         <section class="pt-6">
             <button
-                class="w-full bg-red-600 hover:bg-red-700 text-white font-display font-bold py-5 rounded-2xl shadow-lg shadow-red-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-                <span class="material-icons-round">power_settings_new</span>
+                class="w-full bg-red-600 hover:bg-red-700 text-white font-display font-bold py-3 rounded-xl shadow-lg shadow-red-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <span class="material-icons-round text-sm">power_settings_new</span>
                 ENCERRAR TUDO E DESCONECTAR
             </button>
-            <p class="text-center text-[10px] text-red-400/60 mt-4 uppercase tracking-[0.2em]">Protocolo de emergência
-                nível 4</p>
+            <p class="text-center text-[8px] text-red-400/60 mt-3 uppercase tracking-[0.2em]">Protocolo de emergência
+                nível Elite</p>
         </section>
     </main>
     <nav
