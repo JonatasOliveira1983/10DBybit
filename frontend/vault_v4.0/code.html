@@ -66,25 +66,77 @@
             border-radius: 10px;
         }
 
-        /* V4.3.1: Legibilidade Melhorada */
+        /* V4.3.3: Legibilidade MÁXIMA Mobile - Estilo Gemini */
+        /* BASE: Define font-size maior para todo o app */
+        html {
+            font-size: 18px !important;
+        }
+
+        /* Fontes muito pequenas → mínimo 16px */
         .text-\[8px\],
         .text-\[9px\],
-        .text-\[10px\],
-        .text-xs {
-            font-size: 14px !important;
-        }
-
-        .text-sm {
-            font-size: 15px !important;
-        }
-
-        input,
-        button {
+        .text-\[10px\] {
             font-size: 16px !important;
+            line-height: 1.4 !important;
         }
 
+        /* Fontes xs → 17px */
+        .text-xs {
+            font-size: 17px !important;
+            line-height: 1.4 !important;
+        }
+
+        /* Fontes sm → 18px */
+        .text-sm {
+            font-size: 18px !important;
+            line-height: 1.5 !important;
+        }
+
+        /* Fontes base → 19px */
+        .text-base {
+            font-size: 19px !important;
+            line-height: 1.5 !important;
+        }
+
+        /* Fontes lg → 22px */
+        .text-lg {
+            font-size: 22px !important;
+        }
+
+        /* Fontes xl → 26px */
+        .text-xl {
+            font-size: 26px !important;
+        }
+
+        /* Fontes 2xl → 32px */
+        .text-2xl {
+            font-size: 32px !important;
+        }
+
+        /* Melhorar legibilidade de botões e inputs */
+        button,
+        .cursor-pointer {
+            min-height: 48px !important;
+        }
+
+        input {
+            font-size: 18px !important;
+            padding: 1rem 1.25rem !important;
+        }
+
+        /* Ícones Material mais visíveis */
         .material-icons-round {
-            font-size: 24px !important;
+            font-size: 28px !important;
+        }
+
+        /* Layout touch-friendly */
+        nav {
+            min-height: 64px !important;
+            padding-top: env(safe-area-inset-top, 20px) !important;
+        }
+
+        .glass {
+            padding: 20px !important;
         }
     </style>
 </head>

@@ -99,23 +99,86 @@
             min-height: max(884px, 100dvh);
         }
 
-        /* V4.3.1: Legibilidade Melhorada */
+        /* V4.3.3: Legibilidade MÁXIMA Mobile - Estilo Gemini */
+        /* Tamanhos aumentados significativamente para visualização confortável */
+
+        /* BASE: Define font-size maior para todo o app */
+        html {
+            font-size: 18px !important;
+        }
+
+        /* Fontes muito pequenas → mínimo 16px */
         .text-\[8px\],
         .text-\[9px\],
         .text-\[10px\] {
-            font-size: 13px !important;
+            font-size: 16px !important;
+            line-height: 1.4 !important;
         }
 
+        /* Fontes xs → 17px */
         .text-xs {
-            font-size: 14px !important;
+            font-size: 17px !important;
+            line-height: 1.4 !important;
         }
 
+        /* Fontes sm → 18px */
         .text-sm {
-            font-size: 15px !important;
+            font-size: 18px !important;
+            line-height: 1.5 !important;
         }
 
+        /* Fontes base → 19px */
+        .text-base {
+            font-size: 19px !important;
+            line-height: 1.5 !important;
+        }
+
+        /* Fontes lg → 22px */
+        .text-lg {
+            font-size: 22px !important;
+        }
+
+        /* Fontes xl → 26px */
+        .text-xl {
+            font-size: 26px !important;
+        }
+
+        /* Fontes 2xl → 32px */
+        .text-2xl {
+            font-size: 32px !important;
+        }
+
+        /* Melhorar legibilidade de botões e inputs */
+        button,
+        .cursor-pointer {
+            min-height: 48px !important;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            font-size: 18px !important;
+            padding: 1rem 1.25rem !important;
+        }
+
+        /* Ícones Material mais visíveis */
         .material-icons-round {
-            font-size: 24px !important;
+            font-size: 28px !important;
+        }
+
+        /* Layout touch-friendly */
+        header {
+            min-height: 64px !important;
+            padding-top: env(safe-area-inset-top, 20px) !important;
+        }
+
+        nav {
+            min-height: 80px !important;
+            padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+        }
+
+        .glass-card {
+            padding: 20px !important;
         }
     </style>
 </head>
@@ -130,7 +193,7 @@
                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLuybb5pKHv4y_J2ZJLok-mXlBHjL_JYE_FGym5uVd79Nm4pyDYNuGjobaaBb41LWR6VptC8wJtFgPuhuZFesV9jrnmhOAlxPFChqENZ8Y5eJlA0LSPOjL9g4cW2ABVgs-N2vlOR6m5RZH3RbP1Ha3WZxT1qt7nmeKBY5rXDgFef8w2qbWXGiyAEJ88ZY_pu9GJTHlO0mm2E9QMVStpsUpcZjro9nv_ovMlwbFyw45aqAySdjRtM4-GDVGflfJkpOv9j_5Vl2qsXc" />
                 </div>
                 <h1 class="font-display font-bold text-lg tracking-tight">Journey Radar <span
-                        class="text-xs font-normal opacity-50 ml-1">v4.0</span></h1>
+                        class="text-xs font-normal opacity-50 ml-1">v4.6.0 PWA</span></h1>
             </div>
             <button
                 class="w-10 h-10 rounded-full flex items-center justify-center bg-accent-blue/50 text-primary border border-primary/20">

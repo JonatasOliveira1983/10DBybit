@@ -7,7 +7,8 @@ Sistema de Trading Autônomo com Escalabilidade Geométrica, Interface Premium i
 ## 🆕 Novidades V4.6.0 - PWA Optimized
 
 ### Mobile Scaling & Legibility
-- **Escala Mobile Nativa:** Fontes aumentadas para 14px-15px e remoção de restrições de largura, garantindo visualização perfeita em qualquer celular sem necessidade de zoom.
+- **Legibilidade MÁXIMA (Estilo Gemini):** Fontes base aumentadas para 18px, ícones ampliados para 28px e touch targets de 48px-52px, garantindo visualização perfeita e navegação confortável em qualquer celular/PWA.
+- **Layout Mobile-First:** Padding inteligente e containers otimizados para ocupar 100% da largura útil sem necessidade de zoom.
 - **Layout Full-Width:** NavBar inferior e containers expandidos para ocupar 100% da tela em modo PWA.
 - **Headers de Alta Precisão:** Títulos perfeitamente centralizados e logo ampliado para 48px, proporcionando uma experiência de app nativo.
 
