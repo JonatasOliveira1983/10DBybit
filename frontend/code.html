@@ -2002,9 +2002,14 @@
                 const runChecks = async () => {
                     // Check API
                     try {
+                        console.log("Checking API at:", API_BASE + '/health');
                         const res = await fetch(API_BASE + '/health');
+                        console.log("API Result:", res.status, res.ok);
                         setChecks(prev => ({ ...prev, api: { ...prev.api, status: res.ok ? 'success' : 'error' } }));
-                    } catch (e) { setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } })); }
+                    } catch (e) {
+                        console.error("API Error Details:", e);
+                        setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } }));
+                    }
 
                     // Check Latency (simulated or real from health)
                     setTimeout(() => {
@@ -2013,9 +2018,14 @@
 
                     // Check Balance
                     try {
+                        console.log("Checking Balance at:", API_BASE + '/banca');
                         const res = await fetch(API_BASE + '/banca');
+                        console.log("Balance Result:", res.status, res.ok);
                         setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: res.ok ? 'success' : 'error' } }));
-                    } catch (e) { setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } })); }
+                    } catch (e) {
+                        console.error("Balance Error Details:", e);
+                        setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } }));
+                    }
 
                     // Final Captain Protocol
                     setTimeout(() => {
