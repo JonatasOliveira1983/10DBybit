@@ -272,41 +272,39 @@ class BybitREST:
              if pos:
                  # Calculate Realized PNL to update Paper Balance
                  try:
-                     api_symbol = self._strip_p(symbol)
-                     ticker = await asyncio.to_thread(self.session.get_tickers, category="linear", symbol=api_symbol)
-                     exit_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
-                     entry_price = float(pos["avgPrice"])
-                     size = float(pos["size"])
-                     leverage = float(pos.get("leverage", 50))
-                     
-                     # PNL Formula: (Exit - Entry) * Size (for Buy) - rough approx for linear USDT
-                     # Correct Linear PNL = Size * (Exit - Entry) if Buy
-                     # Size in Bybit is usually in Token Amount (e.g. 1 ETH)
-                     raw_pnl = size * (exit_price - entry_price) if pos["side"].lower() == "buy" else size * (entry_price - exit_price)
-                     
-                     tax = raw_pnl * 0.001 # 0.1% taker fee approx
-                     final_pnl = raw_pnl - tax
-                     
-                     self.paper_balance += final_pnl
-                     self.paper_orders_history.append({
-                         "symbol": symbol,
-                         "side": pos["side"],
-                         "avgEntryPrice": str(entry_price),
-                         "avgExitPrice": str(exit_price),
-                         "closedPnl": str(final_pnl),
-                         "leverage": str(leverage),
-                         "qty": str(size),
-                         "updatedTime": "123456789"
-                     })
-                     
-                     self.paper_positions.remove(pos)
-                     logger.info(f"[PAPER] Closed {symbol}. PNL: ${final_pnl:.2f}. New Balance: ${self.paper_balance:.2f}")
-                     return {"retCode": 0}
-                 except Exception as e:
-                     logger.error(f"[PAPER] Error calc PNL during close: {e}")
-                     # Force close anyway
-                     self.paper_positions.remove(pos)
-                     return {"retCode": 0}
+                    from services.execution_protocol import execution_protocol
+                    api_symbol = self._strip_p(symbol)
+                    ticker = await asyncio.to_thread(self.session.get_tickers, category="linear", symbol=api_symbol)
+                    exit_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
+                    
+                    entry_price = float(pos["avgPrice"])
+                    size = float(pos["size"])
+                    leverage = float(pos.get("leverage", 50))
+                    side = pos["side"]
+
+                    final_pnl = execution_protocol.calculate_pnl(entry_price, exit_price, size, side)
+                    
+                    self.paper_balance += final_pnl
+                    self.paper_orders_history.append({
+                        "symbol": symbol,
+                        "side": side,
+                        "avgEntryPrice": str(entry_price),
+                        "avgExitPrice": str(exit_price),
+                        "closedPnl": str(final_pnl),
+                        "leverage": str(leverage),
+                        "qty": str(size),
+                        "updatedTime": str(int(time.time() * 1000))
+                    })
+                    
+                    if pos in self.paper_positions:
+                        self.paper_positions.remove(pos)
+                    logger.info(f"[PAPER] Closed {symbol}. PNL: ${final_pnl:.2f}. New Balance: ${self.paper_balance:.2f}")
+                    return {"retCode": 0}
+                except Exception as e:
+                    logger.error(f"[PAPER] Error during position closure: {e}")
+                    if pos in self.paper_positions:
+                        self.paper_positions.remove(pos)
+                    return {"retCode": 0}
              return {"retCode": 0}
 
         try:
@@ -471,13 +469,12 @@ class BybitREST:
                     
                     # Reset Firebase slot atomically
                     if slot_id:
-                        # Calculate PNL for logging
+                        # Calculate accurate PNL
                         entry = close_data["entry_price"]
                         exit_price = close_data["exit_price"]
-                        side_norm = (side or "").lower()
+                        side = close_data["side"]
                         
-                        pnl = size * (exit_price - entry) if side_norm == "buy" else size * (entry - exit_price)
-                        pnl -= abs(pnl) * 0.001  # ~0.1% fee
+                        pnl = execution_protocol.calculate_pnl(entry, exit_price, size, side)
                         
                         trade_data = {
                             "symbol": sym,

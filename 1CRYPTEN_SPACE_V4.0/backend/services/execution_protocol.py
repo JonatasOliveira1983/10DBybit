@@ -258,6 +258,23 @@ class ExecutionProtocol:
         should_close, reason = self.process_sniper_logic(slot_data, current_price, roi)
         return should_close, reason, None
 
+    def calculate_pnl(self, entry_price: float, exit_price: float, qty: float, side: str) -> float:
+        """
+        Calcula o PnL realizado em USD considerando taxas de corretagem (taker).
+        """
+        if entry_price <= 0 or qty <= 0:
+            return 0.0
+            
+        side_norm = (side or "").lower()
+        if side_norm == "buy":
+            raw_pnl = qty * (exit_price - entry_price)
+        else: # Sell/Short
+            raw_pnl = qty * (entry_price - exit_price)
+            
+        # Estimativa de taxa (abertura + fechamento ~ 0.12%)
+        fee = (qty * exit_price) * 0.0012
+        return raw_pnl - fee
+
 
 # Instância global
 execution_protocol = ExecutionProtocol()

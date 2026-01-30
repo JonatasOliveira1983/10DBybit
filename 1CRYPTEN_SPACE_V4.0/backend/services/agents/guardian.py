@@ -159,16 +159,20 @@ class GuardianAgent:
                         
                         # V4.5.2: Close position in BOTH PAPER and REAL modes
                         try:
+                            qty = slot.get("qty", 0)
+                            pnl_usd = execution_protocol.calculate_pnl(entry, last_price, qty, side)
+                            
                             if bybit_rest_service.execution_mode == "PAPER":
-                                # Close paper position
-                                paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol), None)
+                                # Close paper position - check existence first
+                                paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol or p["symbol"] == bybit_rest_service._strip_p(symbol)), None)
                                 if paper_pos:
                                     size = float(paper_pos.get("size", 0))
                                     logger.info(f"🔨 [PAPER] GUARDIAN HAMMER: Closing {symbol} | Size: {size}")
-                                    result = await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
-                                    logger.info(f"✅ [PAPER] Position closed. New balance: ${bybit_rest_service.paper_balance:.2f}")
+                                    await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
+                                    # Reset slot in Firebase ONLY if closure was triggered
+                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                                 else:
-                                    logger.warning(f"⚠️ [PAPER] No paper position found for {symbol}")
+                                    logger.warning(f"⚠️ [PAPER] Position {symbol} already closed by engine.")
                             else:
                                 # Close real position
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
@@ -177,11 +181,9 @@ class GuardianAgent:
                                     if size > 0:
                                         logger.info(f"🔨 [REAL] GUARDIAN HAMMER: Closing {symbol} | Size: {size}")
                                         await bybit_rest_service.close_position(symbol, pos["side"], size)
+                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                         except Exception as close_err:
                             logger.error(f"❌ Failed to close position {symbol}: {close_err}")
-                        
-                        # Reset slot in Firebase
-                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_pct)
                         continue
 
                 # ==========================================
@@ -197,23 +199,27 @@ class GuardianAgent:
                         
                         # V4.5.2: Close position in BOTH PAPER and REAL modes
                         try:
+                            qty = slot.get("qty", 0)
+                            pnl_usd = execution_protocol.calculate_pnl(entry, last_price, qty, side)
+                            
                             if bybit_rest_service.execution_mode == "PAPER":
-                                paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol), None)
+                                paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol or p["symbol"] == bybit_rest_service._strip_p(symbol)), None)
                                 if paper_pos:
                                     size = float(paper_pos.get("size", 0))
                                     logger.info(f"🔨 [PAPER] SURF EXIT: Closing {symbol} | Size: {size}")
                                     await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
-                                    logger.info(f"✅ [PAPER] Position closed. New balance: ${bybit_rest_service.paper_balance:.2f}")
+                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                else:
+                                    logger.warning(f"⚠️ [PAPER] SURF {symbol} already closed by engine.")
                             else:
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
                                 for pos in positions:
                                     size = float(pos.get("size", 0))
                                     if size > 0:
                                         await bybit_rest_service.close_position(symbol, pos["side"], size)
+                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                         except Exception as close_err:
                             logger.error(f"❌ Failed to close SURF position {symbol}: {close_err}")
-                        
-                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_pct)
                         continue
                     
                     # Update trailing stop if needed
