@@ -1,41 +1,29 @@
 import sys
 import traceback
+import os
 
 try:
-    print("DEBUG: Importing asyncio...")
+    print("DEBUG: Importing core modules...")
     import asyncio
-    print("DEBUG: Importing logging...")
     import logging
     from fastapi import FastAPI
     from fastapi.responses import FileResponse
     from fastapi.middleware.cors import CORSMiddleware
     from contextlib import asynccontextmanager
-    
-    print("DEBUG: Importing basic services...")
-    # Firebase service imported but disabled
-    from services.firebase_service import firebase_service
-    from services.bybit_rest import bybit_rest_service
-    print("DEBUG: Agent imports disabled for debugging...")
-    from services.bybit_ws import bybit_ws_service
-    from services.bankroll import bankroll_manager
-    from services.agents.guardian import guardian_agent
-    from services.agents.gemini import gemini_agent
-    from services.agents.contrarian import contrarian_agent
-    from services.agents.captain import captain_agent
-    from services.signal_generator import signal_generator
-    print("DEBUG: Basic imports complete.")
     from fastapi.staticfiles import StaticFiles
     import uvicorn
     from config import settings
+    print("DEBUG: Core imports complete.")
 
 except Exception as e:
     print("CRITICAL STARTUP ERROR:")
     traceback.print_exc()
     sys.exit(1)
 
-# Setup logging
+# Setup logging BEFORE any service imports
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("1CRYPTEN-MAIN")
+print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,6 +37,18 @@ async def lifespan(app: FastAPI):
         try:
             # Give Cloud Run time to confirm health check first
             await asyncio.sleep(2)
+            
+            # V4.3.2: LAZY IMPORTS - Import services here, NOT at module level
+            # This allows the worker to start and respond to health checks first
+            logger.info("Step 0: Lazy loading service modules...")
+            from services.firebase_service import firebase_service
+            from services.bybit_rest import bybit_rest_service
+            from services.bybit_ws import bybit_ws_service
+            from services.bankroll import bankroll_manager
+            from services.agents.guardian import guardian_agent
+            from services.agents.captain import captain_agent
+            from services.signal_generator import signal_generator
+            logger.info("Step 0: Service modules loaded ✅")
             
             # 1. Initialize Firebase with timeout protection
             logger.info("Step 1: Initializing Firebase (background)...")
@@ -226,6 +226,9 @@ async def get_vault_ui():
 
 @app.get("/banca")
 async def get_banca():
+    # Lazy import for Cloud Run compatibility
+    from services.firebase_service import firebase_service
+    from services.bybit_rest import bybit_rest_service
     # Fetch real status from Firebase or return fallback
     try:
         status = await firebase_service.get_banca_status()
@@ -253,6 +256,7 @@ async def get_banca():
 
 @app.get("/api/banca-history")
 async def get_banca_history(limit: int = 50):
+    from services.firebase_service import firebase_service
     try:
         return await firebase_service.get_banca_history(limit=limit)
     except Exception as e:
@@ -261,6 +265,7 @@ async def get_banca_history(limit: int = 50):
 
 @app.get("/api/slots")
 async def get_slots():
+    from services.firebase_service import firebase_service
     try:
         slots = await firebase_service.get_active_slots()
         if slots:
@@ -273,6 +278,7 @@ async def get_slots():
 
 @app.get("/api/signals")
 async def get_signals(min_score: int = 0, limit: int = 20):
+    from services.firebase_service import firebase_service
     try:
         signals = await firebase_service.get_recent_signals(limit=limit)
         filtered = [s for s in signals if s.get("score", 0) >= min_score]
@@ -310,6 +316,7 @@ async def get_stats():
 
 @app.get("/api/history")
 async def get_history(limit: int = 50):
+    from services.firebase_service import firebase_service
     try:
         # Fetch real trade history instead of generic signals
         return await firebase_service.get_trade_history(limit=limit)
@@ -319,6 +326,7 @@ async def get_history(limit: int = 50):
 
 @app.get("/api/logs")
 async def get_logs(limit: int = 50):
+    from services.firebase_service import firebase_service
     try:
         return await firebase_service.get_recent_logs(limit=limit)
     except Exception as e:
@@ -336,15 +344,14 @@ async def get_btc_regime():
 @app.post("/api/chat")
 async def chat_with_captain(payload: dict):
     """Interactive endpoint to talk to the Captain."""
+    from services.agents.captain import captain_agent
     message = payload.get("message")
     symbol = payload.get("symbol")
     
     if not message:
         return {"error": "No message provided"}
     
-    
     # Captain handles logging internally now
-    # 2. Process via Captain (symbol is passed only here for internal context)
     response = await captain_agent.process_chat(message, symbol=symbol)
     
     return {"response": response}
@@ -353,6 +360,7 @@ async def chat_with_captain(payload: dict):
 @app.post("/api/chat/reset")
 async def reset_chat():
     """Clears the chat history."""
+    from services.firebase_service import firebase_service
     await firebase_service.clear_chat_history()
     return {"status": "success", "message": "Chat history cleared."}
 
@@ -418,6 +426,7 @@ async def test_order(symbol: str, side: str, sl: float):
 @app.post("/panic")
 async def panic_button():
     """Emergency Kill Switch - V4.2 ENABLED"""
+    from services.bankroll import bankroll_manager
     try:
         result = await bankroll_manager.emergency_close_all()
         return result
@@ -427,11 +436,10 @@ async def panic_button():
 
 # ============ V4.2 VAULT ENDPOINTS ============
 
-from services.vault_service import vault_service
-
 @app.get("/api/vault/status")
 async def get_vault_status():
     """Returns current cycle status and vault totals."""
+    from services.vault_service import vault_service
     try:
         status = await vault_service.get_cycle_status()
         calc = await vault_service.calculate_withdrawal_amount()
@@ -446,6 +454,7 @@ async def get_vault_status():
 @app.get("/api/vault/history")
 async def get_vault_history(limit: int = 20):
     """Returns withdrawal history."""
+    from services.vault_service import vault_service
     try:
         return await vault_service.get_withdrawal_history(limit=limit)
     except Exception as e:
@@ -455,6 +464,7 @@ async def get_vault_history(limit: int = 20):
 @app.post("/api/vault/withdraw")
 async def register_withdrawal(payload: dict):
     """Registers a manual withdrawal to the vault."""
+    from services.vault_service import vault_service
     amount = payload.get("amount", 0)
     if amount <= 0:
         return {"error": "Amount must be greater than 0"}
@@ -471,6 +481,7 @@ async def register_withdrawal(payload: dict):
 @app.post("/api/vault/new-cycle")
 async def start_new_cycle():
     """Starts a new trading cycle."""
+    from services.vault_service import vault_service
     try:
         result = await vault_service.start_new_cycle()
         return {"status": "success", "cycle": result}
@@ -481,6 +492,7 @@ async def start_new_cycle():
 @app.post("/api/system/cautious-mode")
 async def toggle_cautious_mode(payload: dict):
     """Toggles cautious mode (increased score threshold)."""
+    from services.vault_service import vault_service
     enabled = payload.get("enabled", False)
     min_score = payload.get("min_score", 85)
     
@@ -494,6 +506,7 @@ async def toggle_cautious_mode(payload: dict):
 @app.post("/api/system/admiral-rest")
 async def toggle_admiral_rest(payload: dict):
     """Activates/deactivates Admiral's Rest mode."""
+    from services.vault_service import vault_service
     activate = payload.get("activate", False)
     hours = payload.get("hours", 24)
     
