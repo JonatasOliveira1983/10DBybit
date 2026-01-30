@@ -20,7 +20,6 @@ class AIService:
         else:
             self.openrouter_key = raw_key
         self._setup_ai()
-        self._setup_ai()
 
     def _setup_ai(self):
         """Initializes AI clients if keys are present."""
