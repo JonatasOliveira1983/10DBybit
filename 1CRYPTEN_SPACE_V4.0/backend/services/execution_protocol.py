@@ -1,11 +1,11 @@
 """
-🛡️ Protocolo de Execução Blindada V4.3.1
+🛡️ Protocolo de Execução Elite V4.5.1
 =========================================
 Módulo responsável por executar lógica de fechamento independente por slot.
-Separa a decisão de fechamento por tipo de ordem (SNIPER/SURF).
+Implementa Flash Close (SNIPER) e Surf Shield (SURF) com telemetria visual.
 
 Author: Antigravity AI
-Version: 4.3.1
+Version: 4.5.1 (Protocol Elite)
 """
 
 import logging
@@ -18,21 +18,78 @@ class ExecutionProtocol:
     """
     Executa a lógica de fechamento para cada slot de forma independente.
     Cada ordem tem seu próprio 'contrato de execução'.
+    
+    V4.5.1 Protocol Elite:
+    - SNIPER: Flash Close com TP nativo + Guardian Overclock
+    - SURF: Surf Shield com Risco Zero automático
     """
     
     def __init__(self):
         self.leverage = 50
-        self.sniper_target_roi = 100.0  # 100% ROI = 2% de movimento de preço @ 50x
-        self.sniper_stop_roi = -50.0    # Stop Loss Sniper (1% de movimento)
+        
+        # === SNIPER CONFIG (Slots 1-5) ===
+        self.sniper_target_roi = 100.0    # 100% ROI = 2% movimento @ 50x
+        self.sniper_stop_roi = -50.0      # Stop Loss = -50% ROI (1% movimento)
+        self.flash_zone_threshold = 80.0  # Zona Roxa: 80% do target (ROI >= 80%)
+        
+        # === SURF CONFIG (Slots 6-10) ===
+        self.risk_zero_threshold = 50.0   # Risco Zero ativa em 50% ROI (1% movimento)
+        self.big_surf_threshold = 150.0   # Big Surf: ROI > 150%
         
         # Escada de Proteção SURF (ROI% -> SL em ROI%)
         self.surf_trailing_ladder = [
-            {"trigger": 10.0, "stop_roi": 7.0},   # ROI 10% -> SL em +7%
-            {"trigger": 5.0,  "stop_roi": 3.0},   # ROI 5%  -> SL em +3%
-            {"trigger": 3.0,  "stop_roi": 1.5},   # ROI 3%  -> SL em +1.5%
-            {"trigger": 1.0,  "stop_roi": 0.0},   # ROI 1%  -> SL em Breakeven (0%)
+            {"trigger": 150.0, "stop_roi": 120.0},  # Big Surf: protege 120%
+            {"trigger": 100.0, "stop_roi": 80.0},   # ROI 100% -> SL em +80%
+            {"trigger": 50.0,  "stop_roi": 30.0},   # Risco Zero: 50% -> SL em +30%
+            {"trigger": 25.0,  "stop_roi": 10.0},   # ROI 25% -> SL em +10%
+            {"trigger": 10.0,  "stop_roi": 5.0},    # ROI 10% -> SL em +5%
+            {"trigger": 5.0,   "stop_roi": 0.0},    # ROI 5%  -> SL em Breakeven (0%)
         ]
         
+        # === VISUAL STATUS CODES ===
+        # Usados pelo frontend para cores dos slots
+        self.STATUS_SCANNING = "SCANNING"       # Azul - slot livre
+        self.STATUS_IN_TRADE = "IN_TRADE"       # Dourado - posição aberta
+        self.STATUS_RISK_ZERO = "RISK_ZERO"     # Turquesa - stop na entrada
+        self.STATUS_BIG_SURF = "BIG_SURF"       # Verde Esmeralda - ROI > 150%
+        self.STATUS_FLASH_ZONE = "FLASH_ZONE"   # Roxo Neon - alvo iminente
+        
+    def get_visual_status(self, slot_data: Dict[str, Any], roi: float) -> str:
+        """
+        Determina o status visual do slot baseado no estado atual.
+        
+        Returns:
+            Status code para coloração do slot no frontend
+        """
+        symbol = slot_data.get("symbol")
+        slot_type = slot_data.get("slot_type", "SNIPER")
+        current_stop = slot_data.get("current_stop", 0)
+        entry_price = slot_data.get("entry_price", 0)
+        
+        # Slot vazio
+        if not symbol or entry_price <= 0:
+            return self.STATUS_SCANNING
+        
+        # SNIPER: Flash Zone (80%+ do target)
+        if slot_type == "SNIPER":
+            if roi >= self.flash_zone_threshold:
+                logger.info(f"🟣 FLASH ZONE: {symbol} ROI={roi:.1f}% >= {self.flash_zone_threshold}%")
+                return self.STATUS_FLASH_ZONE
+            return self.STATUS_IN_TRADE
+        
+        # SURF: Big Surf (150%+), Risk Zero, ou In Trade
+        if slot_type == "SURF":
+            if roi >= self.big_surf_threshold:
+                return self.STATUS_BIG_SURF
+            if roi >= self.risk_zero_threshold and current_stop >= entry_price:
+                return self.STATUS_RISK_ZERO
+            if current_stop > 0 and current_stop >= entry_price:
+                return self.STATUS_RISK_ZERO
+            return self.STATUS_IN_TRADE
+        
+        return self.STATUS_IN_TRADE
+        
+
     def calculate_roi(self, entry_price: float, current_price: float, side: str) -> float:
         """
         Calcula o ROI real considerando alavancagem 50x.

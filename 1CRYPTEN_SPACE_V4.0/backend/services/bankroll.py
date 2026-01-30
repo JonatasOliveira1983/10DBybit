@@ -343,13 +343,28 @@ class BankrollManager:
             qty = round(raw_qty, precision)
             if qty <= 0: qty = qty_step # Use minimum lot
 
-            # 3. Final SL Safety Check
+            # 3. Final SL Safety Check - V4.5.1 Protocol Elite
+            # SNIPER: SL = -50% ROI = 1% price movement @ 50x
+            # SURF: SL = -75% ROI = 1.5% price movement @ 50x
+            sniper_sl_percent = 0.01  # 1% price = -50% ROI @ 50x
+            surf_sl_percent = 0.015   # 1.5% price = -75% ROI @ 50x
+            
+            sl_percent = sniper_sl_percent if slot_type == "SNIPER" else surf_sl_percent
+            
             final_sl = sl_price
             if final_sl <= 0:
-                final_sl = current_price * 0.98 if side == "Buy" else current_price * 1.02
+                if side == "Buy":
+                    final_sl = current_price * (1 - sl_percent)
+                else:
+                    final_sl = current_price * (1 + sl_percent)
             
-            if side == "Buy" and final_sl >= current_price: final_sl = current_price * 0.98
-            if side == "Sell" and final_sl <= current_price: final_sl = current_price * 1.02
+            # Validation: Ensure SL is on correct side
+            if side == "Buy" and final_sl >= current_price: 
+                final_sl = current_price * (1 - sl_percent)
+            if side == "Sell" and final_sl <= current_price: 
+                final_sl = current_price * (1 + sl_percent)
+            
+            logger.info(f"[{slot_type}] SL Calculated: {final_sl:.8f} ({sl_percent*100:.1f}% from {current_price:.8f})")
             
             # V4.2: SNIPER vs SURF TP
             final_tp = tp_price
@@ -358,10 +373,10 @@ class BankrollManager:
                     final_tp = current_price * (1 + self.sniper_tp_percent)
                 else:
                     final_tp = current_price * (1 - self.sniper_tp_percent)
-                logger.info(f"[SNIPER] Slot {slot_id}: TP set at {final_tp:.5f}")
+                logger.info(f"[SNIPER] Slot {slot_id}: TP set at {final_tp:.5f} | SL at {final_sl:.5f}")
             else:
                 final_tp = None  # SURF: No TP
-                logger.info(f"[SURF] Slot {slot_id}: No TP (Managed by Guardian)")
+                logger.info(f"[SURF] Slot {slot_id}: No TP (Guardian Trailing) | Hard SL at {final_sl:.5f}")
 
             squadron_emoji = "🎯" if slot_type == "SNIPER" else "🏄"
             await firebase_service.log_event("Captain", f"{squadron_emoji} {slot_type} DEPLOYED: {side} {qty} {symbol} @ {current_price} | HARD STOP: {final_sl}", "SUCCESS")

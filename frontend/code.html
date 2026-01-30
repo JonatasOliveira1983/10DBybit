@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         name="viewport" />
-    <title>1Crypten Command - Deep Space v4.1</title>
+    <title>1Crypten Command - Elite v4.8.1</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -654,6 +654,220 @@
                 padding: 8px !important;
             }
         }
+
+        /* ============================================ */
+        /* V4.5.1: PROTOCOL ELITE - VISUAL STATUS      */
+        /* ============================================ */
+
+        /* SCANNING - Azul (Slot Livre) */
+        .slot-scanning {
+            border-color: #3B82F6 !important;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3) !important;
+        }
+
+        /* IN_TRADE - Dourado (Posição Ativa) */
+        .slot-in-trade {
+            border-color: #FFD700 !important;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3) !important;
+        }
+
+        /* RISK_ZERO - Turquesa (Stop na Entrada) */
+        .slot-risk-zero {
+            border-color: #14B8A6 !important;
+            box-shadow: 0 0 15px rgba(20, 184, 166, 0.4) !important;
+            background: linear-gradient(145deg, rgba(20, 184, 166, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%) !important;
+        }
+
+        /* BIG_SURF - Verde Esmeralda (ROI > 150%) */
+        .slot-big-surf {
+            border-color: #10B981 !important;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5) !important;
+            background: linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, rgba(0, 0, 0, 0.9) 100%) !important;
+        }
+
+        /* FLASH_ZONE - Roxo Neon (Alvo Iminente) */
+        .slot-flash-zone {
+            border-color: #A855F7 !important;
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.6) !important;
+            background: linear-gradient(145deg, rgba(168, 85, 247, 0.1) 0%, rgba(0, 0, 0, 0.9) 100%) !important;
+            animation: pulse-purple 1s infinite ease-in-out !important;
+        }
+
+        @keyframes pulse-purple {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 35px rgba(168, 85, 247, 0.9);
+                border-color: #C084FC;
+            }
+        }
+
+        /* Badge de status visual */
+        .status-badge {
+            font-size: 10px !important;
+            padding: 2px 6px !important;
+            border-radius: 4px !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+        }
+
+        .status-badge.scanning {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3B82F6;
+        }
+
+        .status-badge.in-trade {
+            background: rgba(255, 215, 0, 0.2);
+            color: #FFD700;
+        }
+
+        .status-badge.risk-zero {
+            background: rgba(20, 184, 166, 0.2);
+            color: #14B8A6;
+        }
+
+        .status-badge.big-surf {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10B981;
+        }
+
+        .status-badge.flash-zone {
+            background: rgba(168, 85, 247, 0.2);
+            color: #A855F7;
+        }
+
+        /* ============================================ */
+        /* V4.7.0: MOBILE-FIRST LAYOUT FIX             */
+        /* Corrige sobreposição chart/slots em mobile  */
+        /* ============================================ */
+
+        /* Chart container - 50% da tela, expansível */
+        .chart-container-mobile {
+            height: 50vh !important;
+            min-height: 180px !important;
+            max-height: 50vh !important;
+            flex-shrink: 0 !important;
+            transition: all 0.3s ease-in-out !important;
+        }
+
+        /* Chart fullscreen mode */
+        .chart-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            width: 100vw !important;
+            z-index: 200 !important;
+            border-radius: 0 !important;
+        }
+
+        /* Em telas maiores */
+        @media (min-width: 640px) {
+            .chart-container-mobile {
+                height: 50vh !important;
+                max-height: 50vh !important;
+            }
+        }
+
+        /* Slots container - ocupa restante */
+        .slots-container-mobile {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            max-height: 50vh !important;
+            overflow-y: auto !important;
+        }
+
+        /* Seletor de Timeframe COMPACTO - Ignorar regras globais */
+        .tf-selector-compact {
+            padding: 2px !important;
+            gap: 2px !important;
+        }
+
+        .tf-selector-compact button {
+            padding: 4px 6px !important;
+            font-size: 9px !important;
+            min-height: 24px !important;
+            border-radius: 4px !important;
+        }
+
+        /* Slot cards compactos - 40% menores */
+        .slot-card-compact {
+            padding: 4px !important;
+            min-height: auto !important;
+        }
+
+        .slot-card-compact .p-3 {
+            padding: 6px !important;
+        }
+
+        .slot-card-compact .my-2 {
+            margin-top: 4px !important;
+            margin-bottom: 4px !important;
+        }
+
+        .slot-card-compact .pt-2 {
+            padding-top: 4px !important;
+        }
+
+        .slot-card-compact .gap-2 {
+            gap: 4px !important;
+        }
+
+        .slot-card-compact .text-2xl {
+            font-size: 18px !important;
+        }
+
+        .slot-card-compact .text-xl {
+            font-size: 15px !important;
+        }
+
+        .slot-card-compact .text-xs {
+            font-size: 10px !important;
+        }
+
+        .slot-card-compact .text-sm {
+            font-size: 11px !important;
+        }
+
+        .slot-card-compact [class*="text-[10px]"],
+        .slot-card-compact [class*="text-[9px]"],
+        .slot-card-compact [class*="text-[8px]"] {
+            font-size: 9px !important;
+        }
+
+        .slot-card-compact .h-1\.5 {
+            height: 2px !important;
+        }
+
+        .slot-card-compact .space-y-2 {
+            gap: 4px !important;
+        }
+
+        /* Main scrollable */
+        .main-scrollable {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        /* Navbar spacing */
+        .content-with-navbar {
+            padding-bottom: 100px !important;
+        }
+
+        @media (min-width: 640px) {
+            .content-with-navbar {
+                padding-bottom: 90px !important;
+            }
+        }
     </style>
 </head>
 
@@ -869,9 +1083,22 @@
                     height: containerHeight,
                     layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#94a3b8' },
                     grid: { vertLines: { color: 'rgba(255, 255, 255, 0.05)' }, horzLines: { color: 'rgba(255, 255, 255, 0.05)' } },
-                    rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                    rightPriceScale: {
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        autoScale: true,
+                        scaleMargins: { top: 0.1, bottom: 0.1 }
+                    },
                     timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
                     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                    localization: {
+                        priceFormatter: (price) => {
+                            // Formatar preço com casas decimais apropriadas
+                            if (price >= 1000) return price.toFixed(2);
+                            if (price >= 1) return price.toFixed(4);
+                            if (price >= 0.01) return price.toFixed(6);
+                            return price.toFixed(8);
+                        }
+                    }
                 });
 
                 chartRef.current = chart;
@@ -899,7 +1126,12 @@
                 });
 
                 const candleSeries = chart.addCandlestickSeries({
-                    upColor: '#10B981', downColor: '#EF4444', borderVisible: false, wickUpColor: '#10B981', wickDownColor: '#EF4444'
+                    upColor: '#10B981', downColor: '#EF4444', borderVisible: false, wickUpColor: '#10B981', wickDownColor: '#EF4444',
+                    priceFormat: {
+                        type: 'price',
+                        precision: 6,
+                        minMove: 0.000001
+                    }
                 });
                 seriesRef.current = candleSeries;
 
@@ -1047,11 +1279,11 @@
 
             return (
                 <div className="w-full h-full relative group">
-                    {/* Timeframe Selector - Fixed for Mobile */}
-                    <div className="absolute top-4 left-4 z-20 flex gap-1 bg-black/40 p-1 rounded border border-white/5 backdrop-blur-md">
+                    {/* Timeframe Selector - Compacto */}
+                    <div className="absolute top-2 left-2 z-20 flex gap-1 bg-black/60 p-1 rounded border border-white/10 backdrop-blur-md tf-selector-compact">
                         {timeframes.map(t => (
-                            <button key={t.value} onClick={() => setTf(t.value)}
-                                className={`px-2 py-1 text-[10px] font-bold rounded transition-colors ${tf === t.value ? 'bg-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
+                            <button key={t.value} onClick={(e) => { e.stopPropagation(); setTf(t.value); }}
+                                className={`px-1.5 py-0.5 text-[8px] font-bold rounded transition-colors ${tf === t.value ? 'bg-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
                                 {t.label}
                             </button>
                         ))}
@@ -1107,16 +1339,30 @@
 
             return tickers;
         };
-        // --- Sub-Component: Slot Card (v2.0 - Hero Profit, Stable Fuel, Detailed Stats) ---
+        // --- Sub-Component: Slot Card (v4.5.1 - Protocol Elite Visual Status) ---
         const SlotCard = ({ s, selectedId, setSelectedSlotId, tickers, getDynamicPnL }) => {
             const [displayPnl, setDisplayPnl] = useState(0);
             const isActive = s.symbol;
             const pnlFallback = s.pnl_percent || 0;
             // Strip .P suffix to match Bybit ticker format
             const cleanSymbol = s.symbol ? s.symbol.replace('.P', '').replace('.p', '') : null;
-            const currentPrice = tickers[cleanSymbol];
+            // V4.5.1: Use backend price if available, fallback to WebSocket ticker
+            const currentPrice = s.current_price || tickers[cleanSymbol];
             const smoothingRef = useRef(0);
             const entryAmount = 5; // Captain's Fixed Entry
+
+            // V4.5.1: Visual Status Class Mapping
+            const getVisualStatusClass = () => {
+                const status = s.visual_status || 'SCANNING';
+                const classMap = {
+                    'SCANNING': 'slot-scanning',
+                    'IN_TRADE': 'slot-in-trade',
+                    'RISK_ZERO': 'slot-risk-zero',
+                    'BIG_SURF': 'slot-big-surf',
+                    'FLASH_ZONE': 'slot-flash-zone'
+                };
+                return classMap[status] || 'slot-in-trade';
+            };
 
             useEffect(() => {
                 if (!isActive) { setDisplayPnl(0); smoothingRef.current = 0; return; }
@@ -1147,9 +1393,13 @@
             const squadronEmoji = isSniper ? '🎯' : '🏄';
             const squadronName = isSniper ? 'Esquadrão Sniper' : 'Esquadrão Surf';
 
+            // V4.5.1: Visual Status for display
+            const visualStatus = s.visual_status || (isActive ? 'IN_TRADE' : 'SCANNING');
+            const visualStatusClass = isActive ? getVisualStatusClass() : 'slot-scanning';
+
             return (
                 <div onClick={() => setSelectedSlotId(s.id)}
-                    className={`relative overflow-hidden rounded-2xl border transition-all duration-300 group ${isActive ? 'cursor-pointer hover:shadow-2xl' : 'cursor-default opacity-40'} ${selectedId === s.id ? 'bg-white/[0.07] border-primary/60 ring-1 ring-primary/30' : 'bg-black/40 border-white/5 hover:border-white/10'}`}>
+                    className={`relative overflow-hidden rounded-xl border transition-all duration-300 group slot-card-compact ${visualStatusClass} ${isActive ? 'cursor-pointer hover:shadow-2xl' : 'cursor-default opacity-40'} ${selectedId === s.id ? 'ring-2 ring-primary/50' : ''}`}>
 
                     {isActive ? (
                         <div className="h-full w-full">
@@ -1331,7 +1581,12 @@
                     utterance.pitch = 1.0;
 
                     const voices = window.speechSynthesis.getVoices();
-                    const ptVoice = voices.find(v => v.lang.startsWith('pt'));
+                    // Prefer male Brazilian voices
+                    const maleVoice = voices.find(v =>
+                        v.lang.startsWith('pt') &&
+                        (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('antonio') || v.name.toLowerCase().includes('daniel'))
+                    );
+                    const ptVoice = maleVoice || voices.find(v => v.lang.startsWith('pt'));
                     if (ptVoice) utterance.voice = ptVoice;
 
                     utterance.onstart = () => setIsSpeaking(true);
@@ -1436,7 +1691,7 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-32 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-28 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
@@ -1541,8 +1796,8 @@
                     </main>
 
                     {/* Input Area - Above Mobile Nav */}
-                    {/* Input Area - Above Mobile Nav - Higher Z-Index and Padding to avoid overlap */}
-                    <footer className="flex-shrink-0 px-2 sm:px-6 py-4 sm:py-5 bg-black/95 backdrop-blur-2xl border-t border-white/10 mb-24 sm:mb-14 relative z-[60]">
+                    {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar */}
+                    <footer className="flex-shrink-0 px-2 sm:px-6 py-4 sm:py-5 bg-black/95 backdrop-blur-2xl border-t border-white/10 mb-28 sm:mb-20 relative z-40">
                         <div className="max-w-3xl mx-auto flex gap-2 items-center">
                             {/* Microphone Button */}
                             {sttSupported && (
@@ -1636,7 +1891,7 @@
             const btcSignalsCount = signals.filter(s => s.symbol.includes("BTC")).length;
 
             return (
-                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'bg-[#0A0A0B]'} text-white pb-32 sm:pb-24`}>
+                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'bg-[#0A0A0B]'} text-white pb-28 sm:pb-24`}>
                     {/* Premium Header - Gemini Style */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
@@ -1768,6 +2023,7 @@
             const [slots, setSlots] = useState([]);
             const [selectedSlotId, setSelectedSlotId] = useState(null);
             const [isLoaded, setIsLoaded] = useState(false);
+            const [isChartFullscreen, setIsChartFullscreen] = useState(false);
             const [logs, setLogs] = useState([]);
             const chatRef = useRef(null);
 
@@ -1899,7 +2155,7 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] overflow-hidden pb-32 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B]">
                     {pulseStatus === 'OFFLINE' && (
                         <div className="fixed inset-0 z-[100] bg-red-950/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                             <div className="bg-black/80 border border-red-500/50 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-pulse">
@@ -1953,18 +2209,28 @@
                         </div>
                     </header>
 
-                    <main className="flex-1 flex flex-col overflow-hidden p-2 sm:p-3 gap-2 sm:gap-3">
-                        {/* 1. CHART SECTION (50% do espaço disponível) */}
-                        <section className="flex-[5] min-h-[250px] sm:min-h-[300px] flex-shrink-0 relative">
+                    <main className="flex-1 flex flex-col main-scrollable p-2 sm:p-3 gap-2 sm:gap-3 content-with-navbar">
+                        {/* 1. CHART SECTION - 50% da tela, clique para fullscreen */}
+                        <section
+                            onClick={() => setIsChartFullscreen(!isChartFullscreen)}
+                            className={`relative cursor-pointer ${isChartFullscreen ? 'chart-fullscreen' : 'chart-container-mobile'}`}>
                             <div className="h-full relative rounded-2xl overflow-hidden bg-gradient-to-b from-black/40 to-black/60 border-2 border-primary/30 shadow-[0_0_20px_rgba(255,215,0,0.1),inset_0_1px_0_rgba(255,255,255,0.05)]">
+                                {/* Botão fechar fullscreen */}
+                                {isChartFullscreen && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsChartFullscreen(false); }}
+                                        className="absolute top-3 right-3 z-30 w-8 h-8 bg-black/80 border border-white/20 rounded-full flex items-center justify-center hover:bg-red-500/50 transition-colors">
+                                        <span className="material-icons-round text-white text-sm">close</span>
+                                    </button>
+                                )}
                                 {/* Chart Header Badge */}
-                                <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-black/70 px-4 py-1.5 rounded-xl border border-primary/20 backdrop-blur-xl shadow-lg">
-                                    <span className={`w-2.5 h-2.5 rounded-full ${isCompassMode ? 'bg-primary' : (displaySlot.side === 'Buy' ? 'bg-emerald-500' : 'bg-orange-500')} ${!isCompassMode && 'animate-pulse'} shadow-[0_0_8px_currentColor]`}></span>
-                                    <span className="text-sm font-display font-bold text-white tracking-widest uppercase">{displaySlot.symbol}</span>
-                                    <span className="text-[10px] font-mono text-slate-400 border-l border-white/10 pl-2">{isCompassMode ? 'Market Compass' : '50x Sniper'}</span>
+                                <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-black/70 px-3 py-1 rounded-lg border border-primary/20 backdrop-blur-xl shadow-lg">
+                                    <span className={`w-2 h-2 rounded-full ${isCompassMode ? 'bg-primary' : (displaySlot.side === 'Buy' ? 'bg-emerald-500' : 'bg-orange-500')} ${!isCompassMode && 'animate-pulse'} shadow-[0_0_8px_currentColor]`}></span>
+                                    <span className="text-xs font-display font-bold text-white tracking-wider uppercase">{displaySlot.symbol}</span>
+                                    {!isChartFullscreen && <span className="text-[8px] text-slate-500 ml-1">tap to expand</span>}
                                 </div>
                                 {/* Chart Content */}
-                                <div className="w-full h-full flex flex-col pt-12">
+                                <div className="w-full h-full flex flex-col pt-10">
                                     <TradingChart key={displaySlot.symbol} symbol={displaySlot.symbol} entryPrice={displaySlot.entry_price} stopLossPrice={displaySlot.current_stop} side={displaySlot.side} pnlFallback={displaySlot.pnl_percent} slotId={displaySlot.id} slotType={displaySlot.slot_type} />
                                 </div>
                                 {/* Decorative Corner Accents */}
@@ -1975,8 +2241,8 @@
                             </div>
                         </section>
 
-                        {/* 2. SLOTS SECTION (50% do espaço disponível) */}
-                        <section className="flex-[5] overflow-y-auto rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 border-white/10 p-3 custom-scrollbar">
+                        {/* 2. SLOTS SECTION - Scrollável e ocupa espaço restante */}
+                        <section className="slots-container-mobile rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 border-white/10 p-3 custom-scrollbar">
                             {/* Sniper Squadron */}
                             <div className="mb-4 flex flex-col items-start">
                                 <h3 className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2 self-start">
@@ -2033,7 +2299,7 @@
             }, []);
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-32 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-28 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
@@ -2049,7 +2315,7 @@
                             </div>
                             <div className="flex justify-between items-center mt-3">
                                 <p className="text-xs text-slate-400 capitalize">{history.length} operações encerradas</p>
-                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">v4.6.0 PWA Optimized</span>
+                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">v4.7.0 Mobile Optimized</span>
                             </div>
                         </div>
                     </header>
@@ -2110,7 +2376,7 @@
         // 5. Vault Page (Iframe Integration)
         const VaultPage = () => {
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] pb-32 sm:pb-24">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] pb-28 sm:pb-24">
                     {/* Header for Vault (since it's an iframe) */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
@@ -2141,13 +2407,13 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
+                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-28 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
                     <header className="mb-6 bg-black/80 backdrop-blur-xl border-b border-white/5 -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
                                 <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
-                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">v4.6.5 PWA</p>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">v4.7.0 PWA</p>
                             </div>
                             <div className="w-full"></div> {/* Placeholder for centering */}
                             <div className="flex justify-end">
@@ -2223,7 +2489,7 @@
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-300">Versão Atual</span>
-                                    <span className="text-lg font-bold text-primary font-mono">V4.6.5</span>
+                                    <span className="text-lg font-bold text-primary font-mono">V4.7.0</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-400">Build</span>

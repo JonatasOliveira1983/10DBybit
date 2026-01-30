@@ -1,33 +1,33 @@
-# 1CRYPTEN Space V4.6.0 PWA OPTIMIZED ✨🚀
+# 1CRYPTEN Space V4.8.1 ELITE ✨🚀
 
-Sistema de Trading Autônomo com Escalabilidade Geométrica, Interface Premium inspirada no Gemini e Estabilidade de Execução.
-
----
-
-## 🆕 Novidades V4.6.0 - PWA Optimized
-
-### Mobile Scaling & Legibility
-- **Legibilidade MÁXIMA (Estilo Gemini):** Fontes base aumentadas para 18px, ícones ampliados para 28px e touch targets de 48px-52px, garantindo visualização perfeita e navegação confortável em qualquer celular/PWA.
-- **Layout Mobile-First:** Padding inteligente e containers otimizados para ocupar 100% da largura útil sem necessidade de zoom.
-- **Layout Full-Width:** NavBar inferior e containers expandidos para ocupar 100% da tela em modo PWA.
-- **Headers de Alta Precisão:** Títulos perfeitamente centralizados e logo ampliado para 48px, proporcionando uma experiência de app nativo.
-
-### Sincronização & Pulso
-- **Heartbeat Dinâmico:** Monitor de pulso sincronizado entre todas as páginas (Radar, Chat, Histórico), eliminando avisos falsos de "Offline".
-- **Dynamic Viewports:** Uso de `100dvh` para evitar sobreposição por barras de ferramentas de navegadores mobile.
-
-### Interface de Chat & Estética
-- **Input Area Protegida:** Padding inteligente para garantir que o campo de chat nunca seja coberto pela NavBar em nenhuma resolução.
-- **Acesso Direto:** Landing page simplificada com foco no botão "Acessar Ponte".
+Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface Premium e Estabilidade de Execução.
 
 ---
 
-## Slot Squadron Logic (Sniper v4.6)
+## 🆕 Novidades V4.8.1 - Protocolo Elite
 
-| Tipo | Slots | Objetivo |
+### 🛡️ Gerenciamento de Risco Elite
+- **Protocolo 4-Slots Máximo:** Rigoroso limite de 4 ordens em risco simultâneo (20% da banca).
+- **Expansão Inteligente:** Novos slots (até 10) são liberados apenas quando ordens existentes atingem **Risk-Zero** (Stop na entrada) ou são concluídas.
+- **Validação Multinível:** Verificação dupla no `Captain` e `BankrollManager` para garantir proteção absoluta do capital.
+
+### 📊 Interface & Gráficos
+- **Layout Mobile-Full:** Gráficos ocupando 50% da tela com toggle **Fullscreen** ao toque.
+- **Escala de Preços de Alta Precisão:** Suporte dinâmico de 2 a 8 casas decimais para visualização clara de entradas e saídas.
+- **Slots Compactos:** Design 40% mais eficiente para mobile, priorizando informações críticas.
+
+### 🎙️ Voz & IA
+- **Capitão 100% Masculino:** Fixada voz premium `Antonio (Neural)` no backend e fallback inteligente no frontend para manter a identidade masculina do comandante.
+- **Sincronização de Pulso:** Monitor cardíaco entre Radar, Chat e Slots.
+
+---
+
+## Slot Squadron Logic (Elite v4.8)
+
+| Tipo | Slots | Comportamento |
 |------|-------|---------------|
-| **SNIPER** | 1-5 | Alvo fixo ROI 100% (@50x) |
-| **SURF** | 6-10 | Trailing Stop Dinâmico |
+| **SNIPER** | 1-5 | Captura de ROI 100% |
+| **SURF** | 6-10 | Direcionais com Trailing Stop |
 
 ---
 
@@ -42,15 +42,15 @@ Acesse `http://localhost:5001`
 
 ---
 
-## Endpoints V4.6.0
+## Endpoints Elite
 
 | Endpoint | Método | Descrição |
 |----------|--------|-----------|
-| `/api/tts` | POST | Vozes neurais premium |
+| `/api/tts` | POST | Vozes neurais masculinas padrão |
 | `/api/chat` | POST | Motor de IA do Captain |
-| `/api/slots` | GET | Sincronização de posições |
+| `/api/slots` | GET | Sincronização de 10 slots |
 | `/panic` | POST | Protocolo de limpeza total |
 
 ---
 
-**Operação: 10D - Deep Space - V4.6.0 PWA Optimized.**
+**Operação: 10D - Elite Protocol - V4.8.1.**

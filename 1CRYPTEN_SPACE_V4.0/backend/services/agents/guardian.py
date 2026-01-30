@@ -1,3 +1,18 @@
+"""
+🛡️ Guardian Agent V4.5.1 - Protocol Elite
+==========================================
+Responsável por monitorar posições ativas e executar fechamentos.
+
+V4.5.1 Features:
+- Overclock Mode: 200ms polling quando SNIPER está em Flash Zone (80%+)
+- Martelo do Guardian: Market Close forçado se TP não preencher
+- Visual Status: Atualiza status visual dos slots no Firebase
+- Detalhes Logs: Telemetria completa para debugging
+
+Author: Antigravity AI
+Version: 4.5.1 (Protocol Elite)
+"""
+
 import logging
 import asyncio
 import time
@@ -6,13 +21,22 @@ from services.firebase_service import firebase_service
 from services.execution_protocol import execution_protocol
 from config import settings
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
 logger = logging.getLogger("GuardianAgent")
 
 class GuardianAgent:
     def __init__(self):
-        self.max_latency_ms = 2000 # 2000ms threshold for Testnet
+        self.max_latency_ms = 2000
         self.is_healthy = True
+        
+        # V4.5.1: Overclock State
+        self.overclock_active = False
+        self.normal_interval = 1.0      # 1 second normal
+        self.overclock_interval = 0.2   # 200ms in Flash Zone
+        
+        # Logging counters
+        self.loops_since_log = 0
+        self.log_interval = 10  # Log status every 10 loops
 
     async def check_api_health(self):
         """Checks latency and connectivity to Bybit."""
@@ -21,35 +45,37 @@ class GuardianAgent:
             await asyncio.to_thread(bybit_rest_service.session.get_server_time)
             latency = (time.time() - start_time) * 1000
             
-            # Increase threshold for Testnet/Global environments to avoid spam
             threshold = 5000 if settings.BYBIT_TESTNET else self.max_latency_ms
             
             if latency > threshold:
-                logger.warning(f"High latency: {latency:.2f}ms. Guardian is alert.")
-                self.is_healthy = True # Still healthy, just slow
+                logger.warning(f"⚠️ High latency: {latency:.2f}ms")
+                self.is_healthy = True
             else:
                 self.is_healthy = True
             
             return self.is_healthy, latency
 
         except Exception as e:
-            logger.error(f"Guardian detected API disconnection: {e}")
+            logger.error(f"🔴 Guardian API disconnection: {e}")
             self.is_healthy = False
             return False, 0
 
     async def manage_positions(self):
         """
-        Scans active positions and moves SL to Entry (Breakeven) if profit > threshold.
-        This enables 'Risk Free' status, unlocking new slots.
+        V4.5.1: Scans positions with Protocol Elite logic.
+        - Updates visual_status for each slot
+        - Triggers Overclock if any SNIPER is in Flash Zone
+        - Executes Guardian Hammer (market close) if needed
         """
         try:
             slots = await firebase_service.get_active_slots()
             active_slots = [s for s in slots if s.get("symbol")]
             
             if not active_slots:
+                self.overclock_active = False
                 return
 
-            # Batch Ticker Update (Saves 10 network rounds)
+            # Batch Ticker Update
             try:
                 tickers_resp = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear")
                 ticker_list = tickers_resp.get("result", {}).get("list", [])
@@ -58,142 +84,196 @@ class GuardianAgent:
                 logger.error(f"Guardian batch ticker failure: {te}")
                 return
 
+            has_flash_zone = False
+            
             for slot in active_slots:
                 symbol = slot["symbol"]
                 entry = slot.get("entry_price", 0)
                 current_stop = slot.get("current_stop", 0)
                 side = slot["side"]
+                slot_id = slot["id"]
+                slot_type = slot.get("slot_type", "SNIPER")
                 
-                if entry == 0: continue
+                if entry == 0: 
+                    continue
+                    
+                # Get current price
                 last_price = price_map.get(symbol, 0)
                 if last_price == 0 and "." in symbol:
                     last_price = price_map.get(symbol.split('.')[0], 0)
                 
-                if last_price == 0: continue
+                if last_price == 0: 
+                    continue
 
-                # Calculate PnL %
+                # Calculate PnL/ROI
                 leverage = getattr(settings, 'LEVERAGE', 50)
                 side_norm = (side or "").lower()
                 pnl_pct = ((last_price - entry) / entry if side_norm == "buy" else (entry - last_price) / entry) * 100 * leverage
                 
-                # AUDIT LOG: Identify discrepancy between Price/Entry and PNL
-                if symbol == "VIRTUALUSDT" or symbol == "WLFIUSDT":
-                    logger.info(f"[AUDIT] {symbol}: Side={side_norm}, Entry={entry}, Last={last_price}, ROI={pnl_pct:.2f}%")
+                # ==========================================
+                # V4.5.1: DETAILED LOGGING
+                # ==========================================
+                logger.debug(f"📊 [{slot_id}] {symbol} | Side: {side_norm.upper()} | Type: {slot_type}")
+                logger.debug(f"   Entry: {entry:.8f} | Current: {last_price:.8f} | Stop: {current_stop:.8f}")
+                logger.debug(f"   ROI: {pnl_pct:.2f}% | Target: {execution_protocol.sniper_target_roi}%")
 
-                # V4.3.1: SNIPER HARD CLOSE - Usa ExecutionProtocol para fechamento ROI-based
-                current_slot_type = slot.get("slot_type", "SNIPER")
+                # ==========================================
+                # V4.5.1: VISUAL STATUS UPDATE
+                # ==========================================
+                slot_data = {
+                    "symbol": symbol,
+                    "side": side,
+                    "entry_price": entry,
+                    "current_stop": current_stop,
+                    "slot_type": slot_type
+                }
                 
-                if current_slot_type == "SNIPER":
-                    # Build slot_data for ExecutionProtocol
-                    slot_data = {
-                        "symbol": symbol,
-                        "side": side,
-                        "entry_price": entry,
-                        "current_stop": current_stop,
-                        "slot_type": "SNIPER"
-                    }
-                    
-                    # Check if SNIPER should close at 100% ROI
+                visual_status = execution_protocol.get_visual_status(slot_data, pnl_pct)
+                
+                # Check if in Flash Zone
+                if visual_status == execution_protocol.STATUS_FLASH_ZONE:
+                    has_flash_zone = True
+                    logger.info(f"🟣 FLASH ZONE ACTIVE: {symbol} @ {pnl_pct:.1f}% ROI | Overclock ON")
+
+                # Update Firebase with visual status and current price
+                try:
+                    await firebase_service.update_slot(slot_id, {
+                        "pnl_percent": pnl_pct,
+                        "visual_status": visual_status,
+                        "current_price": last_price,  # <-- NEW: Backend price for frontend sync
+                        "last_guardian_check": time.time()
+                    })
+                except Exception as ue:
+                    logger.warning(f"Failed to update slot {slot_id}: {ue}")
+
+                # ==========================================
+                # V4.5.1: SNIPER FLASH CLOSE LOGIC (TP & SL)
+                # ==========================================
+                if slot_type == "SNIPER":
                     should_close, close_reason = execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
                     
                     if should_close:
-                        logger.info(f"🎯 GUARDIAN SNIPER CLOSE: {symbol} | Reason: {close_reason}")
-                        # For REAL mode, we need to close the position
-                        if bybit_rest_service.execution_mode == "REAL":
-                            positions = await bybit_rest_service.get_active_positions(symbol=symbol)
-                            for pos in positions:
-                                size = float(pos.get("size", 0))
-                                if size > 0:
-                                    await bybit_rest_service.close_position(symbol, pos["side"], size)
+                        is_stop_loss = "SL" in close_reason or pnl_pct < 0
+                        emoji = "🛑" if is_stop_loss else "🎯"
+                        logger.info(f"{emoji} GUARDIAN SNIPER CLOSE: {symbol} | Reason: {close_reason} | ROI: {pnl_pct:.2f}%")
+                        
+                        # V4.5.2: Close position in BOTH PAPER and REAL modes
+                        try:
+                            if bybit_rest_service.execution_mode == "PAPER":
+                                # Close paper position
+                                paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol), None)
+                                if paper_pos:
+                                    size = float(paper_pos.get("size", 0))
+                                    logger.info(f"🔨 [PAPER] GUARDIAN HAMMER: Closing {symbol} | Size: {size}")
+                                    result = await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
+                                    logger.info(f"✅ [PAPER] Position closed. New balance: ${bybit_rest_service.paper_balance:.2f}")
+                                else:
+                                    logger.warning(f"⚠️ [PAPER] No paper position found for {symbol}")
+                            else:
+                                # Close real position
+                                positions = await bybit_rest_service.get_active_positions(symbol=symbol)
+                                for pos in positions:
+                                    size = float(pos.get("size", 0))
+                                    if size > 0:
+                                        logger.info(f"🔨 [REAL] GUARDIAN HAMMER: Closing {symbol} | Size: {size}")
+                                        await bybit_rest_service.close_position(symbol, pos["side"], size)
+                        except Exception as close_err:
+                            logger.error(f"❌ Failed to close position {symbol}: {close_err}")
                         
                         # Reset slot in Firebase
-                        await firebase_service.hard_reset_slot(slot["id"], close_reason, pnl_pct)
-                        continue  # Skip to next slot
+                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_pct)
+                        continue
 
-                # V4.3.1: Define Trailing Surf Logic using ExecutionProtocol ladder
-                surf_rules = [
-                    {"trigger": 10.0, "stop_pct": 7.0},
-                    {"trigger": 5.0,  "stop_pct": 3.0},
-                    {"trigger": 3.0,  "stop_pct": 1.5},
-                    {"trigger": settings.BREAKEVEN_TRIGGER_PERCENT, "stop_pct": 0.0}
-                ]
-
-                target_stop_pct = None
-                for rule in surf_rules:
-                    if pnl_pct >= rule["trigger"]:
-                        target_stop_pct = rule["stop_pct"]
-                        break
-                
-                if target_stop_pct is None: continue
-
-                # Calculate new price for the Stop
-                # For Long: Entry * (1 + target_stop_pct/100/leverage)
-                # For Short: Entry * (1 - target_stop_pct/100/leverage)
-                # Note: target_stop_pct is in terms of UNLEVERAGED profit to stay safe
-                safe_offset = (target_stop_pct / leverage) / 100
-                new_stop_price = entry * (1 + safe_offset) if side == "Buy" else entry * (1 - safe_offset)
-                
-                # Check if this move is actually an improvement (Trailing only)
-                is_improvement = False
-                side_norm = (side or "").lower()
-                if side_norm == "buy" and new_stop_price > current_stop: is_improvement = True
-                if side_norm == "sell" and new_stop_price < current_stop and current_stop > 0: is_improvement = True
-                if side_norm == "sell" and current_stop == 0: is_improvement = True # First stop
-
-                # Always update PnL in Firebase for UI
-                try:
-                    await firebase_service.update_slot(slot["id"], {"pnl_percent": pnl_pct})
-                except: pass
-                
-                if not is_improvement: continue
-
-                # Execution: Move SL on Exchange
-                try:
-                    logger.info(f"Guardian SURF: {symbol} Profit {pnl_pct:.2f}%. Moving SL to {new_stop_price:.5f} (+{target_stop_pct}% ROI).")
-                    resp = await bybit_rest_service.set_trading_stop(
-                        category="linear",
-                        symbol=symbol,
-                        stopLoss=str(new_stop_price),
-                        slTriggerBy="LastPrice",
-                        tpslMode="Full",
-                        positionIdx=0
-                    )
+                # ==========================================
+                # V4.5.1: SURF SHIELD LOGIC (Trailing SL)
+                # ==========================================
+                if slot_type == "SURF":
+                    should_close, close_reason, new_stop = execution_protocol.process_surf_logic(slot_data, last_price, pnl_pct)
                     
-                    ret_code = resp.get("retCode")
-                    if ret_code in [0, 34040]: # 0 = OK, 34040 = Already set
-                        if target_stop_pct > 0:
-                            status_msg = f"SURFING (+{target_stop_pct}% ROI)"
-                        else:
-                            status_msg = "ZERO RISK (BE)"
+                    if should_close:
+                        is_stop_loss = "SL" in close_reason or "STOP" in close_reason or pnl_pct < 0
+                        emoji = "🛑" if is_stop_loss else "🏄"
+                        logger.info(f"{emoji} SURF CLOSED: {symbol} | Reason: {close_reason} | ROI: {pnl_pct:.2f}%")
                         
-                        await firebase_service.update_slot(slot["id"], {
-                            "current_stop": new_stop_price,
-                            "status_risco": status_msg,
-                            "pnl_percent": pnl_pct,
-                            "pensamento": f"🛡️ Guardian: {symbol} protegido. Lucro de {pnl_pct:.2f}% sustentado. Stop em {status_msg}."
-                        })
-                        if ret_code == 0:
-                            await firebase_service.log_event("Guardian", f"🏄 SURF: {symbol} SL moved to {new_stop_price:.5f}. Profit: {pnl_pct:.2f}%", "SUCCESS")
-                    else:
-                         logger.error(f"Failed to move SL for {symbol}: {resp}")
+                        # V4.5.2: Close position in BOTH PAPER and REAL modes
+                        try:
+                            if bybit_rest_service.execution_mode == "PAPER":
+                                paper_pos = next((p for p in bybit_rest_service.paper_positions if p["symbol"] == symbol), None)
+                                if paper_pos:
+                                    size = float(paper_pos.get("size", 0))
+                                    logger.info(f"🔨 [PAPER] SURF EXIT: Closing {symbol} | Size: {size}")
+                                    await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
+                                    logger.info(f"✅ [PAPER] Position closed. New balance: ${bybit_rest_service.paper_balance:.2f}")
+                            else:
+                                positions = await bybit_rest_service.get_active_positions(symbol=symbol)
+                                for pos in positions:
+                                    size = float(pos.get("size", 0))
+                                    if size > 0:
+                                        await bybit_rest_service.close_position(symbol, pos["side"], size)
+                        except Exception as close_err:
+                            logger.error(f"❌ Failed to close SURF position {symbol}: {close_err}")
+                        
+                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_pct)
+                        continue
+                    
+                    # Update trailing stop if needed
+                    if new_stop is not None:
+                        logger.info(f"🏄 SURF TRAILING UPDATE: {symbol} | New SL: {new_stop:.8f}")
+                        
+                        try:
+                            resp = await bybit_rest_service.set_trading_stop(
+                                category="linear",
+                                symbol=symbol,
+                                stopLoss=str(new_stop),
+                                slTriggerBy="LastPrice",
+                                tpslMode="Full",
+                                positionIdx=0
+                            )
+                            
+                            await firebase_service.update_slot(slot_id, {
+                                "current_stop": new_stop,
+                                "status_risco": visual_status,
+                                "pensamento": f"🛡️ Guardian: Stop atualizado para {new_stop:.5f}"
+                            })
+                        except Exception as se:
+                            logger.error(f"Failed to update SL for {symbol}: {se}")
 
-                except Exception as e:
-                    if "34040" not in str(e):
-                        logger.error(f"Error moving SL for {symbol}: {e}")
+            # Update Overclock state
+            self.overclock_active = has_flash_zone
+            
+            if has_flash_zone:
+                logger.info(f"⚡ OVERCLOCK ENGAGED: Polling at {self.overclock_interval}s")
 
         except Exception as e:
-            logger.error(f"Error in manage_positions: {e}")
+            logger.error(f"Error in manage_positions: {e}", exc_info=True)
 
     async def monitor_loop(self):
-        """Infinite loop to monitor system health and positions."""
+        """
+        V4.5.1: Infinite loop with adaptive interval.
+        - Normal: 1 second
+        - Overclock: 200ms (when SNIPER in Flash Zone)
+        """
+        logger.info("🛡️ Guardian V4.5.1 Protocol Elite ONLINE")
+        logger.info(f"   Normal Interval: {self.normal_interval}s")
+        logger.info(f"   Overclock Interval: {self.overclock_interval}s")
+        
         while True:
             # 1. Health Check
             await self.check_api_health()
             
-            # 2. Position Management (Auto-Breakeven)
+            # 2. Position Management
             await self.manage_positions()
 
-            # V4.3.1: Fast loop interval for SNIPER 100% ROI capture
-            await asyncio.sleep(1)
+            # 3. Adaptive Sleep
+            interval = self.overclock_interval if self.overclock_active else self.normal_interval
+            
+            # Periodic status log
+            self.loops_since_log += 1
+            if self.loops_since_log >= self.log_interval:
+                mode = "OVERCLOCK" if self.overclock_active else "NORMAL"
+                logger.info(f"💓 Guardian Heartbeat | Mode: {mode} | Interval: {interval}s")
+                self.loops_since_log = 0
+            
+            await asyncio.sleep(interval)
 
 guardian_agent = GuardianAgent()

@@ -29,7 +29,7 @@ print("DEBUG: Logger configured.")
 async def lifespan(app: FastAPI):
     # V4.3.2: Cloud Run Optimized Startup - FULLY NON-BLOCKING
     # Health checks must succeed BEFORE services are fully initialized
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.5.0 Backend...")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.8.1 Backend...")
     logger.info("☁️ Cloud Run Mode: Fast startup, async service initialization")
     
     async def start_services():
@@ -144,8 +144,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V4.5.0 API",
-    version="4.5.0",
+    title="1CRYPTEN SPACE V4.8.1 API",
+    version="4.8.1",
     lifespan=lifespan
 )
 
@@ -377,7 +377,7 @@ async def text_to_speech(payload: dict):
     import io
     
     text = payload.get("text", "")
-    voice = payload.get("voice", "pt-BR-FranciscaNeural")  # Premium Brazilian voice
+    voice = payload.get("voice", "pt-BR-AntonioNeural")  # Premium Brazilian voice (Male default)
     
     if not text:
         return {"error": "No text provided"}
@@ -414,7 +414,7 @@ async def get_tts_voices():
             {"id": "en-US-GuyNeural", "name": "Guy", "lang": "en-US", "gender": "Male"},
             {"id": "en-US-JennyNeural", "name": "Jenny", "lang": "en-US", "gender": "Female"},
         ],
-        "default": "pt-BR-FranciscaNeural"
+        "default": "pt-BR-AntonioNeural"
     }
 
 

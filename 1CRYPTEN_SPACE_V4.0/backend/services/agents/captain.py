@@ -72,18 +72,39 @@ class CaptainAgent:
                     if sym in self.processing_lock:
                         self.processing_lock.remove(sym)
                 
-                # Risk calculation for progression logic
-                risk_free_count = 0
+                # V4.8: PROTOCOLO ELITE - Contagem Real de Risco por Preços
+                MAX_SLOTS_AT_RISK = 4  # Máximo 4 slots em risco ativo (20% banca = 5% x 4)
+                
+                slots_at_risk = 0
+                slots_risk_zero = 0
+                
                 for s in active_slots:
-                    if s.get("symbol"):
-                        risco_msg = (s.get("status_risco") or "").upper()
-                        if "RISK" in risco_msg or "ZERO" in risco_msg or "SURF" in risco_msg:
-                            risk_free_count += 1
+                    if not s.get("symbol"):
+                        continue
+                    
+                    entry = float(s.get("entry_price", 0) or 0)
+                    stop = float(s.get("current_stop", 0) or 0)
+                    side_norm = (s.get("side") or "").lower()
+                    
+                    if entry <= 0:
+                        continue
+                    
+                    # Verificar se está em risco ou risk zero
+                    is_risk_zero = False
+                    if side_norm == "buy" and stop >= entry:
+                        is_risk_zero = True
+                    elif side_norm == "sell" and stop > 0 and stop <= entry:
+                        is_risk_zero = True
+                    
+                    if is_risk_zero:
+                        slots_risk_zero += 1
+                    else:
+                        slots_at_risk += 1
                 
                 # simulated_active_count includes symbols in slots + symbols we just fired
-                simulated_active_count = len(active_symbols) + len(self.processing_lock)
+                simulated_slots_at_risk = slots_at_risk + len(self.processing_lock)
                 
-                logger.info(f"Captain Iron Lock: Active={len(active_symbols)}, Pending={len(self.processing_lock)}, RiskFree={risk_free_count}")
+                logger.info(f"V4.8 Risk Protocol: AtRisk={slots_at_risk}/{MAX_SLOTS_AT_RISK}, RiskZero={slots_risk_zero}, Pending={len(self.processing_lock)}, CanOpen={simulated_slots_at_risk < MAX_SLOTS_AT_RISK}")
                 
                 for signal in signals:
                     # Skip if already has an outcome or is picked
@@ -101,9 +122,8 @@ class CaptainAgent:
                     if norm_sym in active_symbols or norm_sym in self.processing_lock:
                         continue
 
-                    # 2. Risk Progression Guard (Max 4 initial slots)
-                    allowed_total = bankroll_manager.initial_slots + risk_free_count
-                    if simulated_active_count >= allowed_total:
+                    # 2. V4.8: Risk Progression Guard - MÁXIMO 4 SLOTS EM RISCO ATIVO
+                    if simulated_slots_at_risk >= MAX_SLOTS_AT_RISK:
                         continue
 
                     # 3. Score Threshold
@@ -133,12 +153,12 @@ class CaptainAgent:
                     # atomic decision: mark handled IMMEDIATELY in Firebase
                     await firebase_service.update_signal_outcome(signal["id"], "PICKED")
                     
-                    # 6. Execute Position
+                    # 6. Execute Position - V4.8: Novo slot entra EM RISCO
                     self.processing_lock.add(norm_sym)
-                    simulated_active_count += 1
+                    simulated_slots_at_risk += 1
                     
                     type_emoji = "🏄" if slot_type == "SURF" else "🎯"
-                    pensamento_base = f"Iron Lock V4.3.1: {type_emoji} {slot_type} Ativado. CVD: {cvd:.2f}. Score: {score}. (Missão: Risco Zero)"
+                    pensamento_base = f"V4.8 Elite: {type_emoji} {slot_type} Ativado. CVD: {cvd:.2f}. Score: {score}. (Missão: Risco Zero)"
                     
                     logger.info(f"Captain PICKED Signal: {signal['symbol']} (Score: {score}) -> {slot_type}")
                     await firebase_service.log_event(slot_type, f"V4.3.1: {slot_type} trade {signal['symbol']}", "SUCCESS")
