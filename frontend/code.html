@@ -564,35 +564,42 @@
                             volume: parseFloat(k[5])
                         })).sort((a, b) => a.time - b.time);
 
-                        if (seriesRef.current) seriesRef.current.setData(klines);
+                        // Safety check: Ensure chart is still active before updating
+                        if (!isMounted.current || !chartRef.current || !seriesRef.current) return;
 
-                        // Indicators Calculation
-                        if (volumeSeriesRef.current) {
-                            volumeSeriesRef.current.setData(klines.map(k => ({
-                                time: k.time,
-                                value: k.volume,
-                                color: k.close >= k.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'
-                            })));
-                        }
+                        try {
+                            if (seriesRef.current) seriesRef.current.setData(klines);
 
-                        const calculateEMA = (data, period) => {
-                            if (data.length < period) return [];
-                            const k = 2 / (period + 1);
-                            let emaData = [];
-                            let ema = data.slice(0, period).reduce((acc, val) => acc + val.close, 0) / period;
-                            for (let i = period; i < data.length; i++) {
-                                ema = (data[i].close - ema) * k + ema;
-                                emaData.push({ time: data[i].time, value: ema });
+                            // Indicators Calculation
+                            if (volumeSeriesRef.current) {
+                                volumeSeriesRef.current.setData(klines.map(k => ({
+                                    time: k.time,
+                                    value: k.volume,
+                                    color: k.close >= k.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'
+                                })));
                             }
-                            return emaData;
-                        };
 
-                        if (ema20Ref.current) ema20Ref.current.setData(calculateEMA(klines, 20));
-                        if (ema200Ref.current) ema200Ref.current.setData(calculateEMA(klines, 200));
+                            const calculateEMA = (data, period) => {
+                                if (data.length < period) return [];
+                                const k = 2 / (period + 1);
+                                let emaData = [];
+                                let ema = data.slice(0, period).reduce((acc, val) => acc + val.close, 0) / period;
+                                for (let i = period; i < data.length; i++) {
+                                    ema = (data[i].close - ema) * k + ema;
+                                    emaData.push({ time: data[i].time, value: ema });
+                                }
+                                return emaData;
+                            };
 
-                        // Zones Update (Base on entry)
-                        if (zonesRef.current) {
-                            zonesRef.current.setData(klines.map(k => ({ time: k.time, value: k.close })));
+                            if (ema20Ref.current) ema20Ref.current.setData(calculateEMA(klines, 20));
+                            if (ema200Ref.current) ema200Ref.current.setData(calculateEMA(klines, 200));
+
+                            // Zones Update (Base on entry)
+                            if (zonesRef.current) {
+                                zonesRef.current.setData(klines.map(k => ({ time: k.time, value: k.close })));
+                            }
+                        } catch (err) {
+                            console.warn("[Chart] Update skipped (chart disposed)", err);
                         }
                     }
                 } catch (e) { if (isMounted.current) console.error("History Error", e); }
