@@ -7,6 +7,8 @@
     <title>1Crypten Command - Deep Space v4.1</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/logo10D.png">
 
     <!-- Libraries -->
@@ -638,13 +640,13 @@
                     }
                 };
                 ws.onmessage = (event) => {
-                    if (!active) return;
+                    if (!active || !isMounted.current || !chartRef.current) return;
                     const msg = JSON.parse(event.data);
                     if (msg.topic && msg.topic.startsWith('kline') && seriesRef.current) {
                         const k = msg.data[0];
                         const update = { time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) };
                         try {
-                            seriesRef.current.update(update);
+                            if (seriesRef.current) seriesRef.current.update(update);
                             if (volumeSeriesRef.current) volumeSeriesRef.current.update({ ...update, value: parseFloat(k.volume), color: update.close >= update.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)' });
                             if (zonesRef.current) zonesRef.current.update({ time: update.time, value: update.close });
                         } catch (e) { }
@@ -676,12 +678,14 @@
 
                 // Small delay to ensure chart state is stable after TF change
                 const timeout = setTimeout(() => {
-                    if (!seriesRef.current) return;
+                    if (!isMounted.current || !seriesRef.current || !chartRef.current) return;
 
                     // Clear existing lines
                     try {
                         linesRef.current.forEach(line => {
-                            try { seriesRef.current.removePriceLine(line); } catch (err) { }
+                            try {
+                                if (seriesRef.current) seriesRef.current.removePriceLine(line);
+                            } catch (err) { }
                         });
                     } catch (e) { }
                     linesRef.current = [];
@@ -689,41 +693,47 @@
                     const ne = Number(entryPrice);
                     const ns = Number(stopLossPrice);
 
-                    if (symbol && ne > 0) {
+                    if (symbol && ne > 0 && seriesRef.current) {
                         console.log(`[Chart] Rendering lines for ${symbol} (TF: ${tf}): Entry ${ne}, Stop ${ns}`);
 
                         // Entry Line
-                        linesRef.current.push(seriesRef.current.createPriceLine({
-                            price: ne,
-                            color: '#3B82F6',
-                            lineWidth: 2,
-                            lineStyle: LightweightCharts.LineStyle.Solid,
-                            axisLabelVisible: true,
-                            title: 'ENTRY'
-                        }));
+                        try {
+                            linesRef.current.push(seriesRef.current.createPriceLine({
+                                price: ne,
+                                color: '#3B82F6',
+                                lineWidth: 2,
+                                lineStyle: LightweightCharts.LineStyle.Solid,
+                                axisLabelVisible: true,
+                                title: 'ENTRY'
+                            }));
+                        } catch (e) { }
 
                         // Stop Loss Line
                         if (ns > 0) {
-                            linesRef.current.push(seriesRef.current.createPriceLine({
-                                price: ns,
-                                color: '#EF4444',
-                                lineWidth: 2,
-                                lineStyle: LightweightCharts.LineStyle.Dashed,
-                                axisLabelVisible: true,
-                                title: 'STOP LOSS'
-                            }));
+                            try {
+                                linesRef.current.push(seriesRef.current.createPriceLine({
+                                    price: ns,
+                                    color: '#EF4444',
+                                    lineWidth: 2,
+                                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                                    axisLabelVisible: true,
+                                    title: 'STOP LOSS'
+                                }));
+                            } catch (e) { }
                         }
 
                         // Target Line
                         const target = side === 'Buy' ? ne * 1.05 : ne * 0.95;
-                        linesRef.current.push(seriesRef.current.createPriceLine({
-                            price: target,
-                            color: '#edbc1d',
-                            lineWidth: 1,
-                            lineStyle: LightweightCharts.LineStyle.Dotted,
-                            axisLabelVisible: true,
-                            title: 'TARGET'
-                        }));
+                        try {
+                            linesRef.current.push(seriesRef.current.createPriceLine({
+                                price: target,
+                                color: '#edbc1d',
+                                lineWidth: 1,
+                                lineStyle: LightweightCharts.LineStyle.Dotted,
+                                axisLabelVisible: true,
+                                title: 'TARGET'
+                            }));
+                        } catch (e) { }
                     }
                 }, 100);
 
@@ -769,7 +779,11 @@
                             <span className="text-[10px] text-slate-400 uppercase font-bold mr-2">Market:</span>
                             <span className="text-lg font-mono font-bold text-white">{lastPrice ? lastPrice.toLocaleString() : '---'}</span>
                         </div>
-                        {Math.abs(displayPnl) > 0.01 && <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${displayPnl >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>ROI (50x): {displayPnl > 0 ? '+' : ''}{displayPnl.toFixed(2)}%</div>}
+                        {Math.abs(displayPnl) > 0.01 && (
+                            <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${displayPnl >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-500'}`}>
+                                ROI (50x): {displayPnl > 0 ? '+' : '-'}{Math.abs(displayPnl).toFixed(2)}%
+                            </div>
+                        )}
                     </div>
                     <div ref={chartContainerRef} className="w-full h-full" />
                 </div>
@@ -877,11 +891,9 @@
 
                                 {/* Hero Profit USD */}
                                 <div className="flex flex-col items-center justify-center my-2">
-                                    <span className={`text-2xl font-mono font-bold tracking-tighter drop-shadow-lg ${isProfit ? 'text-white' : 'text-red-100'}`}>
-                                        {profitUSD >= 0 ? '+' : ''}${profitUSD.toFixed(2)}
+                                    <span className={`text-2xl font-mono font-bold tracking-tighter drop-shadow-lg ${isProfit ? 'text-emerald-400' : 'text-red-500'}`}>
+                                        {isProfit ? '+' : '-'}${Math.abs(profitUSD).toFixed(2)}
                                     </span>
-                                    {/* Dynamic Label */}
-                                    <span className="text-[8px] text-slate-500 uppercase font-bold tracking-widest">{isProfit ? 'Em Lucro' : 'Reagindo'}</span>
                                 </div>
 
                                 {/* Market Data Grid */}
@@ -1123,26 +1135,69 @@
 
             return (
                 <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-16 sm:pb-0">
-                    {/* Compact Header */}
-                    <header className="flex-shrink-0 px-4 py-2 bg-black/60 backdrop-blur-xl border-b border-white/5 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5">
-                                <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
-                                <span className="text-[10px] text-slate-400 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
+                    {/* Premium Header - Gemini Style */}
+                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                        <div className="max-w-3xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
+                                    <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
+                                </div>
                             </div>
-                            <h1 className="text-sm font-bold text-white/90 tracking-wide">Chat com Capitão</h1>
+                            <h1 className="text-base sm:text-lg font-display font-bold text-white tracking-wide">Capitão</h1>
+                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
                         </div>
-                        <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-80" />
                     </header>
 
                     {/* Messages Area */}
-                    <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 custom-scrollbar">
+                    <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar">
                         {oracleLogs.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center gap-4 opacity-50">
-                                <span className="material-icons-round text-primary/40 text-5xl">chat</span>
-                                <div className="text-center">
-                                    <p className="text-sm text-slate-400">Inicie uma conversa com o Capitão</p>
-                                    <p className="text-[10px] text-slate-600 mt-1">Pergunte sobre trades, estratégias ou mercado</p>
+                            /* Welcome Screen - Gemini Style */
+                            <div className="h-full flex flex-col items-center justify-center px-4">
+                                {/* Saudação Premium */}
+                                <div className="text-center mb-10">
+                                    <p className="text-slate-400 text-lg sm:text-xl font-light">Olá, Operador</p>
+                                    <h1 className="text-2xl sm:text-4xl font-display font-bold premium-gradient-text mt-3 leading-tight">
+                                        O oceano espera...
+                                    </h1>
+                                    <p className="text-xl sm:text-3xl font-display text-white/80 mt-1">
+                                        Qual rota vamos traçar?
+                                    </p>
+                                </div>
+
+                                {/* Chips de Sugestão */}
+                                <div className="flex flex-col gap-3 w-full max-w-md">
+                                    <button
+                                        onClick={() => setInputValue('Qual o status das operações?')}
+                                        className="flex items-center gap-3 px-5 py-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-primary/30 rounded-2xl transition-all group"
+                                    >
+                                        <span className="material-icons-round text-primary/70 group-hover:text-primary text-xl">trending_up</span>
+                                        <span className="text-sm sm:text-base text-slate-300 group-hover:text-white">Status das operações</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setInputValue('Como está o mercado agora?')}
+                                        className="flex items-center gap-3 px-5 py-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-primary/30 rounded-2xl transition-all group"
+                                    >
+                                        <span className="material-icons-round text-primary/70 group-hover:text-primary text-xl">query_stats</span>
+                                        <span className="text-sm sm:text-base text-slate-300 group-hover:text-white">Análise de mercado agora</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setInputValue('Qual estratégia devo usar?')}
+                                        className="flex items-center gap-3 px-5 py-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-primary/30 rounded-2xl transition-all group"
+                                    >
+                                        <span className="material-icons-round text-primary/70 group-hover:text-primary text-xl">tips_and_updates</span>
+                                        <span className="text-sm sm:text-base text-slate-300 group-hover:text-white">Qual estratégia usar?</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setInputValue('O que o radar está detectando?')}
+                                        className="flex items-center gap-3 px-5 py-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-primary/30 rounded-2xl transition-all group"
+                                    >
+                                        <span className="material-icons-round text-primary/70 group-hover:text-primary text-xl">radar</span>
+                                        <span className="text-sm sm:text-base text-slate-300 group-hover:text-white">Sinais no radar</span>
+                                    </button>
                                 </div>
                             </div>
                         ) : (
@@ -1202,7 +1257,7 @@
                                 </button>
                             )}
 
-                            {/* Text Input */}
+                            {/* Premium Text Input */}
                             <div className="flex-1 relative">
                                 <input
                                     ref={inputRef}
@@ -1212,13 +1267,13 @@
                                     onKeyDown={handleKeyDown}
                                     placeholder="Pergunte ao Capitão..."
                                     disabled={isSending}
-                                    className="w-full bg-white/5 border border-white/10 rounded-full px-4 py-2 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none focus:border-primary/40 focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                                    className="w-full bg-white/[0.03] border-2 border-white/10 rounded-2xl px-5 py-3 sm:py-4 text-sm sm:text-base text-white placeholder-slate-500 outline-none focus:border-primary/50 focus:bg-white/[0.06] focus:shadow-[0_0_20px_rgba(255,215,0,0.1)] transition-all disabled:opacity-50"
                                 />
                                 {isListening && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-0.5">
-                                        <span className="w-1 h-3 bg-red-500 rounded-full animate-pulse"></span>
-                                        <span className="w-1 h-4 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></span>
-                                        <span className="w-1 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
+                                    <div className="absolute right-5 top-1/2 -translate-y-1/2 flex gap-1">
+                                        <span className="w-1 h-4 bg-red-500 rounded-full animate-pulse"></span>
+                                        <span className="w-1 h-5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></span>
+                                        <span className="w-1 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
                                     </div>
                                 )}
                             </div>
@@ -1277,37 +1332,37 @@
             const btcSignalsCount = signals.filter(s => s.symbol.includes("BTC")).length;
 
             return (
-                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/20' : 'bg-[#020617]'} text-white pb-16 sm:pb-0`}>
-                    {/* Compact Header */}
-                    <header className="flex-shrink-0 px-3 sm:px-6 py-2 sm:py-4 bg-black/60 backdrop-blur-xl border-b border-white/5">
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2 sm:gap-3">
-                                <span className={`px-2 py-0.5 sm:px-3 sm:py-1 text-[8px] sm:text-[10px] rounded-full border font-bold tracking-widest uppercase ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'}`}>
-                                    {isHuntActive ? 'Lock On' : 'Scanning'}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
-                                    <span className="text-[8px] sm:text-[9px] text-slate-500 font-mono">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
+                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'bg-[#0A0A0B]'} text-white pb-16 sm:pb-0`}>
+                    {/* Premium Header - Gemini Style */}
+                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
+                                    <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
+                                </div>
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white">
+                                    Journey Radar
+                                    {isHuntActive && <span className="ml-2 text-[8px] bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">HUNT</span>}
+                                </h1>
+                                <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                            </div>
+                            <div className="flex justify-between items-center mt-2">
+                                <p className="text-xs text-slate-400">{filteredSignals.length} sinais ativos • 84 pares 50x</p>
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-3 py-1 text-[10px] rounded-full border font-medium ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'}`}>
+                                        {isHuntActive ? 'Lock On' : 'Scanning'}
+                                    </span>
+                                    {btcSignalsCount > 0 && (
+                                        <button
+                                            onClick={() => setShowBtc(!showBtc)}
+                                            className={`text-[10px] px-3 py-1 rounded-full border transition-colors ${showBtc ? 'border-primary/50 text-primary bg-primary/10' : 'border-white/10 text-slate-500'}`}
+                                        >
+                                            {showBtc ? `BTC (${btcSignalsCount})` : `+${btcSignalsCount} BTC`}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain opacity-80" />
-                        </div>
-                        <div className="flex justify-between items-center mt-2">
-                            <div>
-                                <h1 className="font-bold text-base sm:text-xl tracking-tight flex items-center gap-2">
-                                    Journey Radar
-                                    {isHuntActive && <span className="text-[8px] bg-red-500 text-white px-1.5 py-0.5 rounded animate-pulse">HUNT</span>}
-                                </h1>
-                                <p className="text-[8px] sm:text-[9px] text-slate-500 uppercase tracking-widest">{filteredSignals.length} Sinais • 84 Pares 50x</p>
-                            </div>
-                            {btcSignalsCount > 0 && (
-                                <button
-                                    onClick={() => setShowBtc(!showBtc)}
-                                    className={`text-[8px] px-2 py-1 rounded border transition-colors ${showBtc ? 'border-primary/50 text-primary bg-primary/10' : 'border-white/10 text-slate-500'}`}
-                                >
-                                    {showBtc ? `BTC (${btcSignalsCount})` : `+${btcSignalsCount} BTC`}
-                                </button>
-                            )}
                         </div>
                     </header>
 
@@ -1382,14 +1437,23 @@
 
         const LandingPage = ({ onEnter }) => {
             return (
-                <div className="landing-bg fixed inset-0 flex flex-col items-center justify-center z-[100] p-6">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>
-                    <button
-                        onClick={onEnter}
-                        className="relative z-10 bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 px-10 py-3 rounded-lg text-sm font-bold uppercase tracking-[0.3em] transition-all active:scale-95 shadow-2xl backdrop-blur-md"
-                    >
-                        Entrar
-                    </button>
+                <div className="landing-bg fixed inset-0 flex flex-col items-center justify-center z-[100] p-6 overflow-hidden">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
+
+                    {/* Floating Glow */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] animate-pulse"></div>
+
+                    <div className="relative z-10 flex flex-col items-center">
+                        <img src="/logo10D.png" alt="Logo" className="w-24 h-24 mb-12 drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]" />
+
+                        <button
+                            onClick={onEnter}
+                            className="group relative px-12 py-4 bg-white/[0.03] border-2 border-primary/30 rounded-2xl overflow-hidden transition-all hover:border-primary hover:shadow-[0_0_40px_rgba(255,215,0,0.2)] active:scale-95"
+                        >
+                            <div className="absolute inset-0 bg-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                            <span className="relative text-sm font-display font-bold text-white uppercase tracking-[0.4em]">Acessar Ponte</span>
+                        </button>
+                    </div>
                 </div>
             );
         };
@@ -1531,7 +1595,7 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-space-black overflow-hidden">
+                <div className="flex flex-col h-full bg-[#0A0A0B] overflow-hidden">
                     {pulseStatus === 'OFFLINE' && (
                         <div className="fixed inset-0 z-[100] bg-red-950/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                             <div className="bg-black/80 border border-red-500/50 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-pulse">
@@ -1543,32 +1607,42 @@
                             </div>
                         </div>
                     )}
-                    <header className="glass-panel px-4 py-2 flex flex-col z-50 border-b border-white/10 flex-shrink-0 min-h-[60px] sm:min-h-[70px]">
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <span className={`w-1.5 h-1.5 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
-                                <span className="text-[9px] text-slate-300 font-bold tracking-widest uppercase">
-                                    PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : (pulseStatus === 'DEGRADED' ? 'REST: OK' : `${latency}ms`))}
-                                </span>
-                            </div>
-                            <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(255,215,0,0.2)]" />
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-0.5">Portfolio Balance</p>
-                                <h1 className="text-xl font-display text-white font-bold tracking-tighter premium-gradient-text uppercase">
-                                    ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                                </h1>
-                                <div className="bg-white/5 px-2 py-0.5 rounded border border-white/10 flex flex-col">
-                                    <span className="text-[6px] text-slate-500 uppercase font-bold tracking-[0.1em]">Op. Limit</span>
-                                    <span className="text-[10px] font-mono font-bold text-primary">$5.00</span>
+
+                    {/* Premium Header - Gemini Style */}
+                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5 z-50">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
+                                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                        PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : 'STABLE')}
+                                    </span>
                                 </div>
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-tight">Deep Space</h1>
+                                <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">RISK</span>
-                                <span className={`text-lg font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                    {(banca.risco_real_percent * 100).toFixed(2)}%
-                                </span>
+
+                            <div className="flex justify-between items-end mt-4">
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Portfolio Balance</p>
+                                    <h2 className="text-2xl sm:text-3xl font-display text-white font-bold tracking-tighter premium-gradient-text">
+                                        ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                                    </h2>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Risk Exposure</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-lg font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                            {(banca.risco_real_percent * 100).toFixed(2)}%
+                                        </span>
+                                        <div className="w-12 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full ${banca.risco_real_percent > 0.15 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                                style={{ width: `${Math.min(100, banca.risco_real_percent * 100 * 5)}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </header>
@@ -1598,8 +1672,8 @@
                         {/* 2. SLOTS SECTION (50% do espaço disponível) */}
                         <section className="flex-[5] overflow-y-auto rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 border-white/10 p-3 custom-scrollbar">
                             {/* Sniper Squadron */}
-                            <div className="mb-4">
-                                <h3 className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <div className="mb-4 flex flex-col items-start">
+                                <h3 className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2 self-start">
                                     <span className="material-icons-round text-xs">target</span>
                                     Esquadrão Sniper (Slots 1-5)
                                 </h3>
@@ -1611,8 +1685,8 @@
                             </div>
 
                             {/* Surf Squadron */}
-                            <div className="mt-2">
-                                <h3 className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <div className="mt-2 flex flex-col items-start">
+                                <h3 className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest mb-2 flex items-center gap-2 self-start">
                                     <span className="material-icons-round text-xs">waves</span>
                                     Esquadrão Surf (Slots 6-10)
                                 </h3>
@@ -1652,20 +1726,22 @@
             }, []);
 
             return (
-                <div className="flex flex-col min-h-screen bg-[#000000] text-slate-100 font-sans p-6 pb-24">
-                    <header className="mb-8 flex flex-col">
-                        <div className="flex justify-between items-start mb-2">
-                            <div className="flex flex-col gap-1 items-start mt-2">
+                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 pb-24">
+                    {/* Premium Header - Gemini Style */}
+                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : (pulseStatus === 'WARNING' ? 'bg-amber-500' : (latency < 2500 ? 'bg-emerald-500' : 'bg-amber-400'))} animate-pulse`}></span>
-                                    <span className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">PULSE: {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : `${latency}ms`)}</span>
+                                    <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
+                                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
                                 </div>
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-wide">Mission Ledger</h1>
+                                <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
                             </div>
-                            <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-display font-bold text-white premium-gradient-text uppercase tracking-tight">Mission Ledger</h1>
-                            <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] mt-1">Closed Operations Log</p>
+                            <div className="flex justify-between items-center mt-3">
+                                <p className="text-xs text-slate-400 capitalize">{history.length} operações encerradas</p>
+                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">v4.5.0 Archives</span>
+                            </div>
                         </div>
                     </header>
 
@@ -1725,7 +1801,16 @@
         // 5. Vault Page (Iframe Integration)
         const VaultPage = () => {
             return (
-                <div className="flex flex-col h-screen bg-black">
+                <div className="flex flex-col h-screen bg-[#0A0A0B]">
+                    {/* Header for Vault (since it's an iframe) */}
+                    <header className="flex-shrink-0 px-4 py-3 bg-black/80 backdrop-blur-xl border-b border-white/5">
+                        <div className="max-w-3xl mx-auto flex justify-between items-center">
+                            <div className="w-12"></div>
+                            <h1 className="text-base sm:text-lg font-display font-bold text-white">Vault Management</h1>
+                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
+                        </div>
+                    </header>
+
                     <iframe
                         src="/vault/ui"
                         className="flex-1 w-full border-none"
@@ -1745,13 +1830,16 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#000000] text-slate-100 font-sans p-4 overflow-y-auto pb-24">
-                    <header className="mb-6 flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                        <div className="flex flex-col">
-                            <h1 className="text-xl font-display font-bold text-white uppercase tracking-tight">Security Center</h1>
-                            <p className="text-[8px] text-slate-500 uppercase tracking-widest mt-1">V4.2 Operation Command</p>
+                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-24">
+                    {/* Premium Header - Gemini Style */}
+                    <header className="mb-6 bg-black/80 backdrop-blur-xl border-b border-white/5 -mx-4 -mt-4 px-4 py-3 sticky top-0 z-50">
+                        <div className="max-w-3xl mx-auto flex justify-between items-center">
+                            <div className="flex flex-col">
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white tracking-wide">Configurações</h1>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Security Center • V4.5.0</p>
+                            </div>
+                            <img src="/logo10D.png" alt="Logo" className="w-8 h-8 object-contain opacity-90" />
                         </div>
-                        <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-50" />
                     </header>
 
                     <div className="grid grid-cols-1 gap-4">
@@ -1821,11 +1909,11 @@
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-300">Versão Atual</span>
-                                    <span className="text-lg font-bold text-primary font-mono">V4.3.3</span>
+                                    <span className="text-lg font-bold text-primary font-mono">V4.5.0</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-400">Build</span>
-                                    <span className="text-sm text-slate-400 font-mono">UI Polish Edition</span>
+                                    <span className="text-sm text-slate-400 font-mono">Gemini Experience</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-400">Data</span>
@@ -1846,31 +1934,40 @@
 
         const NavBar = ({ onLogout }) => {
             const location = useLocation();
+
+            const NavItem = ({ to, icon, label, isActive }) => (
+                <Link
+                    to={to}
+                    className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all ${isActive
+                        ? 'text-primary'
+                        : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                >
+                    <span className="material-icons-round" style={{ fontSize: '22px' }}>{icon}</span>
+                    <span className="text-[10px] font-medium tracking-wide">{label}</span>
+                </Link>
+            );
+
             return (
-                <nav className="fixed bottom-0 w-full h-24 bg-black/98 backdrop-blur-3xl border-t border-white/10 flex justify-around items-center z-50 px-3 pb-4 pt-2">
-                    <Link to="/" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
-                        <span className="material-icons-round" style={{ fontSize: '28px' }}>space_dashboard</span>
-                        <span className="text-xs font-bold uppercase tracking-wider">Banca</span>
-                    </Link>
-                    <Link to="/radar" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/radar' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
-                        <span className="material-icons-round" style={{ fontSize: '28px' }}>radar</span>
-                        <span className="text-xs font-bold uppercase tracking-wider">Radar</span>
-                    </Link>
+                <nav className="fixed bottom-0 w-full bg-[#0A0A0B]/95 backdrop-blur-xl border-t border-white/5 z-50 pb-4 pt-2">
+                    <div className="max-w-lg mx-auto flex justify-around items-end px-2">
+                        <NavItem to="/" icon="space_dashboard" label="Banca" isActive={location.pathname === '/'} />
+                        <NavItem to="/radar" icon="radar" label="Radar" isActive={location.pathname === '/radar'} />
 
-                    {/* Chat Button - Central Highlight */}
-                    <Link to="/logs" className={`flex flex-col items-center justify-center w-16 h-16 rounded-full transition-all ${location.pathname === '/logs' ? 'bg-primary text-black shadow-[0_0_25px_rgba(255,215,0,0.4)]' : 'bg-white/5 text-primary border-2 border-primary/30 hover:bg-white/10'}`}>
-                        <span className="material-icons-round" style={{ fontSize: '32px' }}>terminal</span>
-                    </Link>
+                        {/* Chat Button - Central Highlight */}
+                        <Link
+                            to="/logs"
+                            className={`flex items-center justify-center w-14 h-14 -mt-4 rounded-full transition-all ${location.pathname === '/logs'
+                                ? 'bg-primary text-black shadow-[0_0_25px_rgba(255,215,0,0.3)]'
+                                : 'bg-[#1A1A1A] text-primary border border-primary/20 hover:border-primary/40'
+                                }`}
+                        >
+                            <span className="material-icons-round" style={{ fontSize: '26px' }}>chat</span>
+                        </Link>
 
-                    <Link to="/vault" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/vault' ? 'text-gold bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
-                        <span className="material-icons-round text-gold" style={{ fontSize: '28px' }}>currency_bitcoin</span>
-                        <span className="text-xs font-bold uppercase tracking-wider">Vault</span>
-                    </Link>
-
-                    <Link to="/settings" className={`flex flex-col items-center gap-1.5 py-2 px-4 rounded-2xl transition-all ${location.pathname === '/settings' ? 'text-primary bg-white/5 shadow-inner' : 'text-slate-400 opacity-70 hover:opacity-100'}`}>
-                        <span className="material-icons-round" style={{ fontSize: '28px' }}>settings</span>
-                        <span className="text-xs font-bold uppercase tracking-wider">Config</span>
-                    </Link>
+                        <NavItem to="/vault" icon="account_balance" label="Vault" isActive={location.pathname === '/vault'} />
+                        <NavItem to="/settings" icon="settings" label="Config" isActive={location.pathname === '/settings'} />
+                    </div>
                 </nav>
             );
         };
@@ -1915,24 +2012,40 @@
             }, []);
 
             return (
-                <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-6 text-white font-display">
-                    <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-primary/20 shadow-2xl">
-                        <div className="flex flex-col items-center mb-8">
-                            <img src="/logo10D.png" alt="Logo" className="w-20 h-20 mb-4 animate-pulse" />
+                <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-4 text-white font-display overflow-hidden">
+                    {/* Background Detail */}
+                    <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
+                        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px]"></div>
+                        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px]"></div>
+                    </div>
+
+                    <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-white/10 shadow-3xl relative z-10">
+                        <div className="flex flex-col items-center mb-10">
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
+                                <img src="/logo10D.png" alt="Logo" className="w-20 h-20 relative z-10 opacity-90" />
+                            </div>
                             <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Inicialização</h2>
-                            <p className="text-sm text-slate-400 tracking-wide font-mono mt-2">V4.3.3 • UI Polish Edition</p>
+                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-2">v4.5.0 Protocol Check</p>
                         </div>
 
-                        <div className="space-y-3 mb-8">
+                        <div className="space-y-3 mb-10">
                             {Object.entries(checks).map(([key, check]) => (
-                                <div key={key} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                                    <span className="text-base font-medium text-slate-200">{check.label}</span>
+                                <div key={key} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 group transition-all hover:bg-white/[0.05]">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{check.label}</span>
+                                        <span className="text-[8px] text-slate-500 uppercase tracking-widest mt-0.5">Sistema {key.toUpperCase()}</span>
+                                    </div>
                                     {check.status === 'pending' ? (
-                                        <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                                        <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                                     ) : check.status === 'success' ? (
-                                        <span className="material-icons-round text-emerald-400" style={{ fontSize: '24px' }}>check_circle</span>
+                                        <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
+                                            <span className="material-icons-round text-emerald-400" style={{ fontSize: '16px' }}>check</span>
+                                        </div>
                                     ) : (
-                                        <span className="material-icons-round text-red-400" style={{ fontSize: '24px' }}>error</span>
+                                        <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30">
+                                            <span className="material-icons-round text-red-400" style={{ fontSize: '16px' }}>close</span>
+                                        </div>
                                     )}
                                 </div>
                             ))}
@@ -1941,9 +2054,10 @@
                         <button
                             onClick={onComplete}
                             disabled={!isReady}
-                            className={`w-full py-4 rounded-xl text-base font-bold uppercase tracking-widest transition-all ${isReady ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:scale-[1.02] active:scale-[0.98]' : 'bg-white/5 text-slate-500 cursor-not-allowed'}`}
+                            className={`w-full py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.3em] transition-all relative overflow-hidden group ${isReady ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.2)] hover:shadow-[0_0_50px_rgba(255,215,0,0.3)] hover:scale-[1.02] active:scale-[0.98]' : 'bg-white/5 text-slate-600 cursor-not-allowed'}`}
                         >
-                            {isReady ? 'Iniciar Missão' : 'Validando Sistemas...'}
+                            <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
+                            <span className="relative">{isReady ? 'Iniciar Missão' : 'Validando Sistemas...'}</span>
                         </button>
                     </div>
                 </div>

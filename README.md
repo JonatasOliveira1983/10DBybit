@@ -1,39 +1,33 @@
-# 1CRYPTEN Space V4.3.3 DEEP SPACE 🦅🚀
+# 1CRYPTEN Space V4.5.0 GEMINI EXPERIENCE ✨🚀
 
-Sistema de Trading Autônomo com Escalabilidade Geométrica, Vault Management e Interface de Voz Premium.
-
----
-
-## 🆕 Novidades V4.3.3 - UI Polish Edition
-
-### Interface Melhorada
-- **NavBar ampliada:** Altura h-24, ícones 28px, labels legíveis
-- **Status bar preta:** Removeu faixa amarela (theme-color #000000)
-- **Seção de Versão:** Em Config mostra versão atual e status de atualização
-- **Tela de inicialização:** Design moderno com V4.3.3 branding
-
-### Voz Premium (Edge-TTS)
-- **Voz Antonio:** Voz neural masculina PT-BR de alta qualidade
-- **100% Gratuito:** Usa Edge-TTS (Microsoft) sem custo
-- **Endpoint:** `POST /api/tts` retorna áudio MP3 base64
+Sistema de Trading Autônomo com Escalabilidade Geométrica, Interface Premium inspirada no Gemini e Estabilidade de Execução.
 
 ---
 
-## V4.3.1 - Blindagem de Execução
+## 🆕 Novidades V4.5.0 - Gemini Experience
 
-### Protocolo de Execução Blindada
-- **Loop de 1 segundo:** Captura rápida de 100% ROI em SNIPER
-- **SNIPER Hard Close:** Fecha automaticamente em ROI >= 100%
-- **SURF Trailing Ladder:** Escada de proteção progressiva
+### Interface de Chat Redesenhada
+- **Welcome Screen Gemini:** Nova tela de boas-vindas com saudação dinâmica, frase do Capitão e chips de sugestão interativos.
+- **Input de IA Premium:** Campo de entrada com glow dourado e micro-interações de foco.
+
+### Estética Global & headers
+- **Headers Centralizados:** Todas as páginas (Banca, Radar, Vault, Config, History) agora possuem cabeçalhos centralizados, elegantes e minimalistas.
+- **NavBar Refinada:** Menu inferior com ícones proporcionais e botão de chat destacado com sombra dourada.
+- **Status Bar PWA:** Corrigida para preto absoluto (`#000000`) para imersão total em dispositivos móveis.
+
+### Estabilidade & PnL
+- **PnL Calibrado:** Lógica de ROI (50x) corrigida com sinalização dinâmica (+/-) e cores verde/vermelho vibrantes.
+- **Gráficos Seguros:** Correção do erro `Object is disposed` no TradingChart, garantindo estabilidade total ao navegar entre abas.
+- **Service Worker v3:** Nova estratégia de cache para garantir carregamento instantâneo das atualizações.
 
 ---
 
-## Slot Squadron Logic
+## Slot Squadron Logic (Sniper v4.5)
 
-| Tipo | Slots | Comportamento |
+| Tipo | Slots | Objetivo |
 |------|-------|---------------|
-| **SNIPER** | 1-5 | Alvo fixo +2% preço = 100% ROI @ 50x |
-| **SURF** | 6-10 | Trailing stop dinâmico (escada) |
+| **SNIPER** | 1-5 | Alvo fixo ROI 100% (@50x) |
+| **SURF** | 6-10 | Trailing Stop Dinâmico |
 
 ---
 
@@ -48,15 +42,15 @@ Acesse `http://localhost:5001`
 
 ---
 
-## Endpoints V4.3.3
+## Endpoints V4.5.0
 
 | Endpoint | Método | Descrição |
 |----------|--------|-----------|
-| `/api/tts` | POST | Text-to-Speech premium |
-| `/api/chat` | POST | Chat com Captain |
-| `/api/vault/status` | GET | Status do vault |
-| `/panic` | POST | Kill switch |
+| `/api/tts` | POST | Vozes neurais premium |
+| `/api/chat` | POST | Motor de IA do Captain |
+| `/api/slots` | GET | Sincronização de posições |
+| `/panic` | POST | Protocolo de limpeza total |
 
 ---
 
-**Operação: 10D - Deep Space - V4.3.3 UI Polish Edition.**
+**Operação: 10D - Deep Space - V4.5.0 Gemini Experience.**

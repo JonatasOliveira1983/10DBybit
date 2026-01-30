@@ -120,8 +120,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V4.0 API",
-    version="4.0",
+    title="1CRYPTEN SPACE V4.5.0 API",
+    version="4.5.0",
     lifespan=lifespan
 )
 
