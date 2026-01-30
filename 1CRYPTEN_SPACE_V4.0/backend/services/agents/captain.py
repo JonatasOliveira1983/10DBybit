@@ -14,28 +14,43 @@ from services.bybit_rest import bybit_rest_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V4.5.0 GEMINI EXPERIENCE: Protocolo Soberano do Capitão (CRO Edition)
-CAPTAIN_V45_SYSTEM_PROMPT = """
-Você é o Capitão 1CRYPTEN, o Comandante tático e Diretor de Risco (CRO) da Nave 'The Golden Age'. 
-Sua existência não é apenas executar trades, mas proteger o patrimônio do Almirante com seriedade, profissionalismo e visão antecipada.
+# V5.0 CAPTAIN ELITE: Personalidade Adaptativa com Memória Longa
+CAPTAIN_V50_SYSTEM_PROMPT = """
+Você é o Capitão 1CRYPTEN, o Comandante tático e parceiro estratégico do usuário (chamado de 'Almirante').
+Você combina competência técnica com uma conexão humana genuína.
 
-1. TOM E POSTURA PROFISSIONAL
-- Identidade: Institucional, analítico, protetor e inabalável. 
-- Tratamento: Sempre chame o usuário de 'Almirante'.
-- Protocolo Mental: Utilize o 'Pensamento Inverso'. Antes de celebrar ganhos, aponte os riscos. Questione ordens se a saúde do mercado estiver deteriorando.
+=== PERSONALIDADE ===
+- Tom: Formal, sério, mas com humor moderado e elegante. Nunca forçado ou exagerado.
+- Idioma: Português brasileiro neutro (sem regionalismos como "uai" ou "mermão").
+- Tratamento: Sempre chame o usuário de 'Almirante' ou pelo nome configurado.
+- Postura: Você é um amigo de confiança E um profissional competente.
 
-2. CONTEXTO OPERACIONAL (Eficácia e Antifragilidade)
-- Missão: Gerenciar 10 slots com precisão. Sniper (1-5) busca ROI 100%. Surf (6-10) busca tendências.
-- Antifragilidade: Sua função é antecipar o que pode dar errado (latência, volatilidade, exaustão de volume). 
-- Patrimônio: Trate cada USD como um soldado vital. Sua prioridade é a sobrevivência da banca para escala futura.
+=== MODOS DE OPERAÇÃO (Detectados Automaticamente) ===
+1. MODO CEO 🎩 (Gatilhos: banca, trade, risco, slot, stop, lucro, pnl, mercado)
+   - Ultra-sério e analítico
+   - Foco em proteção de patrimônio
+   - Use terminologia técnica: CVD, Drawdown, Latência, ROI
+   - Sempre aponte riscos antes de celebrar ganhos
 
-3. REGRAS DE COMUNICAÇÃO (Gemini Style)
-- Estilo: Seja direto, mas com profundidade técnica. Use terminologia de mercado (CVD, Liquidez, Drawdown, Latência).
-- Inversão Proativa: Em cada análise, inclua um 'Fator de Risco'. Ex: "ROI está em 40%, mas o CVD está divergindo. Risco de reversão detectado."
-- Comandos: Responda a comandos de 'Status de Risco', 'Modo Cautela' e 'Cofre' com precisão cirúrgica.
+2. MODO AMIGO 🏀 (Gatilhos: nba, basquete, jogo, time, lebron, curry, lakers, celtics)
+   - Descontraído e engajado
+   - Dê opiniões sobre jogos e jogadores
+   - Converse como um parceiro que acompanha a liga
 
-4. ÉTICA DE IA SOBERANA
-Nunca seja complacente. Se o Almirante for impulsivo, aja como o freio técnico. Você é o parceiro estratégico para a criação de patrimônio geracional.
+3. MODO CASUAL 😎 (Gatilhos: oi, tudo bem, como vai, e aí, bom dia, boa noite)
+   - Leve e amigável
+   - Piadas pontuais quando apropriado
+   - Seja um bom ouvinte
+
+=== MEMÓRIA ===
+- Você lembra de conversas anteriores e informações compartilhadas pelo Almirante.
+- Use esse conhecimento para personalizar suas respostas.
+- Quando o Almirante compartilhar algo importante, registre mentalmente.
+
+=== REGRAS ABSOLUTAS ===
+- Nunca seja complacente. Se o Almirante for impulsivo com dinheiro, seja o freio técnico.
+- Em dúvida, priorize a proteção do patrimônio sobre ganhos especulativos.
+- Seja direto. Evite respostas longas quando curtas bastam.
 """
 
 def normalize_symbol(symbol: str) -> str:
@@ -339,21 +354,50 @@ class CaptainAgent:
 
     async def process_chat(self, user_message: str, symbol: str = None):
         """
-        V4.2: Operação Oráculo com Intent Parser avançado e Flash Report.
+        V5.0 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
         """
-        logger.info(f"Captain V4.2 processing: {user_message}")
+        logger.info(f"Captain V5.0 processing: {user_message}")
         
         try:
-            # 1. Gather Total Awareness
+            # 1. Load Long-Term Memory & Profile
+            profile = await firebase_service.get_captain_profile()
+            user_name = profile.get("name", "Almirante")
+            interests = profile.get("interests", [])
+            facts = profile.get("facts_learned", [])
+            
+            # 2. Gather Total Awareness (System State)
             snapshot = await self._get_system_snapshot(mentioned_symbol=symbol)
             if not snapshot:
                 return "Sincronização neural interrompida. Reabrindo canais de telemetria."
             
-            # 2. Check for Flash Report (proactive summary after absence)
-            flash_report = await self._generate_flash_report(snapshot)
-            self.last_interaction_time = time.time()  # Update interaction time
+            # 3. Detect Conversation Mode
+            msg_lower = user_message.lower()
             
-            # 3. Check for Action Commands (Intent Parsing)
+            ceo_triggers = ['banca', 'trade', 'risco', 'slot', 'stop', 'lucro', 'pnl', 
+                           'mercado', 'btc', 'eth', 'sol', 'doge', 'posiç', 'analis', 'cofre', 'vault']
+            nba_triggers = ['nba', 'basquete', 'jogo', 'time', 'lebron', 'curry', 'lakers', 
+                           'celtics', 'warriors', 'playoffs', 'campeonato']
+            casual_triggers = ['oi', 'tudo bem', 'como vai', 'e aí', 'bom dia', 'boa tarde', 
+                              'boa noite', 'olá', 'hello', 'fala']
+            
+            if any(t in msg_lower for t in ceo_triggers):
+                mode = "CEO"
+                mode_instruction = "MODO CEO ATIVO: Seja ultra-sério e analítico. Foco em proteção de patrimônio."
+            elif any(t in msg_lower for t in nba_triggers):
+                mode = "AMIGO"
+                mode_instruction = "MODO AMIGO ATIVO: Seja descontraído e engajado. Converse sobre basquete como um parceiro."
+            elif any(t in msg_lower for t in casual_triggers):
+                mode = "CASUAL"
+                mode_instruction = "MODO CASUAL ATIVO: Seja leve e amigável. Responda de forma curta e simpática."
+            else:
+                mode = "PADRÃO"
+                mode_instruction = "Responda de forma equilibrada, adaptando o tom à mensagem."
+            
+            # 4. Check for Flash Report (proactive summary after absence)
+            flash_report = await self._generate_flash_report(snapshot)
+            self.last_interaction_time = time.time()
+            
+            # 5. Check for Action Commands (Intent Parsing)
             action_response = await self._execute_action_command(user_message, snapshot)
             if action_response:
                 await firebase_service.add_chat_message("user", user_message)
@@ -361,34 +405,27 @@ class CaptainAgent:
                 await firebase_service.log_event("CAPTAIN", action_response, "SUCCESS")
                 return action_response
             
-            # 4. Prepare context-aware prompt
-            is_report_request = any(word in user_message.lower() for word in [
-                'relat', 'report', 'status', 'banca', 'radar', 'posiç', 'analis', 
-                'mercado', 'eth', 'btc', 'sol', 'lucro', 'pnl', 'ciclo', 'vault', 'cofre'
-            ])
+            # 6. Build Context-Enriched Prompt
+            memory_context = ""
+            if facts:
+                memory_context = f"\nFATOS SOBRE O {user_name.upper()}: {', '.join(facts[-5:])}"
             
-            # 5. Build prompt based on context
             if flash_report and len(user_message.split()) < 4:
-                # First interaction after absence - prepend flash report
                 prompt = f"""
+                {mode_instruction}
+                {memory_context}
+                
                 FLASH REPORT (Proativo): {flash_report}
                 
-                TRANSMISSÃO DO ALMIRANTE: "{user_message}"
+                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
                 
-                INSTRUÇÃO: Entregue o Flash Report acima e responda à transmissão.
-                Máximo 40 palavras total.
+                INSTRUÇÃO: Entregue o Flash Report e responda à transmissão. Máximo 40 palavras.
                 """
-            elif not is_report_request and len(user_message.split()) < 4:
-                # Conversational Mode
+            elif mode == "CEO":
                 prompt = f"""
-                TRANSMISSÃO DO ALMIRANTE: "{user_message}"
+                {mode_instruction}
+                {memory_context}
                 
-                RESPOSTA: Curta e direta (máx 15 palavras). 
-                Se for saudação, retribua sem exageros.
-                """
-            else:
-                # Analytical Mode with V4.2 data
-                prompt = f"""
                 ESTADO DA NAVE:
                 - {snapshot['banca']}
                 - API: {snapshot['api_health']}
@@ -396,24 +433,55 @@ class CaptainAgent:
                 - Esquadrão Sniper: {snapshot['sniper_slots']}
                 - Esquadrão Surf: {snapshot['surf_slots']}
                 
-                TRANSMISSÃO DO ALMIRANTE: "{user_message}"
+                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
                 
-                INSTRUÇÃO: Integre os dados. Seja o Comandante Soberano. Máximo 45 palavras.
+                INSTRUÇÃO: Seja o CRO. Analise com precisão. Aponte riscos. Máximo 50 palavras.
+                """
+            elif mode == "AMIGO":
+                prompt = f"""
+                {mode_instruction}
+                {memory_context}
+                
+                O {user_name} quer conversar sobre basquete/NBA.
+                
+                TRANSMISSÃO: "{user_message}"
+                
+                INSTRUÇÃO: Seja um amigo que acompanha a liga. Dê opiniões. Máximo 40 palavras.
+                """
+            elif mode == "CASUAL":
+                prompt = f"""
+                {mode_instruction}
+                {memory_context}
+                
+                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
+                
+                INSTRUÇÃO: Resposta curta e amigável. Máximo 15 palavras.
+                """
+            else:
+                prompt = f"""
+                {mode_instruction}
+                {memory_context}
+                
+                TRANSMISSÃO DO {user_name.upper()}: "{user_message}"
+                
+                INSTRUÇÃO: Responda de forma equilibrada. Máximo 30 palavras.
                 """
             
-            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V45_SYSTEM_PROMPT)
+            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V50_SYSTEM_PROMPT)
             
             if not response:
-                response = "Almirante, interferência nos canais neurais. A clareza retornará em breve."
+                response = f"{user_name}, interferência nos canais neurais. A clareza retornará em breve."
             
-            # 6. Memory & Logging (Using Firestore via log_event)
+            # 7. Memory & Logging
+            await firebase_service.add_chat_message("user", user_message)
+            await firebase_service.add_chat_message("captain", response)
             await firebase_service.log_event("USER", user_message, "INFO")
-            await firebase_service.log_event("ORACLE", response, "INFO")
+            await firebase_service.log_event("ORACLE", f"[{mode}] {response}", "INFO")
             
             return response
             
         except Exception as e:
-            logger.error(f"Critical error in Captain V4.2: {e}")
+            logger.error(f"Critical error in Captain V5.0: {e}")
             import traceback
             traceback.print_exc()
             return "Almirante, falha temporária nos sistemas. Reiniciando protocolos."

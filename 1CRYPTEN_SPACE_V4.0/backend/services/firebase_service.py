@@ -471,4 +471,59 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error initializing DB: {e}")
 
+    # --- Capitão Elite V5.0: Long-Term Memory ---
+    async def get_captain_profile(self) -> dict:
+        """Fetches the Captain's memory profile for the user."""
+        if not self.is_active or not self.rtdb: 
+            return self._get_default_profile()
+        try:
+            def _get_profile_sync():
+                ref = self.rtdb.child("captain_profile")
+                profile = ref.get()
+                return profile if profile else None
+            profile = await asyncio.to_thread(_get_profile_sync)
+            return profile if profile else self._get_default_profile()
+        except Exception as e:
+            logger.error(f"Error fetching captain profile: {e}")
+            return self._get_default_profile()
+
+    def _get_default_profile(self) -> dict:
+        """Returns the default Captain profile structure."""
+        return {
+            "name": "Almirante",
+            "interests": ["NBA", "Trading", "Tecnologia"],
+            "communication_style": "formal_com_humor",
+            "risk_tolerance": "moderado",
+            "long_term_goals": [],
+            "facts_learned": []
+        }
+
+    async def update_captain_profile(self, updates: dict):
+        """Updates specific fields in the Captain's profile."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            def _update_profile_sync():
+                ref = self.rtdb.child("captain_profile")
+                ref.update(updates)
+            await asyncio.to_thread(_update_profile_sync)
+            logger.info(f"Captain Profile updated: {list(updates.keys())}")
+        except Exception as e:
+            logger.error(f"Error updating captain profile: {e}")
+
+    async def add_learned_fact(self, fact: str):
+        """Adds a new fact to the Captain's knowledge base about the user."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            profile = await self.get_captain_profile()
+            facts = profile.get("facts_learned", [])
+            if fact not in facts:
+                facts.append(fact)
+                # Keep only last 20 facts to avoid bloat
+                if len(facts) > 20:
+                    facts = facts[-20:]
+                await self.update_captain_profile({"facts_learned": facts})
+                logger.info(f"Captain learned new fact: {fact}")
+        except Exception as e:
+            logger.error(f"Error adding learned fact: {e}")
+
 firebase_service = FirebaseService()
