@@ -1541,7 +1541,8 @@
                     </main>
 
                     {/* Input Area - Above Mobile Nav */}
-                    <footer className="flex-shrink-0 px-2 sm:px-6 py-2 sm:py-3 bg-black/90 backdrop-blur-xl border-t border-white/10 mb-16 sm:mb-14">
+                    {/* Input Area - Above Mobile Nav - Higher Z-Index and Padding to avoid overlap */}
+                    <footer className="flex-shrink-0 px-2 sm:px-6 py-4 sm:py-5 bg-black/95 backdrop-blur-2xl border-t border-white/10 mb-24 sm:mb-14 relative z-[60]">
                         <div className="max-w-3xl mx-auto flex gap-2 items-center">
                             {/* Microphone Button */}
                             {sttSupported && (
@@ -2146,7 +2147,7 @@
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
                                 <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
-                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">v4.6.0 PWA</p>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">v4.6.5 PWA</p>
                             </div>
                             <div className="w-full"></div> {/* Placeholder for centering */}
                             <div className="flex justify-end">
@@ -2222,15 +2223,15 @@
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-300">Versão Atual</span>
-                                    <span className="text-lg font-bold text-primary font-mono">V4.5.0</span>
+                                    <span className="text-lg font-bold text-primary font-mono">V4.6.5</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-400">Build</span>
-                                    <span className="text-sm text-slate-400 font-mono">Gemini Experience</span>
+                                    <span className="text-sm text-slate-400 font-mono">PWA Optimized Excellence</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-slate-400">Data</span>
-                                    <span className="text-sm text-slate-400 font-mono">29/01/2026</span>
+                                    <span className="text-sm text-slate-400 font-mono">30/01/2026</span>
                                 </div>
                                 <div className="border-t border-white/10 pt-3 mt-3">
                                     <div className="flex items-center gap-2 text-emerald-400">
@@ -2256,8 +2257,8 @@
                         : 'text-slate-500 hover:text-slate-300'
                         }`}
                 >
-                    <span className="material-icons-round" style={{ fontSize: '22px' }}>{icon}</span>
-                    <span className="text-[10px] font-medium tracking-wide">{label}</span>
+                    <span className="material-icons-round" style={{ fontSize: '28px' }}>{icon}</span>
+                    <span className="text-[12px] font-medium tracking-wide">{label}</span>
                 </Link>
             );
 
@@ -2270,12 +2271,12 @@
                         {/* Chat Button - Central Highlight */}
                         <Link
                             to="/logs"
-                            className={`flex items-center justify-center w-14 h-14 -mt-4 rounded-full transition-all ${location.pathname === '/logs'
-                                ? 'bg-primary text-black shadow-[0_0_25px_rgba(255,215,0,0.3)]'
+                            className={`flex items-center justify-center w-16 h-16 -mt-6 rounded-full transition-all ${location.pathname === '/logs'
+                                ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.4)]'
                                 : 'bg-[#1A1A1A] text-primary border border-primary/20 hover:border-primary/40'
                                 }`}
                         >
-                            <span className="material-icons-round" style={{ fontSize: '26px' }}>chat</span>
+                            <span className="material-icons-round" style={{ fontSize: '30px' }}>chat</span>
                         </Link>
 
                         <NavItem to="/vault" icon="account_balance" label="Vault" isActive={location.pathname === '/vault'} />
