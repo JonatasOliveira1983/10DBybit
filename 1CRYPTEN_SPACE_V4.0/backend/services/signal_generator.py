@@ -61,6 +61,7 @@ class SignalGenerator:
                 # V5.2.1: Check any slot availability (Sniper or Surf) to keep collecting signals
                 # Capacity flexibilization: If Drag Mode, allow more slots
                 max_slots = 7 if self.btc_drag_mode else 4
+                can_sniper = await bankroll_manager.can_open_new_slot(slot_type="SNIPER")
                 can_surf = await bankroll_manager.can_open_new_slot(slot_type="SURF")
                 
                 if can_sniper is None and can_surf is None:
