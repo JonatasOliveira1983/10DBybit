@@ -145,8 +145,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V4.9.4.2 API",
-    version="4.9.4.2",
+    title="1CRYPTEN SPACE V5.0.3 API",
+    version="5.0.3",
     lifespan=lifespan
 )
 
@@ -177,6 +177,16 @@ else:
     logger.info(f"Frontend directory established at: {FRONTEND_DIR}")
     # Mount Frontend at root first
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend_static")
+
+    # Serve ALL root-level files from frontend (sw.js, manifest.json, logo10D.png, etc)
+    # This ensures PWA works without explicit routes for every asset
+    @app.get("/{file_name}")
+    async def get_root_file(file_name: str):
+        file_path = os.path.join(FRONTEND_DIR, file_name)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        # Fallback for SPA routing if needed, but here we just pass
+        return None
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():

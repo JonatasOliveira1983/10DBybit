@@ -1,4 +1,4 @@
-# 1CRYPTEN Space V5.0 - Adaptive Stop Loss 🛡️🚀
+# 1CRYPTEN SPACE - V5.0.3 (Elite Adaptive Stop Loss) 🛡️🚀
 
 Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerenciamento Dinâmico de Risco e Proteção Anti-Whipsaw.
 
