@@ -38,10 +38,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.0.8: Global Path Stability - FIXED NameError Permanently
+    # V5.0.8.1: Global Path Stability - FORCED ROLLOUT
     # Health checks MUST succeed before heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.8 Backend...")
-    logger.info("☁️ Cloud Run Environment: Production Stable")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.8.1 Backend...")
+    logger.info("☁️ Cloud Run Environment: Forced Fresh Deployment")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -155,8 +155,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.8 API",
-    version="5.0.8",
+    title="1CRYPTEN SPACE V5.0.8.1 API",
+    version="5.0.8.1",
     lifespan=lifespan
 )
 
@@ -206,11 +206,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """V5.0.8: Stability health check."""
+    """V5.0.8.1: Stability health check with forced rollout ID."""
     return {
         "status": "online", 
-        "version": "5.0.8", 
-        "deployment_id": "V508_PATH_FIX_VERIFIED",
+        "version": "5.0.8.1", 
+        "deployment_id": "V508_1_FORCED_ROLLOUT_VERIFIED",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
