@@ -1,4 +1,4 @@
-# 1CRYPTEN SPACE - V5.2.3 (Sync & Persistence Elite) 🛡️🚀
+# 1CRYPTEN SPACE - V5.2.4 (Full Market Scan & CVD Sync) 🛡️🚀
 
 Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerenciamento Dinâmico de Risco e Proteção Anti-Whipsaw.
 
@@ -27,11 +27,13 @@ Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerencia
 - **Evita Reentradas Ruins**: Protege contra whipsaws consecutivos
 - **Registro Automático**: Guardian notifica Captain após cada SL
 
-### 🛡️ Guardian V5.2.3
+### 🛡️ Guardian V5.2.4
+- **Full Market Monitoring (83 Symbols)**: Corrigido timeout de scan e compatibilidade Python 3.10.
+- **CVD Symbol Sync**: Sincronização de nomenclatura para detecção de sinais em tempo real.
 - **Move SL de SNIPER**: Agora atualiza Stop Loss via `set_trading_stop`
 - **Overclock Mode**: 200ms polling em Flash Zone (80%+ ROI)
 - **Status Visual TRAILING**: Novo estado para indicar SL em movimento
-- **Sync & Persistence Elite (Novo!)**: 
+- **Sync & Persistence Elite**: 
   - Sincronização automática de Vault e Banca na inicialização.
   - Motor PAPER totalmente integrado ao Vault (resultados refletem no dashboard).
   - Escudo de Persistência 2.0: Previne re-adoção de trades encerrados.
@@ -65,4 +67,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Sync & Persistence - V5.2.3**
+**Operação: 10D - Full Market & CVD Sync - V5.2.4**

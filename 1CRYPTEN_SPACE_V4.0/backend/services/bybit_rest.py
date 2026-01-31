@@ -71,6 +71,7 @@ class BybitREST:
             logger.info("BybitREST: Fetching all linear instruments for 50x+ Sniper territory...")
             instr_resp = self.session.get_instruments_info(category="linear")
             instr_list = instr_resp.get("result", {}).get("list", [])
+            logger.info(f"BybitREST: Received {len(instr_list)} instruments from Bybit.")
             
             # 2. Filter by USDT suffix AND leverage >= 50x
             candidates = {}
@@ -83,7 +84,10 @@ class BybitREST:
                 if max_lev >= 50:
                     candidates[symbol] = info
             
+            logger.info(f"BybitREST: Found {len(candidates)} candidates with 50x+ leverage.")
+            
             # 3. Get tickers to sort by turnover
+            logger.info("BybitREST: Fetching tickers for turnover sorting...")
             tickers_resp = self.session.get_tickers(category="linear")
             ticker_list = tickers_resp.get("result", {}).get("list", [])
             
@@ -108,6 +112,7 @@ class BybitREST:
             return final_symbols
         except Exception as e:
             logger.error(f"Error in Operation Sniper scan: {e}")
+            logger.exception(e)
             return ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P"]
 
     def get_wallet_balance(self):

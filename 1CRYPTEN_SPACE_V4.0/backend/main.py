@@ -77,10 +77,14 @@ async def lifespan(app: FastAPI):
                 # Fetch symbols in background
                 async def fetch_and_start_ws():
                     try:
-                        async with asyncio.timeout(30):
-                            s = await asyncio.to_thread(bybit_rest_service.get_top_200_usdt_pairs)
-                            if s: await bybit_ws_service.start(s)
-                    except: 
+                        # V5.2.4: Use wait_for for Python 3.10 compatibility
+                        s = await asyncio.wait_for(
+                            asyncio.to_thread(bybit_rest_service.get_top_200_usdt_pairs),
+                            timeout=90
+                        )
+                        if s: await bybit_ws_service.start(s)
+                    except Exception as e: 
+                        logger.error(f"Step 2: Symbol Scan or WS Start Error: {e}")
                         await bybit_ws_service.start(symbols)
                 asyncio.create_task(fetch_and_start_ws())
                 # Sync slots with Bybit

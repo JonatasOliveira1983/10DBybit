@@ -42,8 +42,9 @@ class BybitWS:
                 
                 # UPDATE: Normalize CVD to USD Value for fair comparison
                 # If price is 0 (unlikely for linear), use last known from ticker
-                if price == 0: price = self.prices.get(symbol, 0)
-                else: self.prices[symbol] = price # Update last known price from trade event
+                norm_sym = symbol.replace(".P", "").upper()
+                if price == 0: price = self.prices.get(norm_sym, 0)
+                else: self.prices[norm_sym] = price # Update last known price from trade event
 
                 delta = (size * price) if side == "Buy" else -(size * price)
                 self.cvd_data[symbol].append({
@@ -61,14 +62,17 @@ class BybitWS:
             symbol = topic.replace("tickers.", "")
             
             if "lastPrice" in data:
-                self.prices[symbol] = float(data["lastPrice"])
+                norm_sym = symbol.replace(".P", "").upper()
+                self.prices[norm_sym] = float(data["lastPrice"])
         except Exception: pass
 
     def get_cvd_score(self, symbol: str) -> float:
         """Returns the current cumulative delta for the stored history."""
-        if symbol not in self.cvd_data:
+        # V5.2.4: Normalize symbol to match internal keys (remove .P)
+        norm_symbol = symbol.replace(".P", "").upper()
+        if norm_symbol not in self.cvd_data:
             return 0.0
-        return sum(item["delta"] for item in self.cvd_data[symbol])
+        return sum(item["delta"] for item in self.cvd_data[norm_symbol])
 
     async def update_market_context(self):
         """
