@@ -38,10 +38,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.0.8.1: Global Path Stability - FORCED ROLLOUT
+    # V5.0.9: Production Resilience - Optimized Boot
     # Health checks MUST succeed before heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.8.1 Backend...")
-    logger.info("☁️ Cloud Run Environment: Forced Fresh Deployment")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.9 Backend...")
+    logger.info("☁️ Cloud Run Environment: Resilience & Monitoring")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -155,8 +155,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.8.1 API",
-    version="5.0.8.1",
+    title="1CRYPTEN SPACE V5.0.9 API",
+    version="5.0.9",
     lifespan=lifespan
 )
 
@@ -199,18 +199,21 @@ async def get_dashboard():
 
 @app.get("/")
 async def root():
-    index_path = os.path.join(FRONTEND_DIR, "code.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "Backend Online. Dashboard not found."}
+    """Serve the primary dashboard (code.html)."""
+    # Try multiple entry points for robustness
+    for entry in ["code.html", "index.html"]:
+        path = os.path.join(FRONTEND_DIR, entry)
+        if os.path.exists(path):
+            return FileResponse(path)
+    return {"status": "online", "message": "Backend Active. Dashboard files not found in /frontend."}
 
 @app.get("/health")
 async def health_check():
-    """V5.0.8.1: Stability health check with forced rollout ID."""
+    """V5.0.9: Stability health check with deployment signature."""
     return {
         "status": "online", 
-        "version": "5.0.8.1", 
-        "deployment_id": "V508_1_FORCED_ROLLOUT_VERIFIED",
+        "version": "5.0.9", 
+        "deployment_id": "V509_RESILIENCE_VERIFIED",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
