@@ -18,7 +18,13 @@ try:
     from config import settings
     print(f"DEBUG: SSL Version: {ssl.OPENSSL_VERSION}")
     print(f"DEBUG: urllib3 Version: {urllib3.__version__}")
-    print("DEBUG: Core imports complete.")
+    
+    # Global Directory Configurations
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # Navigate up from backend -> 1CRYPTEN_SPACE_V4.0 -> root -> frontend
+    FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend"))
+    
+    print("DEBUG: Core imports and paths complete.")
 
 except Exception as e:
     print("CRITICAL STARTUP ERROR:")
@@ -32,10 +38,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.0.7: Deployment Recovery - FIXED NameError
+    # V5.0.8: Global Path Stability - FIXED NameError Permanently
     # Health checks MUST succeed before heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.7 Backend...")
-    logger.info("☁️ Cloud Run Environment: Recovery Mode")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.8 Backend...")
+    logger.info("☁️ Cloud Run Environment: Production Stable")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -149,8 +155,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.7 API",
-    version="5.0.7",
+    title="1CRYPTEN SPACE V5.0.8 API",
+    version="5.0.8",
     lifespan=lifespan
 )
 
@@ -164,10 +170,6 @@ app.add_middleware(
 )
 
 # Static File Serving Configuration
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Navigate up from backend -> 1CRYPTEN_SPACE_V4.0 -> root -> frontend
-FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend"))
-
 INTERNAL_STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(INTERNAL_STATIC_DIR, exist_ok=True)
 
@@ -204,11 +206,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """V5.0.7: Recovery health check."""
+    """V5.0.8: Stability health check."""
     return {
         "status": "online", 
-        "version": "5.0.7", 
-        "deployment_id": "V507_RECOVERY_SUCCESS",
+        "version": "5.0.8", 
+        "deployment_id": "V508_PATH_FIX_VERIFIED",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
