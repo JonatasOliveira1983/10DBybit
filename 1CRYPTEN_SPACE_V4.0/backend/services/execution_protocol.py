@@ -1,11 +1,16 @@
 """
-🛡️ Protocolo de Execução Elite V4.5.1
-=========================================
+🛡️ Protocolo de Execução Elite V5.0 - Adaptive Stop Loss
+==========================================================
 Módulo responsável por executar lógica de fechamento independente por slot.
-Implementa Flash Close (SNIPER) e Surf Shield (SURF) com telemetria visual.
+Implementa Flash Close (SNIPER), Surf Shield (SURF) e Adaptive SL com telemetria visual.
 
 Author: Antigravity AI
-Version: 4.5.1 (Protocol Elite)
+Version: 5.0 (Adaptive Stop Loss)
+
+V5.0 Changes:
+- SNIPER: Adaptive SL que move conforme ROI sobe (não mais fixo)
+- SURF: Escada melhorada com mais níveis de proteção
+- NEW: Status TRAILING para indicar SL em movimento
 """
 
 import logging
@@ -19,9 +24,9 @@ class ExecutionProtocol:
     Executa a lógica de fechamento para cada slot de forma independente.
     Cada ordem tem seu próprio 'contrato de execução'.
     
-    V4.5.1 Protocol Elite:
-    - SNIPER: Flash Close com TP nativo + Guardian Overclock
-    - SURF: Surf Shield com Risco Zero automático
+    V5.0 Adaptive Stop Loss:
+    - SNIPER: Flash Close com TP nativo + Adaptive Trailing SL
+    - SURF: Surf Shield com escada granular melhorada
     """
     
     def __init__(self):
@@ -29,30 +34,43 @@ class ExecutionProtocol:
         
         # === SNIPER CONFIG (Slots 1-5) ===
         self.sniper_target_roi = 100.0    # 100% ROI = 2% movimento @ 50x
-        self.sniper_stop_roi = -50.0      # Stop Loss = -50% ROI (1% movimento)
+        self.sniper_stop_roi = -50.0      # Stop Loss inicial = -50% ROI (1% movimento)
         self.flash_zone_threshold = 80.0  # Zona Roxa: 80% do target (ROI >= 80%)
+        
+        # 🆕 V5.0: Escada Adaptive SL para SNIPER (ROI% -> SL em ROI%)
+        # Move o SL conforme lucro aumenta, protegendo ganhos
+        self.sniper_trailing_ladder = [
+            {"trigger": 70.0, "stop_roi": 30.0},   # ROI 70%  → SL em +30% (protege lucro)
+            {"trigger": 50.0, "stop_roi": 10.0},   # ROI 50%  → SL em +10% (lucro garantido)
+            {"trigger": 30.0, "stop_roi": -10.0},  # ROI 30%  → SL em -10% (reduz perda max)
+            {"trigger": 15.0, "stop_roi": -30.0},  # ROI 15%  → SL em -30% (de -50% original)
+        ]
+        # Se ROI < 15%, mantém SL original de -50%
         
         # === SURF CONFIG (Slots 6-10) ===
         self.risk_zero_threshold = 50.0   # Risco Zero ativa em 50% ROI (1% movimento)
         self.big_surf_threshold = 150.0   # Big Surf: ROI > 150%
         
-        # Escada de Proteção SURF (ROI% -> SL em ROI%)
+        # 🆕 V5.0: Escada de Proteção SURF melhorada (mais níveis)
         self.surf_trailing_ladder = [
+            {"trigger": 200.0, "stop_roi": 170.0},  # 🏄 Mega Surf: protege 170%
             {"trigger": 150.0, "stop_roi": 120.0},  # Big Surf: protege 120%
             {"trigger": 100.0, "stop_roi": 80.0},   # ROI 100% -> SL em +80%
+            {"trigger": 75.0,  "stop_roi": 55.0},   # 🆕 ROI 75%  -> SL em +55%
             {"trigger": 50.0,  "stop_roi": 30.0},   # Risco Zero: 50% -> SL em +30%
-            {"trigger": 25.0,  "stop_roi": 10.0},   # ROI 25% -> SL em +10%
-            {"trigger": 10.0,  "stop_roi": 5.0},    # ROI 10% -> SL em +5%
-            {"trigger": 5.0,   "stop_roi": 0.0},    # ROI 5%  -> SL em Breakeven (0%)
+            {"trigger": 35.0,  "stop_roi": 15.0},   # 🆕 ROI 35%  -> SL em +15%
+            {"trigger": 20.0,  "stop_roi": 5.0},    # 🆕 ROI 20%  -> SL em +5%
+            {"trigger": 10.0,  "stop_roi": 0.0},    # Breakeven mais cedo (era 5%)
         ]
         
         # === VISUAL STATUS CODES ===
         # Usados pelo frontend para cores dos slots
         self.STATUS_SCANNING = "SCANNING"       # Azul - slot livre
         self.STATUS_IN_TRADE = "IN_TRADE"       # Dourado - posição aberta
-        self.STATUS_RISK_ZERO = "RISK_ZERO"     # Turquesa - stop na entrada
+        self.STATUS_RISK_ZERO = "RISK_ZERO"     # Turquesa - stop na entrada ou acima
         self.STATUS_BIG_SURF = "BIG_SURF"       # Verde Esmeralda - ROI > 150%
         self.STATUS_FLASH_ZONE = "FLASH_ZONE"   # Roxo Neon - alvo iminente
+        self.STATUS_TRAILING = "TRAILING"       # 🆕 Amarelo Ouro - SL foi movido mas ainda negativo
         
     def get_visual_status(self, slot_data: Dict[str, Any], roi: float) -> str:
         """
@@ -70,11 +88,28 @@ class ExecutionProtocol:
         if not symbol or entry_price <= 0:
             return self.STATUS_SCANNING
         
-        # SNIPER: Flash Zone (80%+ do target)
+        # SNIPER: Flash Zone (80%+ do target), Risk Zero, ou Trailing
         if slot_type == "SNIPER":
+            side = slot_data.get("side", "Buy")
+            side_norm = (side or "").lower()
+            
             if roi >= self.flash_zone_threshold:
                 logger.info(f"🟣 FLASH ZONE: {symbol} ROI={roi:.1f}% >= {self.flash_zone_threshold}%")
                 return self.STATUS_FLASH_ZONE
+            
+            # 🆕 V5.0: Detecta se SL foi movido para lucro (Risk Zero) ou apenas reduzido (Trailing)
+            if current_stop > 0 and entry_price > 0:
+                if side_norm == "buy":
+                    if current_stop >= entry_price:
+                        return self.STATUS_RISK_ZERO  # SL no lucro
+                    elif current_stop > entry_price * 0.99:  # SL movido mas ainda negativo
+                        return self.STATUS_TRAILING
+                elif side_norm == "sell":
+                    if current_stop <= entry_price:
+                        return self.STATUS_RISK_ZERO
+                    elif current_stop < entry_price * 1.01:
+                        return self.STATUS_TRAILING
+            
             return self.STATUS_IN_TRADE
         
         # SURF: Big Surf (150%+), Risk Zero, ou In Trade
@@ -115,29 +150,45 @@ class ExecutionProtocol:
         roi = price_diff * self.leverage * 100
         return roi
     
-    def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str]]:
+    def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str], Optional[float]]:
         """
-        Lógica exclusiva para ordens SNIPER.
+        🆕 V5.0: Lógica SNIPER com Adaptive Stop Loss.
         
         SNIPER = Alvo fixo de 100% ROI (2% movimento de preço @ 50x)
-        Stop Loss = -50% ROI (1% movimento de preço)
+        Stop Loss = Adaptativo conforme ROI sobe (de -50% até +30%)
         
         Returns:
-            (should_close, reason) - True se deve fechar a posição
+            (should_close, reason, new_stop_price) - True se deve fechar, novo SL se deve atualizar
         """
         symbol = slot_data.get("symbol", "UNKNOWN")
+        side = slot_data.get("side", "Buy")
+        entry = slot_data.get("entry_price", 0)
+        current_sl = slot_data.get("current_stop", 0)
         
         # ✅ TAKE PROFIT: ROI >= 100%
         if roi >= self.sniper_target_roi:
             logger.info(f"🎯 SNIPER TP HIT: {symbol} ROI={roi:.2f}% >= {self.sniper_target_roi}% | Price={current_price}")
-            return True, f"SNIPER_TP_100_ROI ({roi:.1f}%)"
+            return True, f"SNIPER_TP_100_ROI ({roi:.1f}%)", None
         
-        # ❌ STOP LOSS: ROI <= -50%
+        # ❌ STOP LOSS CHECK: Verifica se preço atingiu o SL atual (adaptativo)
+        side_norm = (side or "").lower()
+        if current_sl > 0:
+            if side_norm == "buy" and current_price <= current_sl:
+                logger.warning(f"🛑 SNIPER ADAPTIVE SL HIT: {symbol} Price={current_price} <= SL={current_sl}")
+                return True, f"SNIPER_ADAPTIVE_SL ({roi:.1f}%)", None
+            elif side_norm == "sell" and current_price >= current_sl:
+                logger.warning(f"🛑 SNIPER ADAPTIVE SL HIT: {symbol} Price={current_price} >= SL={current_sl}")
+                return True, f"SNIPER_ADAPTIVE_SL ({roi:.1f}%)", None
+        
+        # 🔥 Hard Stop Loss fallback: ROI <= -50% (caso SL não esteja definido)
         if roi <= self.sniper_stop_roi:
-            logger.warning(f"🛑 SNIPER SL HIT: {symbol} ROI={roi:.2f}% <= {self.sniper_stop_roi}%")
-            return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)"
+            logger.warning(f"🛑 SNIPER HARD SL: {symbol} ROI={roi:.2f}% <= {self.sniper_stop_roi}%")
+            return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)", None
         
-        return False, None
+        # 🔄 TRAIL SL: Calcula novo SL baseado na escada adaptativa
+        new_stop = self._calculate_sniper_trailing_stop(entry, roi, side, current_sl)
+        
+        return False, None, new_stop
     
     def process_surf_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str], Optional[float]]:
         """
@@ -220,6 +271,52 @@ class ExecutionProtocol:
         
         return new_stop
     
+    def _calculate_sniper_trailing_stop(self, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
+        """
+        🆕 V5.0: Calcula o novo Stop Loss para SNIPER baseado na escada adaptativa.
+        
+        A escada move o SL conforme o ROI aumenta:
+        - ROI < 15%  → Mantém SL original (-50% ROI = entry * 0.99)
+        - ROI >= 15% → SL em -30% ROI
+        - ROI >= 30% → SL em -10% ROI
+        - ROI >= 50% → SL em +10% ROI (lucro garantido)
+        - ROI >= 70% → SL em +30% ROI (protege 30% de lucro)
+        
+        Returns:
+            Novo preço de SL ou None se não deve atualizar
+        """
+        if entry_price <= 0:
+            return None
+        
+        # Encontra o nível da escada correspondente ao ROI atual
+        target_stop_roi = None
+        for level in self.sniper_trailing_ladder:
+            if roi >= level["trigger"]:
+                target_stop_roi = level["stop_roi"]
+                break
+        
+        if target_stop_roi is None:
+            return None  # ROI < 15%, mantém SL original
+        
+        # Converte ROI de stop para preço
+        price_offset_pct = target_stop_roi / (self.leverage * 100)
+        
+        side_norm = (side or "").lower()
+        if side_norm == "buy":
+            new_stop = entry_price * (1 + price_offset_pct)
+        else:  # Sell/Short
+            new_stop = entry_price * (1 - price_offset_pct)
+        
+        # Só retorna se for uma melhoria (SL mais alto para Long, mais baixo para Short)
+        if side_norm == "buy":
+            if current_sl > 0 and new_stop <= current_sl:
+                return None  # Não regride
+        else:
+            if current_sl > 0 and new_stop >= current_sl:
+                return None  # Não regride
+        
+        return new_stop
+    
     def process_order_logic(self, slot_data: Dict[str, Any], current_price: float) -> Tuple[bool, Optional[str], Optional[float]]:
         """
         Executa a lógica exclusiva por tipo de ordem.
@@ -247,16 +344,15 @@ class ExecutionProtocol:
         
         # 2. Executar lógica específica do tipo
         if slot_type == "SNIPER":
-            should_close, reason = self.process_sniper_logic(slot_data, current_price, roi)
-            return should_close, reason, None
+            # 🆕 V5.0: SNIPER agora retorna 3-tuple com new_stop_price
+            return self.process_sniper_logic(slot_data, current_price, roi)
             
         elif slot_type == "SURF":
             return self.process_surf_logic(slot_data, current_price, roi)
         
         # Tipo desconhecido - usa lógica SNIPER por padrão
         logger.warning(f"Unknown slot_type '{slot_type}' for {symbol}, using SNIPER logic")
-        should_close, reason = self.process_sniper_logic(slot_data, current_price, roi)
-        return should_close, reason, None
+        return self.process_sniper_logic(slot_data, current_price, roi)
 
     def calculate_pnl(self, entry_price: float, exit_price: float, qty: float, side: str) -> float:
         """

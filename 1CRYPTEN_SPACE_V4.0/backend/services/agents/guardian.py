@@ -1,16 +1,17 @@
 """
-🛡️ Guardian Agent V4.5.1 - Protocol Elite
-==========================================
+🛡️ Guardian Agent V5.0 - Adaptive Stop Loss
+=============================================
 Responsável por monitorar posições ativas e executar fechamentos.
 
-V4.5.1 Features:
+V5.0 Features:
+- SNIPER Adaptive SL: Move SL conforme ROI sobe
+- Cooldown Integration: Registra cooldown após SL closure
 - Overclock Mode: 200ms polling quando SNIPER está em Flash Zone (80%+)
 - Martelo do Guardian: Market Close forçado se TP não preencher
 - Visual Status: Atualiza status visual dos slots no Firebase
-- Detalhes Logs: Telemetria completa para debugging
 
 Author: Antigravity AI
-Version: 4.5.1 (Protocol Elite)
+Version: 5.0 (Adaptive SL + Cooldown)
 """
 
 import logging
@@ -160,15 +161,23 @@ class GuardianAgent:
                     logger.warning(f"Failed to update slot {slot_id}: {ue}")
 
                 # ==========================================
-                # V4.5.1: SNIPER FLASH CLOSE LOGIC (TP & SL)
+                # V5.0: SNIPER ADAPTIVE SL LOGIC (TP, SL & Trailing)
                 # ==========================================
                 if slot_type == "SNIPER":
-                    should_close, close_reason = execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
+                    should_close, close_reason, new_stop = execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
                     
                     if should_close:
                         is_stop_loss = "SL" in close_reason or pnl_pct < 0
                         emoji = "🛑" if is_stop_loss else "🎯"
                         logger.info(f"{emoji} GUARDIAN SNIPER CLOSE: {symbol} | Reason: {close_reason} | ROI: {pnl_pct:.2f}%")
+                        
+                        # 🆕 V5.0: Register cooldown se foi SL
+                        if is_stop_loss:
+                            try:
+                                from services.agents.captain import captain_agent
+                                captain_agent.register_sl_cooldown(symbol)
+                            except Exception as cd_err:
+                                logger.warning(f"Could not register cooldown: {cd_err}")
                         
                         # V4.5.2: Close position in BOTH PAPER and REAL modes
                         try:
@@ -203,6 +212,29 @@ class GuardianAgent:
                         except Exception as close_err:
                             logger.error(f"❌ Failed to close position {symbol}: {close_err}")
                         continue
+                    
+                    # 🆕 V5.0: Move SNIPER SL if needed (Adaptive Trailing)
+                    if new_stop is not None:
+                        logger.info(f"🎯 SNIPER TRAIL: {symbol} ROI={pnl_pct:.1f}% | New SL: {new_stop:.8f}")
+                        
+                        try:
+                            # Update on exchange (REAL mode) or in paper memory
+                            if bybit_rest_service.execution_mode != "PAPER":
+                                resp = await bybit_rest_service.set_trading_stop(
+                                    category="linear",
+                                    symbol=symbol,
+                                    stopLoss=str(new_stop),
+                                    slTriggerBy="LastPrice",
+                                    tpslMode="Full",
+                                    positionIdx=0
+                                )
+                            
+                            await firebase_service.update_slot(slot_id, {
+                                "current_stop": new_stop,
+                                "pensamento": f"🛡️ Guardian: SL movido para {new_stop:.5f} (ROI: {pnl_pct:.1f}%)"
+                            })
+                        except Exception as se:
+                            logger.error(f"Failed to update SNIPER SL for {symbol}: {se}")
 
                 # ==========================================
                 # V4.5.1: SURF SHIELD LOGIC (Trailing SL)
@@ -214,6 +246,14 @@ class GuardianAgent:
                         is_stop_loss = "SL" in close_reason or "STOP" in close_reason or pnl_pct < 0
                         emoji = "🛑" if is_stop_loss else "🏄"
                         logger.info(f"{emoji} SURF CLOSED: {symbol} | Reason: {close_reason} | ROI: {pnl_pct:.2f}%")
+                        
+                        # 🆕 V5.0: Register cooldown se foi SL
+                        if is_stop_loss:
+                            try:
+                                from services.agents.captain import captain_agent
+                                captain_agent.register_sl_cooldown(symbol)
+                            except Exception as cd_err:
+                                logger.warning(f"Could not register cooldown: {cd_err}")
                         
                         # V4.5.2: Close position in BOTH PAPER and REAL modes
                         try:

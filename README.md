@@ -1,41 +1,52 @@
-# 1CRYPTEN Space V4.9.4.2 MICRO-COMPACT ✨🚀
+# 1CRYPTEN Space V5.0 - Adaptive Stop Loss 🛡️🚀
 
-Sistema de Trading Autônomo com Protocolo Elite de Gerenciamento de Risco, Interface **Micro-Compact (V4.9.4.2)** e Estabilidade de Execução.
-
----
-
-## 🆕 Novidades V4.9.4.2 - High-Precision Matrix
-
-### 💎 Precisão Cirúrgica (Novo)
-- **High-Precision Matrix**: Implementação de motor de formatação dinâmica. Moedas de baixo valor (PEPE, SHIB, etc) agora exibem até 8 casas decimais nos cards de slots e histórico.
-- **Sincronização de Alvos**: Alinhamento visual perfeito entre as linhas do gráfico e os dados textuais dos slots.
-
-### 🏦 Protocolo Elite Vault
-- **Ciclo Sniper Puro**: Contador de vitórias (20x) blindado contra perdas. Apenas ordens 100% ROI movem o ciclo.
-- **Stop-Loss Tracker**: Monitoramento em tempo real de perdas acumuladas no ciclo para total transparência.
-- **Surf Ledger**: Lucros e perdas do modo Surf registrados de forma independente, sem interferir no ciclo Sniper.
-- **Redesign Dashboard**: Interface otimizada com 5 cards de telemetria simultânea (Banca, Ciclo, Lucro Sniper, Loss, Surf).
-
-### 📱 Otimização Micro-Compact (Global)
-- **Escala Reduzida (14px Base):** Redução global de escala para máxima densidade de informação em telas mobile.
-- **Botões Ultra-Eficientes (38px):** Padronização de altura de botões em 38px.
-
-### 🛡️ Gerenciamento de Risco Elite
-- **Protocolo 4-Slots Máximo:** Rigoroso limite de 4 ordens em risco simultâneo (20% da banca).
-- **Expansão Inteligente:** Novos slots (até 10) são liberados apenas quando ordens existentes atingem **Risk-Zero** ou são concluídas.
-
-### 📊 Interface & Gráficos
-- **Layout Mobile-Full:** Gráficos ocupando 50% da tela com toggle **Fullscreen** ao toque.
-- **Escala de Preços Premium:** Suporte dinâmico para múltiplas casas decimais.
+Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerenciamento Dinâmico de Risco e Proteção Anti-Whipsaw.
 
 ---
 
-## Slot Squadron Logic (V4.9.1)
+## 🆕 Novidades V5.0 - Adaptive Stop Loss
 
-| Tipo | Slots | Comportamento |
-|------|-------|---------------|
-| **SNIPER** | 1-5 | Captura de ROI 100% |
-| **SURF** | 6-10 | Direcionais com Trailing Stop |
+### 🎯 SNIPER Adaptive SL (Novo!)
+- **Stop Loss Dinâmico**: O SL do SNIPER agora move automaticamente conforme o lucro aumenta
+- **Escada de Proteção SNIPER**:
+  | ROI Atingido | Novo Stop Loss |
+  |--------------|----------------|
+  | 70%+ | +30% ROI (protege lucro) |
+  | 50%+ | +10% ROI (lucro garantido) |
+  | 30%+ | -10% ROI (reduz perda) |
+  | 15%+ | -30% ROI (de -50% original) |
+- **Take Profit**: Mantém 100% ROI (2% movimento @ 50x)
+
+### 🏄 SURF Enhanced Ladder
+- **8 Níveis de Proteção** (era 6): Escada mais granular
+- **Breakeven Antecipado**: Ativa em ROI 10% (era 5%)
+- **Mega Surf**: Novo nível 200% ROI com proteção em 170%
+
+### ⏱️ Cooldown Anti-Whipsaw (Novo!)
+- **5 Minutos de Bloqueio**: Após fechamento por SL, par fica em cooldown
+- **Evita Reentradas Ruins**: Protege contra whipsaws consecutivos
+- **Registro Automático**: Guardian notifica Captain após cada SL
+
+### 🛡️ Guardian V5.0
+- **Move SL de SNIPER**: Agora atualiza Stop Loss via `set_trading_stop`
+- **Overclock Mode**: 200ms polling em Flash Zone (80%+ ROI)
+- **Status Visual TRAILING**: Novo estado para indicar SL em movimento
+
+---
+
+## 🏦 Slot Squadron Logic
+
+| Tipo | Slots | Take Profit | Stop Loss |
+|------|-------|-------------|-----------|
+| **SNIPER** | 1-5 | 100% ROI fixo | Adaptativo (-50% → +30%) |
+| **SURF** | 6-10 | Sem limite (trailing) | Escada 8 níveis |
+
+---
+
+## 📊 Gerenciamento de Risco Elite
+- **Protocolo 4-Slots Máximo:** Limite de 4 ordens em risco (20% da banca)
+- **Expansão Inteligente:** Novos slots liberados quando existentes atingem Risk-Zero
+- **Cooldown por Símbolo:** 5 minutos após SL para evitar overtrading
 
 ---
 
@@ -50,4 +61,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Elite Vault Evolution - V4.9.4.2.**
+**Operação: 10D - Adaptive Stop Loss - V5.0**

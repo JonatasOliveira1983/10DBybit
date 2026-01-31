@@ -65,6 +65,31 @@ class CaptainAgent:
         self.last_interaction_time = time.time()  # V4.2: Track for Flash Report
         self.cautious_mode_active = False
         self.processing_lock = set() # Iron Lock Persistence
+        
+        # 🆕 V5.0: Cooldown Anti-Whipsaw
+        self.cooldown_registry = {}  # {symbol: timestamp_blocked_until}
+        self.cooldown_duration = 300  # 5 minutos de cooldown após SL
+    
+    def is_symbol_in_cooldown(self, symbol: str) -> tuple:
+        """🆕 V5.0: Verifica se símbolo está em cooldown após SL."""
+        norm_symbol = symbol.replace(".P", "").upper()
+        blocked_until = self.cooldown_registry.get(norm_symbol, 0)
+        
+        if time.time() < blocked_until:
+            remaining = int(blocked_until - time.time())
+            return True, remaining
+        
+        # Limpa registro expirado
+        if norm_symbol in self.cooldown_registry:
+            del self.cooldown_registry[norm_symbol]
+        
+        return False, 0
+    
+    def register_sl_cooldown(self, symbol: str):
+        """🆕 V5.0: Registra cooldown quando ordem fecha por SL."""
+        norm_symbol = symbol.replace(".P", "").upper()
+        self.cooldown_registry[norm_symbol] = time.time() + self.cooldown_duration
+        logger.warning(f"⏱️ COOLDOWN ACTIVATED: {symbol} blocked for {self.cooldown_duration}s after SL")
 
     async def monitor_signals(self):
         """
@@ -127,6 +152,12 @@ class CaptainAgent:
                         continue
 
                     norm_sym = normalize_symbol(signal["symbol"])
+                    
+                    # 🆕 V5.0: Cooldown Anti-Whipsaw check
+                    in_cooldown, remaining = self.is_symbol_in_cooldown(signal["symbol"])
+                    if in_cooldown:
+                        logger.info(f"⏱️ Signal {signal['symbol']} BLOCKED: {remaining}s remaining in cooldown")
+                        continue
                     
                     # Sensor Audit
                     is_healthy, latency = await guardian_agent.check_api_health()
