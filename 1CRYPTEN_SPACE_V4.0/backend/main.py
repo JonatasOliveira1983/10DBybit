@@ -32,10 +32,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.0.6: Global Strategy & Scaling - 100% Non-Blocking
+    # V5.0.7: Deployment Recovery - FIXED NameError
     # Health checks MUST succeed before heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.6 Backend...")
-    logger.info("☁️ Cloud Run Environment: Scaling & Resilience Mode")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.7 Backend...")
+    logger.info("☁️ Cloud Run Environment: Recovery Mode")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -149,8 +149,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.6 API",
-    version="5.0.6",
+    title="1CRYPTEN SPACE V5.0.7 API",
+    version="5.0.7",
     lifespan=lifespan
 )
 
@@ -164,6 +164,10 @@ app.add_middleware(
 )
 
 # Static File Serving Configuration
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Navigate up from backend -> 1CRYPTEN_SPACE_V4.0 -> root -> frontend
+FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend"))
+
 INTERNAL_STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(INTERNAL_STATIC_DIR, exist_ok=True)
 
@@ -200,11 +204,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """V5.0.6: Ultra-fast health check with deployment signature."""
+    """V5.0.7: Recovery health check."""
     return {
         "status": "online", 
-        "version": "5.0.6", 
-        "deployment_id": "V506_STABLE_RESILIENT",
+        "version": "5.0.7", 
+        "deployment_id": "V507_RECOVERY_SUCCESS",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
