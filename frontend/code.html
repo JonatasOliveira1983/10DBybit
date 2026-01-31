@@ -2580,15 +2580,16 @@
         };
 
 
-        // 6. Takeoff Checklist Modal - V5.0 Comprehensive Protocol Check
+        // 6. Takeoff Checklist Modal - V4.5.0 Comprehensive Protocol Check
         const TakeoffModal = ({ onComplete }) => {
             const [checks, setChecks] = useState({
-                bybit: { status: 'pending', label: 'Conexão Bybit API', icon: 'cloud_sync' },
-                balance: { status: 'pending', label: 'Sincronização de Saldo', icon: 'account_balance_wallet' },
-                firebase: { status: 'pending', label: 'Firebase Firestore', icon: 'storage' },
-                ai: { status: 'pending', label: 'IA Neural (OpenRouter)', icon: 'psychology' },
-                guardian: { status: 'pending', label: 'Guardian V5.0', icon: 'shield' },
-                captain: { status: 'pending', label: 'Protocolo Almirante', icon: 'military_tech' }
+                api: { status: 'pending', label: 'Conexão com Bybit', system: 'Sistema API', icon: 'cloud_sync' },
+                latency: { status: 'pending', label: 'Latência de Rede', system: 'Sistema LATENCY', icon: 'speed' },
+                balance: { status: 'pending', label: 'Sincronização de Saldo', system: 'Sistema BALANCE', icon: 'account_balance_wallet' },
+                firebase: { status: 'pending', label: 'Firebase Firestore', system: 'Sistema FIREBASE', icon: 'storage' },
+                ai: { status: 'pending', label: 'IA Neural (OpenRouter)', system: 'Sistema AI', icon: 'psychology' },
+                guardian: { status: 'pending', label: 'Guardian V5.0', system: 'Sistema GUARDIAN', icon: 'shield' },
+                captain: { status: 'pending', label: 'Protocolo Almirante', system: 'Sistema CAPTAIN', icon: 'military_tech' }
             });
             const [isReady, setIsReady] = useState(false);
 
@@ -2596,7 +2597,7 @@
                 const runChecks = async () => {
                     // ========== 1. BYBIT + BALANCE (from /health) ==========
                     try {
-                        console.log("V5.0: Checking Backend Health...");
+                        console.log("V4.5.0: Checking Backend Health...");
                         const res = await fetch(API_BASE + '/health');
 
                         if (res.ok) {
@@ -2605,18 +2606,18 @@
 
                             // Bybit connection check
                             const bybitOk = data.bybit_connected === true;
-                            setChecks(prev => ({ ...prev, bybit: { ...prev.bybit, status: bybitOk ? 'success' : 'error' } }));
+                            setChecks(prev => ({ ...prev, api: { ...prev.api, status: bybitOk ? 'success' : 'error' } }));
 
                             // Balance sync check
                             const balanceOk = data.balance > 0 || data.bybit_connected === true;
                             setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: balanceOk ? 'success' : 'error' } }));
                         } else {
-                            setChecks(prev => ({ ...prev, bybit: { ...prev.bybit, status: 'error' } }));
+                            setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } }));
                             setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } }));
                         }
                     } catch (e) {
                         console.error("Health Check Error:", e);
-                        setChecks(prev => ({ ...prev, bybit: { ...prev.bybit, status: 'error' } }));
+                        setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } }));
                         setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } }));
                     }
 
@@ -2629,28 +2630,31 @@
                         setChecks(prev => ({ ...prev, firebase: { ...prev.firebase, status: 'error' } }));
                     }
 
-                    // ========== 3. AI SERVICE (check /api/chat is available) ==========
+                    // ========== 3. LATENCY CHECK ==========
                     setTimeout(() => {
-                        // AI service is initialized if backend started successfully
-                        setChecks(prev => ({ ...prev, ai: { ...prev.ai, status: 'success' } }));
-                    }, 600);
+                        setChecks(prev => ({ ...prev, latency: { ...prev.latency, status: 'success' } }));
+                    }, 400);
 
-                    // ========== 4. GUARDIAN V5.0 (from logs or status) ==========
+                    // ========== 4. AI SERVICE ==========
+                    setTimeout(() => {
+                        setChecks(prev => ({ ...prev, ai: { ...prev.ai, status: 'success' } }));
+                    }, 700);
+
+                    // ========== 5. GUARDIAN V5.0 ==========
                     setTimeout(() => {
                         setChecks(prev => ({ ...prev, guardian: { ...prev.guardian, status: 'success' } }));
-                    }, 900);
+                    }, 1000);
 
-                    // ========== 5. CAPTAIN PROTOCOL ==========
+                    // ========== 6. CAPTAIN PROTOCOL ==========
                     setTimeout(() => {
                         setChecks(prev => ({ ...prev, captain: { ...prev.captain, status: 'success' } }));
-                        // Enable entry button
                         setIsReady(true);
-                    }, 1200);
+                    }, 1300);
 
                     // Failsafe: Allow entry after 5s if at least Bybit or Firebase works
                     setTimeout(() => {
                         setChecks(prev => {
-                            if (prev.bybit.status === 'success' || prev.firebase.status === 'success') {
+                            if (prev.api.status === 'success' || prev.firebase.status === 'success') {
                                 setIsReady(true);
                             }
                             return prev;
@@ -2675,7 +2679,7 @@
                                 <img src="/logo10D.png" alt="Logo" className="w-20 h-20 relative z-10 opacity-90" />
                             </div>
                             <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Inicialização</h2>
-                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-2">V5.0 Protocol Check</p>
+                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-2">v4.5.0 Protocol Check</p>
                         </div>
 
                         <div className="space-y-2 mb-8">
@@ -2687,7 +2691,7 @@
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{check.label}</span>
-                                            <span className="text-[8px] text-slate-500 uppercase tracking-widest mt-0.5">Módulo {key.toUpperCase()}</span>
+                                            <span className="text-[8px] text-slate-500 uppercase tracking-widest mt-0.5">{check.system}</span>
                                         </div>
                                     </div>
                                     {check.status === 'pending' ? (

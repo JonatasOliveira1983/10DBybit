@@ -41,8 +41,12 @@ class BankrollManager:
         try:
             # 1. Fetch Exchange Data
             positions = await bybit_rest_service.get_active_positions()
-            # Map normalized symbols for comparison
-            exchange_map = {bybit_rest_service._strip_p(p["symbol"]).upper(): p for p in positions}
+            # Map normalized symbols for comparison (with null-safety)
+            exchange_map = {}
+            for p in positions:
+                sym = p.get("symbol")
+                if sym:
+                    exchange_map[bybit_rest_service._strip_p(sym).upper()] = p
             active_symbols = list(exchange_map.keys())
             logger.info(f"Exchange Positions ({len(active_symbols)}): {active_symbols}")
 
@@ -54,7 +58,7 @@ class BankrollManager:
                 symbol = slot.get("symbol")
                 if not symbol: continue
                 
-                norm_symbol = bybit_rest_service._strip_p(symbol).upper()
+                norm_symbol = (bybit_rest_service._strip_p(symbol) or "").upper()
                 slot_id = slot["id"]
 
                 # V4.2.6: Persistence Shield - Don't even touch if opened in the last 120 seconds
@@ -102,7 +106,7 @@ class BankrollManager:
 
             # 4. Import Missing Positions (Exchange has it, DB doesn't)
             for symbol, pos in exchange_map.items():
-                if any(bybit_rest_service._strip_p(s.get("symbol", "")).upper() == symbol for s in slots):
+                if any(bybit_rest_service._strip_p(s.get("symbol") or "").upper() == symbol for s in slots):
                     continue 
 
                 # Find empty slot
@@ -150,12 +154,13 @@ class BankrollManager:
 
             # In Long: if stop < entry, we still have risk
             # In Short: if stop > entry, we still have risk
+            # Side is normalized
+            side_norm = (side or "").upper()
             is_risk_free = False
-            side_norm = (side or "").lower()
-            if side_norm == "buy":
+            if side_norm == "BUY":
                 if stop and entry and stop >= entry:
                     is_risk_free = True
-            elif side_norm == "sell":
+            elif side_norm == "SELL":
                 if stop and entry and stop <= entry:
                     is_risk_free = True
             
@@ -287,7 +292,7 @@ class BankrollManager:
         """V4.3: Executes Sniper/Surf entry with separated slot types (SNIPER=1-5, SURF=6-10)."""
         async with self.execution_lock:
             # 1. Total Awareness: Check availability & local lock
-            norm_symbol = bybit_rest_service._strip_p(symbol).upper()
+            norm_symbol = (bybit_rest_service._strip_p(symbol) or "").upper()
             
             # 1.1 Duplicate Guard (Firebase + Memory)
             active_slots = await firebase_service.get_active_slots()
