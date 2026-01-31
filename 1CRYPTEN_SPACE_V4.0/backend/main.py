@@ -32,10 +32,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.0.5: Cloud Run Optimized Startup - 100% Non-Blocking
+    # V5.0.6: Global Strategy & Scaling - 100% Non-Blocking
     # Health checks MUST succeed before heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.5 Backend...")
-    logger.info("☁️ Cloud Run Environment: Gunicorn + Uvicorn + Adaptive SL")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.6 Backend...")
+    logger.info("☁️ Cloud Run Environment: Scaling & Resilience Mode")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -149,8 +149,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.5 API",
-    version="5.0.5",
+    title="1CRYPTEN SPACE V5.0.6 API",
+    version="5.0.6",
     lifespan=lifespan
 )
 
@@ -200,11 +200,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """V5.0.5: Ultra-fast health check for Cloud Run stability."""
+    """V5.0.6: Ultra-fast health check with deployment signature."""
     return {
         "status": "online", 
-        "version": "5.0.5", 
-        "protocol": "Adaptive Stop Loss",
+        "version": "5.0.6", 
+        "deployment_id": "V506_STABLE_RESILIENT",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 

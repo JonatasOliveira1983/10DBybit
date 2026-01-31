@@ -35,8 +35,9 @@ class AIService:
         if gemini_key:
             try:
                 genai.configure(api_key=gemini_key)
-                self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
-                logger.info("Gemini Backup Initialized (v2.5).")
+                # Correcting to a stable model name
+                self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+                logger.info("Gemini Backup Initialized (v1.5).")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")
         
@@ -88,7 +89,7 @@ class AIService:
             try:
                 def _glm_sync():
                     return self.glm_client.chat.completions.create(
-                        model="glm-4-flash", 
+                        model="glm-4", # Removed -flash to use standard GLM-4
                         messages=[
                             {"role": "system", "content": system_instruction},
                             {"role": "user", "content": prompt}
