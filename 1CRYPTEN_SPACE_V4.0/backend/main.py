@@ -13,7 +13,11 @@ try:
     from contextlib import asynccontextmanager
     from fastapi.staticfiles import StaticFiles
     import uvicorn
+    import ssl
+    import urllib3
     from config import settings
+    print(f"DEBUG: SSL Version: {ssl.OPENSSL_VERSION}")
+    print(f"DEBUG: urllib3 Version: {urllib3.__version__}")
     print("DEBUG: Core imports complete.")
 
 except Exception as e:
@@ -145,8 +149,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.3 API",
-    version="5.0.3",
+    title="1CRYPTEN SPACE V5.0.4 API",
+    version="5.0.4",
     lifespan=lifespan
 )
 
@@ -224,7 +228,7 @@ async def health_check():
     
     return {
         "status": "online", 
-        "version": "5.0", 
+        "version": "5.0.4", 
         "protocol": "Adaptive Stop Loss",
         "bybit_connected": bybit_connected,
         "balance": balance,

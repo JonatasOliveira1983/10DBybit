@@ -1,5 +1,5 @@
 # Use official Python runtime as a parent image
-# Build trigger: 2026-01-30 23:01 (V5.0.3 Force Push)
+# Build trigger: 2026-01-30 23:11 (V5.0.4 SSL Fix)
 FROM python:3.11-slim
 
 # Set environment variables
@@ -13,6 +13,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-dev \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies (Hardening Crypto)
