@@ -32,14 +32,13 @@ class SignalGenerator:
 
         while self.is_running:
             try:
-                # V4.3 Sniper Rule: Smart Demand
-                # Only scan for SIGNALS (Firestore) if we have slot availability
-                slots = await firebase_service.get_active_slots()
-                potential_slot = await bankroll_manager.can_open_new_slot()
+                # V5.2.1: Check any slot availability (Sniper or Surf) to keep collecting signals
+                can_sniper = await bankroll_manager.can_open_new_slot(slot_type="SNIPER")
+                can_surf = await bankroll_manager.can_open_new_slot(slot_type="SURF")
                 
-                if potential_slot is None:
-                    # Slow down scanning if full/risk capped, but keep loop alive
-                    await asyncio.sleep(60) 
+                if can_sniper is None and can_surf is None:
+                    # Slow down scanning if EVERYTHING is full/risk capped
+                    await asyncio.sleep(15) # Reduced from 60s for better reactivity
                     continue
 
                 # 1. Scan all active symbols from WS service

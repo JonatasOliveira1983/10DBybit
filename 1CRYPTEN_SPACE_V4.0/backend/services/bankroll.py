@@ -217,7 +217,8 @@ class BankrollManager:
             return None
         
         # 4. Progressive Expansion Logic (per slot type)
-        max_initial = 2 if slot_type == "SNIPER" else 2  # Start with 2 of each type
+        # V5.2.1: Increased initial from 2 to 4 to allow full squad deployment before requiring Risk Free
+        max_initial = 4 if slot_type == "SNIPER" else 3 
         
         if active_count >= max_initial:
             # Check for Risk Free in this slot type

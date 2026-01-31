@@ -15,7 +15,7 @@ class BybitWS:
         # CVD storage: {symbol: {timestamp: delta}}
         self.cvd_data = {} 
         self.prices = {} # {symbol: last_price}
-        self.max_cvd_history = 100 # Store last 100 trade events for delta calculation
+        self.max_cvd_history = 1000 # V5.2.2: Increased to 1000 for better signal capture
         self.active_symbols = []
 
     def handle_trade_message(self, message):
@@ -23,8 +23,8 @@ class BybitWS:
         try:
             data = message.get("data", [])
             topic = message.get("topic", "")
-            raw_symbol = topic.replace("publicTrade.", "")
-            symbol = f"{raw_symbol}.P"
+            # V5.2.2: Keep symbol consistent with topic (No .P suffix for Mainnet/Testnet public topics)
+            symbol = topic.replace("publicTrade.", "")
 
             if symbol not in self.cvd_data:
                 self.cvd_data[symbol] = deque(maxlen=self.max_cvd_history)
@@ -52,8 +52,7 @@ class BybitWS:
         try:
             data = message.get("data", {})
             topic = message.get("topic", "")
-            raw_symbol = topic.replace("tickers.", "")
-            symbol = f"{raw_symbol}.P"
+            symbol = topic.replace("tickers.", "")
             
             if "lastPrice" in data:
                 self.prices[symbol] = float(data["lastPrice"])
