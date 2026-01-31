@@ -85,8 +85,8 @@ class SignalGenerator:
                     abs_cvd = abs(cvd_val)
                     
                     # V5.1.0: Sniper Rule (Radar 2.0): Threshold based on USD Money Flow
-                    # If Drag Mode, lower threshold to capture the "dragging" effect
-                    threshold = 8000 if self.btc_drag_mode else 15000
+                    # Heuristic optimization: Reduced thresholds to populate more slots
+                    threshold = 5000 if self.btc_drag_mode else 10000
                     
                     if abs_cvd > threshold: 
                         # Calibrated: $75k USD delta = ~85 score, $200k+ = 99 score

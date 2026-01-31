@@ -703,11 +703,11 @@
         /* Corrige sobreposição chart/slots em mobile  */
         /* ============================================ */
 
-        /* Chart container - 50% da tela, expansível */
+        /* Chart container - 38% da tela para dar espaço aos slots */
         .chart-container-mobile {
-            height: 50vh !important;
-            min-height: 180px !important;
-            max-height: 50vh !important;
+            height: 38vh !important;
+            min-height: 160px !important;
+            max-height: 40vh !important;
             flex-shrink: 0 !important;
             transition: all 0.3s ease-in-out !important;
         }
@@ -2245,36 +2245,48 @@
 
                     <main className="flex-1 flex flex-col main-scrollable p-2 sm:p-3 gap-2 sm:gap-3 content-with-navbar">
                         {/* Premium Portfolio Performance Cards */}
-                        <section className="flex-shrink-0 grid grid-cols-2 gap-2">
+                        <section className="flex-shrink-0 grid grid-cols-3 gap-2">
                             {/* Total Balance Card */}
-                            <div className="p-3 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-primary/30 transition-all duration-500">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="material-icons-round text-primary text-sm">account_balance_wallet</span>
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Net Equity</span>
+                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-primary/30 transition-all duration-500">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                    <span className="material-icons-round text-primary text-[12px]">account_balance_wallet</span>
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Equity</span>
                                 </div>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-xl sm:text-2xl font-display font-bold text-white tracking-tighter">
+                                    <span className="text-sm sm:text-base font-display font-bold text-white tracking-tighter">
                                         ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                                     </span>
-                                    {/* Small indicator could go here */}
+                                </div>
+                            </div>
+
+                            {/* Vault Profit Card - NEW */}
+                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-primary/5 to-transparent border-primary/20 flex flex-col justify-between group hover:border-primary/50 transition-all duration-500 shadow-[0_0_10px_rgba(255,215,0,0.05)]">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                    <span className="material-icons-round text-primary text-[12px]">diamond</span>
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Vault Profit</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-sm sm:text-base font-display font-bold tracking-tighter ${banca.lucro_total_acumulado >= 0 ? 'text-primary' : 'text-danger'}`}>
+                                        {banca.lucro_total_acumulado >= 0 ? '+' : '-'}${Math.abs(banca.lucro_total_acumulado || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
                                 </div>
                             </div>
 
                             {/* Risk Exposure Card */}
-                            <div className="p-3 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500">
-                                <div className="flex justify-between items-center mb-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`material-icons-round text-sm ${banca.risco_real_percent > 0.15 ? 'text-amber-500' : 'text-emerald-500'}`}>security</span>
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Global Risk</span>
+                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500">
+                                <div className="flex justify-between items-center mb-0.5">
+                                    <div className="flex items-center gap-1">
+                                        <span className={`material-icons-round text-[12px] ${banca.risco_real_percent > 0.15 ? 'text-amber-500' : 'text-emerald-500'}`}>security</span>
+                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Risk</span>
                                     </div>
-                                    <span className={`text-[12px] font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                        {(banca.risco_real_percent * 100).toFixed(2)}%
+                                    <span className={`text-[10px] font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                        {(banca.risco_real_percent * 100).toFixed(1)}%
                                     </span>
                                 </div>
-                                <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden mt-1">
+                                <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden">
                                     <div
                                         className={`h-full transition-all duration-1000 ease-out ${banca.risco_real_percent > 0.15 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                        style={{ width: `${Math.min(100, banca.risco_real_percent * 100 * 5)}%`, boxShadow: `0 0 10px ${banca.risco_real_percent > 0.15 ? '#F59E0B' : '#10B981'}` }}
+                                        style={{ width: `${Math.min(100, banca.risco_real_percent * 100 * 5)}%`, boxShadow: `0 0 5px ${banca.risco_real_percent > 0.15 ? '#F59E0B' : '#10B981'}` }}
                                     ></div>
                                 </div>
                             </div>

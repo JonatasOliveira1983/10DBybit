@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI):
                         await bybit_ws_service.start(symbols)
                 asyncio.create_task(fetch_and_start_ws())
                 # Sync slots with Bybit
-                await asyncio.to_thread(bankroll_manager.sync_slots_with_exchange)
+                await bankroll_manager.sync_slots_with_exchange()
             except Exception as e:
                 logger.warning(f"Step 2: Symbol fetch scheduled (Background): {e}")
 
@@ -102,6 +102,19 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(captain.monitor_signals())
                 asyncio.create_task(captain.monitor_active_positions_loop())
                 asyncio.create_task(bankroll_manager.position_reaper_loop())
+                
+                # 3.1: V5.2.3: Initial Sync - Ensure Vault and Banca are aligned with history
+                async def initial_sync():
+                    try:
+                        from services.vault_service import vault_service
+                        logger.info("Step 3.1: Running initial Vault & Banca Synchronization...")
+                        await vault_service.sync_vault_with_history()
+                        await bankroll_manager.update_banca_status()
+                        logger.info("Step 3.1: Initial Sync COMPLETE ✅")
+                    except Exception as e:
+                        logger.error(f"Step 3.1: Initial Sync ERROR: {e}")
+                
+                asyncio.create_task(initial_sync())
                 
                 # 4. Start Paper Execution Engine (Simulator only)
                 if bybit_rest_service.execution_mode == "PAPER":

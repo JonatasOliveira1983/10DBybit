@@ -113,7 +113,7 @@ class CaptainAgent:
                         self.processing_lock.remove(sym)
                 
                 # V4.8: PROTOCOLO ELITE - Contagem Real de Risco por Preços
-                MAX_SLOTS_AT_RISK = 4  # Máximo 4 slots em risco ativo (20% banca = 5% x 4)
+                MAX_SLOTS_AT_RISK = 6  # Aumentado de 4 para 6 conforme solicitação do Almirante
                 
                 slots_at_risk = 0
                 slots_risk_zero = 0

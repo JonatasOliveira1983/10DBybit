@@ -1,4 +1,4 @@
-# 1CRYPTEN SPACE - V5.0.3 (Elite Adaptive Stop Loss) 🛡️🚀
+# 1CRYPTEN SPACE - V5.2.3 (Sync & Persistence Elite) 🛡️🚀
 
 Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerenciamento Dinâmico de Risco e Proteção Anti-Whipsaw.
 
@@ -27,10 +27,14 @@ Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerencia
 - **Evita Reentradas Ruins**: Protege contra whipsaws consecutivos
 - **Registro Automático**: Guardian notifica Captain após cada SL
 
-### 🛡️ Guardian V5.0
+### 🛡️ Guardian V5.2.3
 - **Move SL de SNIPER**: Agora atualiza Stop Loss via `set_trading_stop`
 - **Overclock Mode**: 200ms polling em Flash Zone (80%+ ROI)
 - **Status Visual TRAILING**: Novo estado para indicar SL em movimento
+- **Sync & Persistence Elite (Novo!)**: 
+  - Sincronização automática de Vault e Banca na inicialização.
+  - Motor PAPER totalmente integrado ao Vault (resultados refletem no dashboard).
+  - Escudo de Persistência 2.0: Previne re-adoção de trades encerrados.
 
 ---
 
@@ -61,4 +65,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Adaptive Stop Loss - V5.0**
+**Operação: 10D - Sync & Persistence - V5.2.3**

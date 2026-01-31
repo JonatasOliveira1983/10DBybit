@@ -83,9 +83,9 @@ class VaultService:
     
     async def register_sniper_trade(self, trade_data: dict) -> dict:
         """
-        V4.9.4: Registra um trade Sniper no ciclo.
-        - Sniper Wins (100% ROI): Sobe o contador de 20x.
-        - Sniper Loss: Não reseta o ciclo, mas acumula em cycle_losses e abate de cycle_profit.
+        V5.2.2: Registra um trade Sniper no ciclo.
+        - Sniper Wins (ROI >= 80%): Sobe o contador de 20x.
+        - Sniper Loss ou ROI < 80%: Não conta como win, mas acumula lucro/perda.
         """
         try:
             if not firebase_service.is_active or not firebase_service.db:
@@ -94,13 +94,30 @@ class VaultService:
             current = await self.get_cycle_status()
             pnl = trade_data.get("pnl", 0)
             
+            # ROI Check: Only count as win if ROI >= 80% or was a Flash Zone exit
+            # We use entry_price and exit_price to verify ROI if pnl_percent is missing
+            roi = trade_data.get("pnl_percent", 0)
+            if roi == 0 and trade_data.get("entry_price") and trade_data.get("exit_price"):
+                from services.execution_protocol import execution_protocol
+                roi = execution_protocol.calculate_roi(
+                    trade_data["entry_price"], 
+                    trade_data["exit_price"], 
+                    trade_data.get("side", "Buy")
+                )
+
             new_wins = current.get("sniper_wins", 0)
             new_losses = current.get("cycle_losses", 0)
             
-            if pnl > 0:
+            is_elite_win = roi >= 80.0
+            
+            if is_elite_win:
                 new_wins += 1
+                result_label = "ELITE WIN 💎"
+            elif pnl > 0:
+                result_label = "SOFT PROFIT 🟢"
             else:
                 new_losses += abs(pnl)
+                result_label = "LOSS ❌"
                 
             new_profit = current.get("cycle_profit", 0) + pnl
             
@@ -116,8 +133,7 @@ class VaultService:
             await asyncio.to_thread(_update)
             
             event_type = "SUCCESS" if pnl > 0 else "WARNING"
-            result_label = "WIN 🎯" if pnl > 0 else "LOSS ❌"
-            result_msg = f"Vault Sniper {result_label} | #{new_wins}/20 | PnL: ${pnl:.2f} | Losses Acc: ${new_losses:.2f}"
+            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/20 | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
             
             if new_wins >= 20:
@@ -129,6 +145,76 @@ class VaultService:
         except Exception as e:
             logger.error(f"Error registering sniper trade: {e}")
             return self._default_cycle()
+
+    async def sync_vault_with_history(self):
+        """
+        V5.2.2: Reconstrói o status do ciclo atual baseando-se no histórico de trades.
+        Percorre os trades do ciclo atual e recalcula wins (ROI >= 80%) e lucro.
+        """
+        try:
+            logger.info("🔄 Iniciando Sincronização Vault <-> Histórico...")
+            if not firebase_service.is_active or not firebase_service.db:
+                return
+                
+            current = await self.get_cycle_status()
+            cycle_num = current.get("cycle_number", 1)
+            
+            # 1. Fetch trades for this cycle
+            def _get_history():
+                docs = (firebase_service.db.collection("trade_history")
+                        .where("slot_type", "==", "SNIPER")
+                        .stream()) # No filter by cycle_number initially if not stored, we check timestamp?
+                return [d.to_dict() for d in docs]
+            
+            trades = await asyncio.to_thread(_get_history)
+            
+            # Filtro opcional: apenas trades após a data de início do ciclo
+            started_at = current.get("started_at")
+            if started_at:
+                try:
+                    start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                    trades = [t for t in trades if datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00")) >= start_dt]
+                except: pass
+
+            logger.info(f"Encontrados {len(trades)} trades para o Ciclo #{cycle_num}")
+            
+            # 2. Recalculate
+            new_wins = 0
+            new_profit = 0.0
+            new_losses = 0.0
+            
+            from services.execution_protocol import execution_protocol
+            
+            for t in trades:
+                pnl = t.get("pnl", 0)
+                roi = t.get("pnl_percent", 0)
+                
+                if roi == 0 and t.get("entry_price") and t.get("exit_price"):
+                    roi = execution_protocol.calculate_roi(t["entry_price"], t["exit_price"], t.get("side", "Buy"))
+                
+                if roi >= 80.0:
+                    new_wins += 1
+                
+                new_profit += pnl
+                if pnl < 0:
+                    new_losses += abs(pnl)
+            
+            # 3. Update Database
+            update_data = {
+                "sniper_wins": new_wins,
+                "cycle_profit": new_profit,
+                "cycle_losses": new_losses
+            }
+            
+            def _push():
+                firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
+            
+            await asyncio.to_thread(_push)
+            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Profit: ${new_profit:.2f}")
+            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Profit: ${new_profit:.2f}", "SUCCESS")
+            
+        except Exception as e:
+            logger.error(f"Error syncing vault with history: {e}")
 
     async def register_surf_trade(self, trade_data: dict) -> dict:
         """

@@ -502,6 +502,19 @@ class BybitREST:
                         }
                         
                         await firebase_service.hard_reset_slot(slot_id, close_data["reason"], pnl, trade_data)
+                        
+                        # V5.2.3: Notify bankroll/vault for statistics sync
+                        try:
+                            from services.bankroll import bankroll_manager
+                            await bankroll_manager.register_sniper_trade({
+                                **trade_data,
+                                "pnl": pnl,
+                                "pnl_percent": (pnl / (close_data["entry_price"] * size / 50)) * 100 if size > 0 else 0, # Rough ROI estimate
+                                "slot_type": slot_data["slot_type"]
+                            })
+                        except Exception as e:
+                            logger.error(f"[PAPER] Failed to notify bankroll of trade closure: {e}")
+
                         logger.info(f"✅ [PAPER] Slot {slot_id} FREED | {sym} | PNL: ${pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
 
                 # 6. Update trailing stops in Firebase

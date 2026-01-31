@@ -16,7 +16,7 @@ def get_slot_type(slot_id: int) -> str:
 class BankrollManager:
     def __init__(self):
         self.max_slots = settings.MAX_SLOTS
-        self.risk_cap = settings.RISK_CAP_PERCENT # 0.20 (20%)
+        self.risk_cap = 0.30 # Aumentado de 20% para 30% para suportar 6 slots em risco
         self.margin_per_slot = 0.05 # 5% per slot (Sniper mode: 4 slots = 20%)
         self.initial_slots = settings.INITIAL_SLOTS # 4
         self.last_log_times = {} # Cooldown for logs
@@ -77,6 +77,12 @@ class BankrollManager:
                             logger.warning(f"Sync: Slot {slot_id} ({symbol}) has invalid data (side={side}, entry={entry_price}). Skipping.")
                             continue
                         
+                        # V5.2.3: Anti-Persistence Loop Guard
+                        # Check if slot was updated (reset) in the last 15 seconds to avoid re-adoption race condition
+                        if (time.time() - entry_ts) < 15:
+                            logger.info(f"Sync [PAPER]: Slot {slot_id} recently updated/reset. Skipping re-adoption guard.")
+                            continue
+
                         logger.warning(f"Sync [PAPER PERSISTENCE]: Slot {slot_id} ({symbol}) missing from memory. RE-ADOPTING.")
                         
                         qty = float(slot.get("qty", 0))
@@ -302,11 +308,16 @@ class BankrollManager:
             
             banca = await firebase_service.get_banca_status()
             if banca:
+                # V5.2.2: Calculate Cumulative Profit from All Trades
+                trades = await firebase_service.get_trade_history(limit=1000)
+                total_pnl = sum(t.get("pnl", 0) for t in trades)
+                
                 await firebase_service.update_banca_status({
                     "id": banca.get("id", "status"),
                     "saldo_total": total_equity,
                     "risco_real_percent": real_risk,
-                    "slots_disponiveis": available_slots_count
+                    "slots_disponiveis": available_slots_count,
+                    "lucro_total_acumulado": total_pnl  # NEW: Cumulative PNL
                 })
                 
                 # Snapshot logging: Log once every 6 hours (approx)
