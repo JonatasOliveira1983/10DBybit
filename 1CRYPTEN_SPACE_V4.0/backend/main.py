@@ -32,10 +32,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V4.3.2: Cloud Run Optimized Startup - FULLY NON-BLOCKING
-    # Health checks must succeed BEFORE services are fully initialized
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V4.9.4.2 Backend...")
-    logger.info("☁️ Cloud Run Mode: Fast startup, async service initialization")
+    # V5.0.5: Cloud Run Optimized Startup - 100% Non-Blocking
+    # Health checks MUST succeed before heavy service initialization
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.5 Backend...")
+    logger.info("☁️ Cloud Run Environment: Gunicorn + Uvicorn + Adaptive SL")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -149,8 +149,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.4 API",
-    version="5.0.4",
+    title="1CRYPTEN SPACE V5.0.5 API",
+    version="5.0.5",
     lifespan=lifespan
 )
 
@@ -163,34 +163,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Server Frontend Static Files safely
-import os
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Navigate up from backend -> 1CRYPTEN_SPACE_V4.0 -> root -> frontend
-FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend"))
-
-# Prioritize internal static folder for assets
+# Static File Serving Configuration
 INTERNAL_STATIC_DIR = os.path.join(BASE_DIR, "static")
-if not os.path.isdir(INTERNAL_STATIC_DIR):
-    os.makedirs(INTERNAL_STATIC_DIR, exist_ok=True)
+os.makedirs(INTERNAL_STATIC_DIR, exist_ok=True)
 
-if not os.path.isdir(FRONTEND_DIR):
-    logger.warning(f"⚠️ Frontend directory NOT found at {FRONTEND_DIR}. PWA features might failing.")
+if os.path.isdir(FRONTEND_DIR):
+    logger.info(f"✅ Frontend directory verified at: {FRONTEND_DIR}")
 else:
-    logger.info(f"Frontend directory established at: {FRONTEND_DIR}")
-    # Mount Frontend at root first
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend_static")
+    logger.warning(f"⚠️ Frontend directory NOT found at {FRONTEND_DIR}. Dashboards will fail.")
 
-    # Serve ALL root-level files from frontend (sw.js, manifest.json, logo10D.png, etc)
-    # This ensures PWA works without explicit routes for every asset
-    @app.get("/{file_name}")
-    async def get_root_file(file_name: str):
-        file_path = os.path.join(FRONTEND_DIR, file_name)
-        if os.path.exists(file_path):
-            return FileResponse(file_path)
-        # Fallback for SPA routing if needed, but here we just pass
-        return None
+# =================================================================
+# ROUTES & ENDPOINTS
+# =================================================================
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -216,22 +200,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """V5.0: Enhanced health check with Bybit connection status."""
-    bybit_connected = False
-    balance = 0.0
-    try:
-        from services.bybit_rest import bybit_rest_service
-        balance = bybit_rest_service.get_wallet_balance()
-        bybit_connected = balance > 0 or bybit_rest_service.execution_mode == "PAPER"
-    except Exception as e:
-        logger.warning(f"Health check Bybit error: {e}")
-    
+    """V5.0.5: Ultra-fast health check for Cloud Run stability."""
     return {
         "status": "online", 
-        "version": "5.0.4", 
+        "version": "5.0.5", 
         "protocol": "Adaptive Stop Loss",
-        "bybit_connected": bybit_connected,
-        "balance": balance,
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
@@ -553,10 +526,20 @@ async def toggle_admiral_rest(payload: dict):
         logger.error(f"Error toggling admiral rest: {e}")
         return {"error": str(e)}
 
-# Mount Frontend as main source
+# =================================================================
+# STATIC MOUNTING & STARTUP
+# =================================================================
+
+# V5.0.5: Single mount for frontend at root. 
+# SPA mode (html=True) handles both index and static assets.
 if os.path.isdir(FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+else:
+    @app.get("/")
+    async def root_fallback():
+        return {"status": "online", "message": "Dashboard directory missing."}
 
 if __name__ == "__main__":
-    # Forcing reload=False to avoid multi-process complexity during debugging
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=False)
+    # Ensure port is taken from env if available
+    target_port = int(os.environ.get("PORT", settings.PORT))
+    uvicorn.run("main:app", host="0.0.0.0", port=target_port, reload=False)

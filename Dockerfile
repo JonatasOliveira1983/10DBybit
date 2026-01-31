@@ -1,5 +1,5 @@
 # Use official Python runtime as a parent image
-# Build trigger: 2026-01-30 23:11 (V5.0.4 SSL Fix)
+# Build trigger: 2026-01-30 23:35 (V5.0.5 Patch)
 FROM python:3.11-slim
 
 # Set environment variables
