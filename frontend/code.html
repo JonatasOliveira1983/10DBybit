@@ -2224,48 +2224,62 @@
                         </div>
                     )}
 
-                    {/* Premium Header - Gemini Style */}
+                    {/* Premium Header - Gemini Style (Minimal) */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5 z-50">
                         <div className="max-w-3xl mx-auto">
-                            <div className="grid grid-cols-3 items-center">
+                            <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${getPulseColor()} animate-pulse shadow-[0_0_8px_currentColor]`}></span>
                                     <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
                                         {pulseStatus === 'OFFLINE' ? 'LOST' : (pulseStatus === 'WARNING' ? 'LAG' : 'STABLE')}
                                     </span>
                                 </div>
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-tight text-center">Deep Space</h1>
-                                <div className="flex justify-end">
-                                    <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between items-end mt-4">
-                                <div className="flex flex-col">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Portfolio Balance</p>
-                                    <h2 className="text-2xl sm:text-3xl font-display text-white font-bold tracking-tighter premium-gradient-text">
-                                        ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                                    </h2>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Risk Exposure</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-lg font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                            {(banca.risco_real_percent * 100).toFixed(2)}%
-                                        </span>
-                                        <div className="w-12 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full ${banca.risco_real_percent > 0.15 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                                style={{ width: `${Math.min(100, banca.risco_real_percent * 100 * 5)}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
+                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-[0.2em] text-center ml-4">Deep Space</h1>
+                                <div className="flex justify-end gap-3 items-center">
+                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V5.1.0</span>
+                                    <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-90" />
                                 </div>
                             </div>
                         </div>
                     </header>
 
                     <main className="flex-1 flex flex-col main-scrollable p-2 sm:p-3 gap-2 sm:gap-3 content-with-navbar">
+                        {/* Premium Portfolio Performance Cards */}
+                        <section className="flex-shrink-0 grid grid-cols-2 gap-2">
+                            {/* Total Balance Card */}
+                            <div className="p-3 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-primary/30 transition-all duration-500">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="material-icons-round text-primary text-sm">account_balance_wallet</span>
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Net Equity</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-xl sm:text-2xl font-display font-bold text-white tracking-tighter">
+                                        ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                                    </span>
+                                    {/* Small indicator could go here */}
+                                </div>
+                            </div>
+
+                            {/* Risk Exposure Card */}
+                            <div className="p-3 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500">
+                                <div className="flex justify-between items-center mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`material-icons-round text-sm ${banca.risco_real_percent > 0.15 ? 'text-amber-500' : 'text-emerald-500'}`}>security</span>
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Global Risk</span>
+                                    </div>
+                                    <span className={`text-[12px] font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                        {(banca.risco_real_percent * 100).toFixed(2)}%
+                                    </span>
+                                </div>
+                                <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden mt-1">
+                                    <div
+                                        className={`h-full transition-all duration-1000 ease-out ${banca.risco_real_percent > 0.15 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                        style={{ width: `${Math.min(100, banca.risco_real_percent * 100 * 5)}%`, boxShadow: `0 0 10px ${banca.risco_real_percent > 0.15 ? '#F59E0B' : '#10B981'}` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </section>
+
                         {/* V5.1.0: BTC Command Center Widget */}
                         <section className="flex-shrink-0 grid grid-cols-2 gap-2 mb-1">
                             {/* Drag Mode Status */}
