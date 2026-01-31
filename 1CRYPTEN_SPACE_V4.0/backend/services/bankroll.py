@@ -98,6 +98,40 @@ class BankrollManager:
                 else:
                     # REAL MODE: Clear if truly stale
                     if norm_symbol not in exchange_map:
+                        logger.warning(f"Sync [REAL]: Detected closed position for {symbol} in Slot {slot_id}")
+                        
+                        # V5.2.2: Register closed trade before clearing slot
+                        try:
+                            # Fetch last closed PnL for this symbol
+                            closed_list = await asyncio.to_thread(bybit_rest_service.get_closed_pnl, symbol=symbol, limit=1)
+                            if closed_list:
+                                last_pnl = closed_list[0]
+                                pnl_val = float(last_pnl.get("closedPnl", 0))
+                                exit_price = float(last_pnl.get("avgExitPrice", 0))
+                                qty = float(last_pnl.get("qty", 0))
+                                
+                                trade_data = {
+                                    "symbol": symbol,
+                                    "side": slot.get("side"),
+                                    "entry_price": float(slot.get("entry_price", 0)),
+                                    "exit_price": exit_price,
+                                    "qty": qty,
+                                    "pnl": pnl_val,
+                                    "slot_id": slot_id,
+                                    "slot_type": get_slot_type(slot_id),
+                                    "close_reason": "EXCHANGE_SYNC_DETECTED"
+                                }
+                                
+                                # 1. Log to history
+                                await firebase_service.log_trade(trade_data)
+                                
+                                # 2. Register in Vault (Cycle)
+                                await self.register_sniper_trade(trade_data)
+                                
+                                logger.info(f"Sync [REAL]: Trade registered for {symbol} | PnL: ${pnl_val:.2f}")
+                        except Exception as pnl_err:
+                            logger.error(f"Sync [REAL]: Error fetching closed PnL for {symbol}: {pnl_err}")
+
                         logger.warning(f"Sync [REAL]: Clearing stale slot {slot_id} for {symbol}")
                         await firebase_service.update_slot(slot_id, {
                             "symbol": None, "entry_price": 0, "current_stop": 0, 
