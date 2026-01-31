@@ -38,10 +38,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.1.0: Enterprise Stability - ZERO BLOCK BOOT
+    # V5.1.1: Production Diagnostics - ADVANCED VISIBILITY
     # Health checks MUST succeed before ANY heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.1.0 Backend...")
-    logger.info("☁️ Cloud Run Environment: Enterprise Resilience Mode")
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.1.1 Backend...")
+    logger.info("☁️ Cloud Run Environment: Diagnostic Mode")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -161,8 +161,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.1.0 API",
-    version="5.1.0",
+    title="1CRYPTEN SPACE V5.1.1 API",
+    version="5.1.1",
     lifespan=lifespan
 )
 
@@ -206,24 +206,43 @@ async def get_dashboard():
 @app.get("/")
 async def root():
     """Serve the primary dashboard (code.html)."""
+    logger.info("Root access requested.")
     # Try multiple entry points for robustness
     for entry in ["code.html", "index.html"]:
         path = os.path.join(FRONTEND_DIR, entry)
         if os.path.exists(path):
-            return FileResponse(path)
-    return {"status": "online", "message": "Backend Active. Dashboard files not found in /frontend."}
+            return FileResponse(path, media_type="text/html")
+    
+    return {
+        "status": "online", 
+        "message": "Backend Active. Dashboard files not found.",
+        "frontend_scanned": FRONTEND_DIR,
+        "files_found": os.listdir(FRONTEND_DIR) if os.path.exists(FRONTEND_DIR) else "Directory Missing"
+    }
 
 @app.get("/health")
 async def health_check():
-    """V5.1.0: Enterprise-grade health check."""
+    """V5.1.1: Diagnostic health check."""
+    frontend_files = []
+    if os.path.exists(FRONTEND_DIR):
+        try:
+            frontend_files = os.listdir(FRONTEND_DIR)
+        except:
+            frontend_files = ["Permission Error"]
+            
     return {
         "status": "online", 
-        "version": "5.1.0", 
-        "deployment_id": "V510_ENTERPRISE_READY",
+        "version": "5.1.1", 
+        "deployment_id": "V511_DIAG_ROLLOUT",
         "frontend_path": FRONTEND_DIR,
         "frontend_found": os.path.exists(FRONTEND_DIR),
+        "frontend_files": frontend_files,
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
+
+@app.get("/debug/test")
+async def debug_test():
+    return {"status": "ok", "message": "V5.1.1 Connection Verified"}
 
 @app.get("/banca/ui")
 async def get_banca_ui():
