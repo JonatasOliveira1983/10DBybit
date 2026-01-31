@@ -38,10 +38,10 @@ print("DEBUG: Logger configured.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # V5.0.9: Production Resilience - Optimized Boot
-    # Health checks MUST succeed before heavy service initialization
-    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.0.9 Backend...")
-    logger.info("☁️ Cloud Run Environment: Resilience & Monitoring")
+    # V5.1.0: Enterprise Stability - ZERO BLOCK BOOT
+    # Health checks MUST succeed before ANY heavy service initialization
+    logger.info("🚀 Initializing 1CRYPTEN SPACE V5.1.0 Backend...")
+    logger.info("☁️ Cloud Run Environment: Enterprise Resilience Mode")
     
     async def start_services():
         """Background service initialization - does NOT block app startup"""
@@ -51,14 +51,20 @@ async def lifespan(app: FastAPI):
             
             # V4.3.2: LAZY IMPORTS - Import services here, NOT at module level
             # This allows the worker to start and respond to health checks first
-            logger.info("Step 0: Lazy loading service modules...")
-            from services.firebase_service import firebase_service
-            from services.bybit_rest import bybit_rest_service
-            from services.bybit_ws import bybit_ws_service
-            from services.bankroll import bankroll_manager
-            from services.agents.guardian import guardian_agent
-            from services.agents.captain import captain_agent
-            from services.signal_generator import signal_generator
+            # V5.1.0 Optimization: Load services slowly to avoid blocking the loop
+            logger.info("Step 0: Loading services (slow-walk mode)...")
+            import importlib
+            firebase_service = importlib.import_module("services.firebase_service").firebase_service
+            await asyncio.sleep(1)
+            bybit_rest_service = importlib.import_module("services.bybit_rest").bybit_rest_service
+            await asyncio.sleep(1)
+            bybit_ws_service = importlib.import_module("services.bybit_ws").bybit_ws_service
+            await asyncio.sleep(1)
+            bankroll_manager = importlib.import_module("services.bankroll").bankroll_manager
+            await asyncio.sleep(1)
+            guardian_agent = importlib.import_module("services.agents.guardian").guardian_agent
+            captain_agent = importlib.import_module("services.agents.captain").captain_agent
+            signal_generator = importlib.import_module("services.signal_generator").signal_generator
             logger.info("Step 0: Service modules loaded ✅")
             
             # 1. Initialize Firebase with timeout protection
@@ -155,8 +161,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 app = FastAPI(
-    title="1CRYPTEN SPACE V5.0.9 API",
-    version="5.0.9",
+    title="1CRYPTEN SPACE V5.1.0 API",
+    version="5.1.0",
     lifespan=lifespan
 )
 
@@ -209,11 +215,13 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """V5.0.9: Stability health check with deployment signature."""
+    """V5.1.0: Enterprise-grade health check."""
     return {
         "status": "online", 
-        "version": "5.0.9", 
-        "deployment_id": "V509_RESILIENCE_VERIFIED",
+        "version": "5.1.0", 
+        "deployment_id": "V510_ENTERPRISE_READY",
+        "frontend_path": FRONTEND_DIR,
+        "frontend_found": os.path.exists(FRONTEND_DIR),
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
