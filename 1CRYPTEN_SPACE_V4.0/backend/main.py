@@ -1,6 +1,7 @@
 import sys
 import traceback
 import os
+import datetime
 
 try:
     print("DEBUG: Importing core modules...")
@@ -201,10 +202,22 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    """V5.0: Enhanced health check with Bybit connection status."""
+    bybit_connected = False
+    balance = 0.0
+    try:
+        from services.bybit_rest import bybit_rest_service
+        balance = bybit_rest_service.get_wallet_balance()
+        bybit_connected = balance > 0 or bybit_rest_service.execution_mode == "PAPER"
+    except Exception as e:
+        logger.warning(f"Health check Bybit error: {e}")
+    
     return {
         "status": "online", 
-        "version": "4.9.4.2", 
-        "protocol": "Elite Elite",
+        "version": "5.0", 
+        "protocol": "Adaptive Stop Loss",
+        "bybit_connected": bybit_connected,
+        "balance": balance,
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 

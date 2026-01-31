@@ -2592,32 +2592,40 @@
 
             useEffect(() => {
                 const runChecks = async () => {
-                    // Check API
+                    // V5.0: Enhanced health check - now returns bybit_connected and balance
                     try {
-                        console.log("Checking API at:", API_BASE + '/health');
+                        console.log("V5.0: Checking API at:", API_BASE + '/health');
                         const res = await fetch(API_BASE + '/health');
                         console.log("API Result:", res.status, res.ok);
-                        setChecks(prev => ({ ...prev, api: { ...prev.api, status: res.ok ? 'success' : 'error' } }));
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            console.log("Health Response:", data);
+
+                            // API check = overall response OK
+                            setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'success' } }));
+
+                            // Bybit connection = bybit_connected from response
+                            const bybitOk = data.bybit_connected === true;
+                            setChecks(prev => ({ ...prev, api: { ...prev.api, status: bybitOk ? 'success' : 'error' } }));
+
+                            // Balance sync = balance > 0 or PAPER mode
+                            const balanceOk = data.balance > 0 || data.bybit_connected === true;
+                            setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: balanceOk ? 'success' : 'error' } }));
+                        } else {
+                            setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } }));
+                            setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } }));
+                        }
                     } catch (e) {
                         console.error("API Error Details:", e);
                         setChecks(prev => ({ ...prev, api: { ...prev.api, status: 'error' } }));
+                        setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } }));
                     }
 
                     // Check Latency (simulated or real from health)
                     setTimeout(() => {
                         setChecks(prev => ({ ...prev, latency: { ...prev.latency, status: 'success' } }));
                     }, 800);
-
-                    // Check Balance
-                    try {
-                        console.log("Checking Balance at:", API_BASE + '/banca');
-                        const res = await fetch(API_BASE + '/banca');
-                        console.log("Balance Result:", res.status, res.ok);
-                        setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: res.ok ? 'success' : 'error' } }));
-                    } catch (e) {
-                        console.error("Balance Error Details:", e);
-                        setChecks(prev => ({ ...prev, balance: { ...prev.balance, status: 'error' } }));
-                    }
 
                     // Final Captain Protocol
                     setTimeout(() => {
