@@ -341,6 +341,21 @@ class BybitREST:
             logger.error(f"Error fetching closed PnL for {symbol}: {e}")
             return []
 
+    def get_klines(self, symbol: str, interval: str = "60", limit: int = 20):
+        """Fetches historical klines for ATR and variation calculations."""
+        try:
+            api_symbol = self._strip_p(symbol)
+            response = self.session.get_mark_price_kline(
+                category=self.category,
+                symbol=api_symbol,
+                interval=interval,
+                limit=limit
+            )
+            return response.get("result", {}).get("list", [])
+        except Exception as e:
+            logger.error(f"Error fetching klines for {symbol}: {e}")
+            return []
+
     
     async def set_trading_stop(self, category: str, symbol: str, stopLoss: str, slTriggerBy: str = None, tpslMode: str = None, positionIdx: int = 0):
         """Sets the stop loss for a position."""

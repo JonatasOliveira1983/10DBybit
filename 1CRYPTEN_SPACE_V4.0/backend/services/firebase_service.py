@@ -331,6 +331,19 @@ class FirebaseService:
         except (asyncio.TimeoutError, Exception) as e:
             logger.warning(f"Heartbeat failed: {type(e).__name__}. This is usually transient but may trigger LAG in UI.")
 
+    async def update_pulse_drag(self, btc_drag_mode: bool, btc_cvd: float, exhaustion: float):
+        """V5.1.0: Updates BTC Drag Mode status in RTDB for the frontend widget."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            data = {
+                "btc_drag_mode": btc_drag_mode,
+                "btc_cvd": btc_cvd,
+                "exhaustion": exhaustion,
+                "timestamp": time.time() * 1000
+            }
+            await asyncio.to_thread(self.rtdb.update, {"btc_command_center": data})
+        except Exception: pass
+
     async def update_rtdb_slots(self, slots: list):
         """Duplicate slot data to RTDB for high-speed UI refreshes."""
         if not self.is_active or not self.rtdb: return

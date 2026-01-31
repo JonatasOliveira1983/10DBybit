@@ -251,8 +251,12 @@ class BankrollManager:
             return None
         
         # 4. Progressive Expansion Logic (per slot type)
-        # V5.2.1: Increased initial from 2 to 4 to allow full squad deployment before requiring Risk Free
-        max_initial = 4 if slot_type == "SNIPER" else 3 
+        # V5.1.0: Protocol Drag Expansion
+        from services.signal_generator import signal_generator
+        if signal_generator.btc_drag_mode:
+            max_initial = 7 if slot_type == "SNIPER" else 6
+        else:
+            max_initial = 4 if slot_type == "SNIPER" else 3
         
         if active_count >= max_initial:
             # Check for Risk Free in this slot type

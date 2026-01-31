@@ -17,6 +17,11 @@ class BybitWS:
         self.prices = {} # {symbol: last_price}
         self.max_cvd_history = 1000 # V5.2.2: Increased to 1000 for better signal capture
         self.active_symbols = []
+        
+        # V5.1.0: Protocol Drag
+        self.btc_variation_1h = 0.0
+        self.atr_cache = {} # {symbol: atr_value}
+        self.last_atr_update = 0
 
     def handle_trade_message(self, message):
         """Processes trade messages to calculate CVD."""
@@ -63,6 +68,43 @@ class BybitWS:
         if symbol not in self.cvd_data:
             return 0.0
         return sum(item["delta"] for item in self.cvd_data[symbol])
+
+    async def update_market_context(self):
+        """
+        V5.1.0: Updates BTC variation and calculates ATR for active symbols.
+        Should be called periodically (e.g., every 5-10 mins).
+        """
+        from services.bybit_rest import bybit_rest_service
+        
+        try:
+            # 1. Update BTC Variation (1h)
+            btc_klines = await asyncio.to_thread(bybit_rest_service.get_klines, symbol="BTCUSDT", interval="60", limit=2)
+            if len(btc_klines) >= 2:
+                # Bybit returns newest first: [current, previous]
+                curr_close = float(btc_klines[0][4])
+                prev_close = float(btc_klines[1][4])
+                self.btc_variation_1h = ((curr_close - prev_close) / prev_close) * 100
+                logger.info(f"V5.1.0: BTC 1h Variation updated: {self.btc_variation_1h:.2f}%")
+
+            # 2. Update ATR for active symbols
+            now = time.time()
+            if now - self.last_atr_update > 600: # Every 10 mins
+                for symbol in self.active_symbols:
+                    klines = await asyncio.to_thread(bybit_rest_service.get_klines, symbol=symbol, interval="60", limit=15)
+                    if len(klines) >= 14:
+                        # Simple ATR calculation: average of (High - Low)
+                        total_tr = 0
+                        for k in klines[:14]:
+                            h = float(k[2])
+                            l = float(k[3])
+                            total_tr += (h - l)
+                        self.atr_cache[symbol] = total_tr / 14
+                
+                self.last_atr_update = now
+                logger.debug(f"V5.1.0: ATR Cache updated for {len(self.atr_cache)} symbols.")
+
+        except Exception as e:
+            logger.error(f"Error updating market context in BybitWS: {e}")
 
     async def start(self, symbols: list):
         """Starts the WebSocket connection for a list of symbols (V4.3 Expansion)."""

@@ -22,6 +22,11 @@ class SignalGenerator:
         self.last_standby_log = 0
         self.radar_interval = 3.0 # Update RTDB every 3s for 200 symbols
         self.scan_interval = 15.0 # Scan for signals every 15s
+        
+        # V5.1.0: Protocol Drag State
+        self.btc_drag_mode = False
+        self.exhaustion_level = 0.0 # 0-100
+        self.last_context_update = 0
 
     async def monitor_and_generate(self):
         """
@@ -32,8 +37,29 @@ class SignalGenerator:
 
         while self.is_running:
             try:
+                # 0. V5.1.0: Update Market Context (BTC Variation, ATR, etc.)
+                now = time.time()
+                if now - self.last_context_update > 300: # Every 5 mins
+                    await bybit_ws_service.update_market_context()
+                    self.last_context_update = now
+                    
+                    # Update Drag Mode State
+                    btc_var = bybit_ws_service.btc_variation_1h
+                    btc_cvd = bybit_ws_service.get_cvd_score("BTCUSDT")
+                    
+                    # Heuristic for Drag Mode: Var > 1.2% or Extreme CVD
+                    # For CVD, we compare to a high threshold (e.g. $2.5M delta in recent history)
+                    self.btc_drag_mode = abs(btc_var) > 1.2 or abs(btc_cvd) > 2500000
+                    
+                    if self.btc_drag_mode:
+                        logger.info(f"🦅 V5.1.0: BTC DRAG MODE ACTIVE | Var: {btc_var:.2f}% | CVD: {btc_cvd:.2f}")
+                    
+                    # Update RTDB for Frontend Widget
+                    await firebase_service.update_pulse_drag(self.btc_drag_mode, abs(btc_cvd), self.exhaustion_level)
+
                 # V5.2.1: Check any slot availability (Sniper or Surf) to keep collecting signals
-                can_sniper = await bankroll_manager.can_open_new_slot(slot_type="SNIPER")
+                # Capacity flexibilization: If Drag Mode, allow more slots
+                max_slots = 7 if self.btc_drag_mode else 4
                 can_surf = await bankroll_manager.can_open_new_slot(slot_type="SURF")
                 
                 if can_sniper is None and can_surf is None:
@@ -56,9 +82,11 @@ class SignalGenerator:
                     cvd_val = bybit_ws_service.get_cvd_score(symbol)
                     abs_cvd = abs(cvd_val)
                     
-                    # Sniper Rule (Radar 2.0): Threshold based on USD Money Flow
-                    # $15k+ CVD delta in recent history is a valid signal start (lowered from $30k)
-                    if abs_cvd > 15000: 
+                    # V5.1.0: Sniper Rule (Radar 2.0): Threshold based on USD Money Flow
+                    # If Drag Mode, lower threshold to capture the "dragging" effect
+                    threshold = 8000 if self.btc_drag_mode else 15000
+                    
+                    if abs_cvd > threshold: 
                         # Calibrated: $75k USD delta = ~85 score, $200k+ = 99 score
                         score = min(99, int(75 + (abs_cvd / 7500)))
                         

@@ -190,9 +190,10 @@ class ExecutionProtocol:
         
         return False, None, new_stop
     
-    def process_surf_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str], Optional[float]]:
+    def process_surf_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float, atr: Optional[float] = None) -> Tuple[bool, Optional[str], Optional[float]]:
         """
         Lógica exclusiva para ordens SURF (Trailing Stop).
+        V5.1.0: Integrado ATR para trailing volátil.
         
         SURF = Sem TP fixo, usa trailing stop progressivo.
         A escada de proteção move o SL conforme o lucro aumenta.
@@ -220,8 +221,23 @@ class ExecutionProtocol:
             logger.warning(f"🛑 SURF HARD SL: {symbol} ROI={roi:.2f}% <= -75%")
             return True, f"SURF_HARD_STOP ({roi:.1f}%)", None
         
-        # Calcular novo SL baseado na escada de proteção
-        new_stop_price = self._calculate_surf_trailing_stop(entry, roi, side)
+        # V5.1.0: Calcular novo SL baseado no ATR se disponível, ou fallback para escada fixa
+        new_stop_price = None
+        if atr and atr > 0:
+            # Lógica ATR-based solicitada pelo Almirante
+            if 50.0 <= roi < 100.0:
+                # ROI 50%-100%: Trailing Stop a 2.5x ATR
+                new_stop_price = current_price - (2.5 * atr) if side_norm == "buy" else current_price + (2.5 * atr)
+            elif 100.0 <= roi < 200.0:
+                # ROI 100%-200%: Trailing Stop a 1.5x ATR
+                new_stop_price = current_price - (1.5 * atr) if side_norm == "buy" else current_price + (1.5 * atr)
+            elif roi >= 200.0:
+                # ROI > 200%: Flash Zone (Trailing ultra curto de 0.8x ATR ou manual)
+                new_stop_price = current_price - (0.8 * atr) if side_norm == "buy" else current_price + (0.8 * atr)
+        
+        # Fallback para escada fixa se ATR não trouxe resultado ou ROI for menor/maior que faixas ATR
+        if new_stop_price is None:
+            new_stop_price = self._calculate_surf_trailing_stop(entry, roi, side)
         
         # Só retorna novo SL se for uma melhoria
         if new_stop_price is not None:
@@ -232,7 +248,7 @@ class ExecutionProtocol:
                 is_improvement = True
                 
             if is_improvement:
-                logger.info(f"🏄 SURF TRAILING UPDATE: {symbol} ROI={roi:.1f}% -> New SL={new_stop_price:.5f}")
+                logger.debug(f"🏄 SURF TRAILING UPDATE: {symbol} ROI={roi:.1f}% -> New SL={new_stop_price:.5f}")
                 return False, None, new_stop_price
         
         return False, None, None
@@ -348,7 +364,10 @@ class ExecutionProtocol:
             return self.process_sniper_logic(slot_data, current_price, roi)
             
         elif slot_type == "SURF":
-            return self.process_surf_logic(slot_data, current_price, roi)
+            # V5.1.0: Get ATR from BybitWS if possible
+            from services.bybit_ws import bybit_ws_service
+            atr = bybit_ws_service.atr_cache.get(symbol)
+            return self.process_surf_logic(slot_data, current_price, roi, atr)
         
         # Tipo desconhecido - usa lógica SNIPER por padrão
         logger.warning(f"Unknown slot_type '{slot_type}' for {symbol}, using SNIPER logic")
