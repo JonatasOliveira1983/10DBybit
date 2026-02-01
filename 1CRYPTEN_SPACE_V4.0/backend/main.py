@@ -14,9 +14,9 @@ import ssl
 import urllib3
 from config import settings
 
-# V5.2.4.3 Stability Shield - Production Protocol
-VERSION = "5.2.4.3"
-DEPLOYMENT_ID = "V5243_STABILITY_SHIELD"
+# V5.2.4.4 SSL & Stability Shield - Production Protocol
+VERSION = "5.2.4.4"
+DEPLOYMENT_ID = "V5244_SSL_STABILITY_SHIELD"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

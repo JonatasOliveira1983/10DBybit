@@ -60,37 +60,49 @@ class FirebaseService:
             if not cred:
                 raise ValueError("No Firebase credentials found (Env or File).")
 
-            # Avoid re-initializing if already running
-            try:
-                app = firebase_admin.get_app()
-            except ValueError:
-                # Initialize with RTDB URL if available
-                options = {}
-                db_url = settings.FIREBASE_DATABASE_URL or os.getenv("FIREBASE_DATABASE_URL")
-                if db_url and db_url != "None":
-                    options['databaseURL'] = db_url
-                    logger.info(f"Using Firebase Database URL: {db_url}")
-                else:
-                    logger.warning("FIREBASE_DATABASE_URL is missing or 'None'. RTDB Pulse will be disabled.")
-                app = firebase_admin.initialize_app(cred, options)
-            
-            # Initialize Clients
-            self.db = firestore.client()
-            try:
-                # Check if databaseURL was provided to options
-                if 'databaseURL' in options:
-                    self.rtdb = db.reference("/")
-                    logger.info("Firebase Realtime DB connected.")
-                else:
-                    logger.warning("Firebase Realtime DB NOT connected (no URL).")
-            except Exception as e:
-                logger.error(f"Error connecting to RTDB: {e}")
+            # V5.2.4.4: SSL Resilience Retry Loop for production connectivity
+            for attempt in range(3):
+                try:
+                    # Avoid re-initializing if already running
+                    try:
+                        app = firebase_admin.get_app()
+                    except ValueError:
+                        # Initialize with RTDB URL if available
+                        options = {}
+                        db_url = settings.FIREBASE_DATABASE_URL or os.getenv("FIREBASE_DATABASE_URL")
+                        if db_url and db_url != "None":
+                            options['databaseURL'] = db_url
+                            logger.info(f"Using Firebase Database URL: {db_url}")
+                        else:
+                            logger.warning("FIREBASE_DATABASE_URL is missing or 'None'. RTDB Pulse will be disabled.")
+                        app = firebase_admin.initialize_app(cred, options)
+                    
+                    # Initialize Clients
+                    self.db = firestore.client()
+                    try:
+                        if 'databaseURL' in options:
+                            self.rtdb = db.reference("/")
+                            logger.info("Firebase Realtime DB connected.")
+                        else:
+                            logger.warning("Firebase Realtime DB NOT connected (no URL).")
+                    except Exception as e:
+                        logger.error(f"Error connecting to RTDB: {e}")
 
-            self.is_active = True
-            logger.info("Firebase Admin SDK initialized successfully.")
-            
-            # Flush buffers if we just reconnected
-            asyncio.create_task(self._flush_buffers())
+                    self.is_active = True
+                    logger.info("Firebase Admin SDK initialized successfully.")
+                    
+                    # Flush buffers if we just reconnected
+                    asyncio.create_task(self._flush_buffers())
+                    break # Success!
+                except Exception as e:
+                    # Catch specific SSL/EOF issues reported in production
+                    is_ssl_error = "SSL" in str(e) or "EOF" in str(e)
+                    if is_ssl_error and attempt < 2:
+                        wait = (attempt + 1) * 3
+                        logger.warning(f"🚨 Firebase SSL Init Error (Attempt {attempt+1}/3). Retrying in {wait}s... Error: {e}")
+                        await asyncio.sleep(wait)
+                    else:
+                        raise e
 
         except Exception as e:
             logger.error(f"Error initializing Firebase: {e}")
