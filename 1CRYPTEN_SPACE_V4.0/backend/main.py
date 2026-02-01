@@ -14,9 +14,9 @@ import ssl
 import urllib3
 from config import settings
 
-# V5.2.0 ALMIRANTE - Production Protocol
-VERSION = "5.2.0"
-DEPLOYMENT_ID = "V520_ALMIRANTE_FINAL"
+# V5.2.4.3 Stability Shield - Production Protocol
+VERSION = "5.2.4.3"
+DEPLOYMENT_ID = "V5243_STABILITY_SHIELD"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -56,7 +56,8 @@ async def lifespan(app: FastAPI):
             
             logger.info("Step 0.2: Loading Bybit REST Service...")
             bybit_rest_service = importlib.import_module("services.bybit_rest").bybit_rest_service
-            await bybit_rest_service.initialize()
+            # V5.2.4.3: Added 30s timeout for Bybit initialization (includes time sync)
+            await asyncio.wait_for(bybit_rest_service.initialize(), timeout=30.0)
             await asyncio.sleep(1)
             
             logger.info("Step 0.3: Loading Bybit WS Service...")

@@ -148,7 +148,8 @@ class FirebaseService:
     async def update_banca_status(self, data: dict):
         if not self.is_active: return data
         try:
-            await asyncio.to_thread(self.db.collection("banca_status").document("status").set, data, merge=True)
+            # V5.2.4.3: Added 5s timeout
+            await asyncio.wait_for(asyncio.to_thread(self.db.collection("banca_status").document("status").set, data, merge=True), timeout=5.0)
         except Exception: pass
         return data
 
@@ -236,7 +237,8 @@ class FirebaseService:
                 
         if not self.is_active: return data
         try:
-            await asyncio.to_thread(self.db.collection("slots_ativos").document(str(slot_id)).set, data, merge=True)
+            # V5.2.4.3: Added 5s timeout
+            await asyncio.wait_for(asyncio.to_thread(self.db.collection("slots_ativos").document(str(slot_id)).set, data, merge=True), timeout=5.0)
         except Exception: pass
         return data
 
@@ -341,7 +343,8 @@ class FirebaseService:
                 "exhaustion": exhaustion,
                 "timestamp": time.time() * 1000
             }
-            await asyncio.to_thread(self.rtdb.update, {"btc_command_center": data})
+            # V5.2.4.3: Added 3s timeout for RTDB updates
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.update, {"btc_command_center": data}), timeout=3.0)
         except Exception: pass
 
     async def update_rtdb_slots(self, slots: list):
@@ -350,7 +353,8 @@ class FirebaseService:
         try:
             # Convert list to dict for RTDB
             slots_data = {str(s["id"]): s for s in slots}
-            await asyncio.to_thread(self.rtdb.child("live_slots").update, slots_data)
+            # V5.2.4.3: Added 3s timeout for RTDB update
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.child("live_slots").update, slots_data), timeout=3.0)
         except Exception: pass
 
     async def update_radar_batch(self, batch_data: dict):
@@ -358,7 +362,8 @@ class FirebaseService:
         if not self.is_active or not self.rtdb: return
         try:
             # Note: In RTDB, update/set at the root or a subpath is efficient.
-            await asyncio.to_thread(self.rtdb.child("market_radar").update, batch_data)
+            # V5.2.4.3: Added 3s timeout
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.child("market_radar").update, batch_data), timeout=3.0)
         except Exception as e:
             logger.error(f"Error updating radar batch: {e}")
 

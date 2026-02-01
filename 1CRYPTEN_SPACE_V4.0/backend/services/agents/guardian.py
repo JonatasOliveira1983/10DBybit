@@ -11,7 +11,7 @@ V5.0 Features:
 - Visual Status: Atualiza status visual dos slots no Firebase
 
 Author: Antigravity AI
-Version: 5.0 (Adaptive SL + Cooldown)
+Version: 5.2.4.3 (Stability Shield)
 """
 
 import logging
@@ -38,9 +38,19 @@ class GuardianAgent:
         # Logging counters
         self.loops_since_log = 0
         self.log_interval = 10  # Log status every 10 loops
+        self.last_health_check = 0
+        self.health_check_interval = 10.0 # 10 seconds between health checks
+        
+        # Throttling data
+        self.last_update_data = {} # slot_id -> {pnl, status, time}
 
     async def check_api_health(self):
-        """Checks latency and connectivity to Bybit."""
+        """Checks latency and connectivity to Bybit. Throttled to 10s intervals."""
+        now = time.time()
+        if now - self.last_health_check < self.health_check_interval:
+            return True, 0
+            
+        self.last_health_check = now
         try:
             start_time = time.time()
             await asyncio.to_thread(bybit_rest_service.session.get_server_time)
@@ -132,7 +142,7 @@ class GuardianAgent:
                 logger.debug(f"   ROI: {pnl_pct:.2f}% | Target: {execution_protocol.sniper_target_roi}%")
 
                 # ==========================================
-                # V4.5.1: VISUAL STATUS UPDATE
+                # V5.2.4.3: THROTTLED VISUAL STATUS UPDATE
                 # ==========================================
                 slot_data = {
                     "symbol": symbol,
@@ -149,16 +159,34 @@ class GuardianAgent:
                     has_flash_zone = True
                     logger.info(f"🟣 FLASH ZONE ACTIVE: {symbol} @ {pnl_pct:.1f}% ROI | Overclock ON")
 
-                # Update Firebase with visual status and current price
-                try:
-                    await firebase_service.update_slot(slot_id, {
-                        "pnl_percent": pnl_pct,
-                        "visual_status": visual_status,
-                        "current_price": last_price,  # <-- NEW: Backend price for frontend sync
-                        "last_guardian_check": time.time()
-                    })
-                except Exception as ue:
-                    logger.warning(f"Failed to update slot {slot_id}: {ue}")
+                # Throttling Logic: ROI change > 0.2% OR status change OR 15s passed
+                prev_data = self.last_update_data.get(slot_id, {"pnl": -999, "status": "", "time": 0})
+                roi_drift = abs(pnl_pct - prev_data["pnl"])
+                now = time.time()
+                time_passed = now - prev_data["time"]
+                
+                should_update_firebase = (
+                    roi_drift > 0.2 or 
+                    visual_status != prev_data["status"] or 
+                    time_passed > 15.0 or
+                    has_flash_zone # Always update in flash zone
+                )
+
+                if should_update_firebase:
+                    try:
+                        await firebase_service.update_slot(slot_id, {
+                            "pnl_percent": pnl_pct,
+                            "visual_status": visual_status,
+                            "current_price": last_price,
+                            "last_guardian_check": now
+                        })
+                        self.last_update_data[slot_id] = {
+                            "pnl": pnl_pct,
+                            "status": visual_status,
+                            "time": now
+                        }
+                    except Exception as ue:
+                        logger.warning(f"Failed to update slot {slot_id}: {ue}")
 
                 # ==========================================
                 # V5.0: SNIPER ADAPTIVE SL LOGIC (TP, SL & Trailing)
@@ -330,7 +358,13 @@ class GuardianAgent:
             await self.check_api_health()
             
             # 2. Position Management
-            await self.manage_positions()
+            try:
+                # V5.2.4.3: Added 15s absolute timeout for position management
+                await asyncio.wait_for(self.manage_positions(), timeout=15.0)
+            except asyncio.TimeoutError:
+                logger.error("🛑 Guardian: Position management TIMEOUT (15s). Internal loop hung?")
+            except Exception as e:
+                logger.error(f"Guardian Loop Error: {e}")
 
             # 3. Adaptive Sleep
             interval = self.overclock_interval if self.overclock_active else self.normal_interval

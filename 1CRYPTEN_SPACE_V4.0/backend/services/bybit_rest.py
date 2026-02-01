@@ -127,7 +127,6 @@ class BybitREST:
             return final_symbols
         except Exception as e:
             logger.error(f"Error in Operation Sniper scan: {e}")
-            logger.exception(e)
             return ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P"]
 
     def get_wallet_balance(self):
@@ -146,7 +145,8 @@ class BybitREST:
             # Try UNIFIED first
             logger.info("Fetching balance (UNIFIED)...")
             try:
-                response = self.session.get_wallet_balance(accountType="UNIFIED")
+                # V5.2.4.3: Added 10s timeout
+                response = await asyncio.wait_for(asyncio.to_thread(self.session.get_wallet_balance, accountType="UNIFIED"), timeout=10.0)
                 result = response.get("result", {}).get("list", [{}])[0]
                 equity = float(result.get("totalEquity", 0))
                 logger.info(f"UNIFIED Equity: {equity}")
@@ -156,7 +156,8 @@ class BybitREST:
             
             # Try CONTRACT if UNIFIED fails or is 0
             logger.info("Fetching balance (CONTRACT)...")
-            response = self.session.get_wallet_balance(accountType="CONTRACT")
+            # V5.2.4.3: Added 10s timeout
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_wallet_balance, accountType="CONTRACT"), timeout=10.0)
             result = response.get("result", {}).get("list", [{}])[0]
             coins = result.get("coin", [])
             usdt_coin = next((c for c in coins if c.get("coin") == "USDT"), {})
@@ -178,7 +179,8 @@ class BybitREST:
             params = {"category": self.category, "settleCoin": "USDT"}
             if symbol: params["symbol"] = symbol
             
-            response = await asyncio.to_thread(self.session.get_positions, **params)
+            # V5.2.4.3: Added 10s timeout
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_positions, **params), timeout=10.0)
             pos_list = response.get("result", {}).get("list", [])
             # Filter for positions with size > 0
             active = [p for p in pos_list if float(p.get("size", 0)) > 0]
@@ -193,7 +195,8 @@ class BybitREST:
             api_symbol = self._strip_p(symbol)
             params = {"category": self.category}
             if api_symbol: params["symbol"] = api_symbol
-            return await asyncio.to_thread(self.session.get_tickers, **params)
+            # V5.2.4.3: Added 5s timeout
+            return await asyncio.wait_for(asyncio.to_thread(self.session.get_tickers, **params), timeout=5.0)
         except Exception as e:
             logger.error(f"Error fetching tickers for {symbol}: {e}")
             return {}
