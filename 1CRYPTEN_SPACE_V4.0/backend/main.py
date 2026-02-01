@@ -50,18 +50,25 @@ async def lifespan(app: FastAPI):
         try:
             import importlib
             # Load services with 1s delay each to keep event loop breathing
+            logger.info("Step 0.1: Loading Firebase Service...")
             firebase_service = importlib.import_module("services.firebase_service").firebase_service
             await asyncio.sleep(1)
+            
+            logger.info("Step 0.2: Loading Bybit REST Service...")
             bybit_rest_service = importlib.import_module("services.bybit_rest").bybit_rest_service
             await asyncio.sleep(1)
+            
+            logger.info("Step 0.3: Loading Bybit WS Service...")
             bybit_ws_service = importlib.import_module("services.bybit_ws").bybit_ws_service
             await asyncio.sleep(1)
             
             # Use bankroll_manager (singular)
+            logger.info("Step 0.4: Loading Bankroll Manager...")
             try:
                 mod = importlib.import_module("services.bankroll_manager")
                 bankroll_manager = mod.bankroll_manager
             except ImportError:
+                 logger.warning("bankroll_manager not found, trying bankroll...")
                  mod = importlib.import_module("services.bankroll")
                  bankroll_manager = mod.bankroll_manager
             
