@@ -2632,7 +2632,7 @@
             );
         };
 
-        const SettingsPage = ({ onLogout }) => {
+        const SettingsPage = ({ onLogout, theme, setTheme }) => {
             const handlePanic = async () => {
                 if (!confirm("⚠️ CAUTELA: O Protocolo de Pânico fechará TODAS as posições imediatamente no mercado. Confirmar?")) return;
                 try {
