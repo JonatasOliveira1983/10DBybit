@@ -844,6 +844,14 @@
     <script type="text/babel">
         try { document.getElementById('boot-status').innerText = "Linking Quantum Stream..."; } catch (e) { }
 
+        // Global Error Handling: Prevents silent crashes and provides debug info
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error("GLOBAL CRASH DETECTED:", message, "at", source, ":", lineno);
+            const status = document.getElementById('boot-status');
+            if (status) status.innerText = "CRITICAL ERROR: " + message;
+            return false;
+        };
+
         const { useState, useEffect, useRef } = React;
         const { createRoot } = ReactDOM;
         const { HashRouter, Routes, Route, Link, useLocation, useNavigate } = ReactRouterDOM;
@@ -853,6 +861,7 @@
         const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
             ? 'http://127.0.0.1:5001'
             : window.location.origin;
+        console.log("Protocol V5.2.4.1: API_BASE =", API_BASE, "Hostname =", window.location.hostname);
 
         // Firebase Config
         const firebaseConfig = {
@@ -882,6 +891,15 @@
         }
 
         // --- Global Utilities ---
+        const safeJsonParse = (str, fallback) => {
+            try {
+                return str ? JSON.parse(str) : fallback;
+            } catch (e) {
+                console.warn("localStorage Corruption Detected. Resetting to fallback.", e);
+                return fallback;
+            }
+        };
+
         const formatPrice = (val) => {
             if (val === null || val === undefined || isNaN(val) || val === 0) return '---';
             const num = Number(val);
@@ -1682,7 +1700,10 @@
 
         // 1. Logs Page (Chat with Captain - Minimalist Design)
         const LogsPage = () => {
-            const [logs, setLogs] = useState([]);
+            const [logs, setLogs] = useState(() => {
+                const cached = localStorage.getItem('logs_cache');
+                return safeJsonParse(cached, []);
+            });
             const [inputValue, setInputValue] = useState('');
             const [isSending, setIsSending] = useState(false);
             const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -2150,18 +2171,18 @@
             // Optimistic UI: Initial state from localStorage
             const [banca, setBanca] = useState(() => {
                 const cached = localStorage.getItem('banca_cache');
-                return cached ? JSON.parse(cached) : { saldo_total: 0, lucro_total_acumulado: 0, risco_real_percent: 0 };
+                return safeJsonParse(cached, { saldo_total: 0, lucro_total_acumulado: 0, risco_real_percent: 0 });
             });
             const [slots, setSlots] = useState(() => {
                 const cached = localStorage.getItem('slots_cache');
-                return cached ? JSON.parse(cached) : [];
+                return safeJsonParse(cached, []);
             });
             const [selectedSlotId, setSelectedSlotId] = useState(null);
             const [isLoaded, setIsLoaded] = useState(false);
             const [isChartFullscreen, setIsChartFullscreen] = useState(false);
             const [logs, setLogs] = useState(() => {
                 const cached = localStorage.getItem('logs_cache');
-                return cached ? JSON.parse(cached) : [];
+                return safeJsonParse(cached, []);
             });
             const chatRef = useRef(null);
 
@@ -2235,6 +2256,17 @@
                 const timer = setInterval(fetchData, 8000);
                 return () => { clearInterval(timer); clearTimeout(failsafe); };
             }, []);
+
+            // V5.2.4: Ensure isLoaded always becomes true
+            useEffect(() => {
+                const absoluteFailsafe = setTimeout(() => {
+                    if (!isLoaded) {
+                        console.warn("Dashboard absolute failsafe triggered.");
+                        setIsLoaded(true);
+                    }
+                }, 10000);
+                return () => clearTimeout(absoluteFailsafe);
+            }, [isLoaded]);
             // Removed selectedSlot dependency to prevent loop
 
 
@@ -2813,14 +2845,10 @@
                         setIsReady(true);
                     }, 1300);
 
-                    // Failsafe: Allow entry after 5s if at least Bybit or Firebase works
+                    // Failsafe: Always allow entry after 5s to prevent being stuck on health checks
                     setTimeout(() => {
-                        setChecks(prev => {
-                            if (prev.api.status === 'success' || prev.firebase.status === 'success') {
-                                setIsReady(true);
-                            }
-                            return prev;
-                        });
+                        console.warn("Failsafe triggered: Allowing entry regardless of health status.");
+                        setIsReady(true);
                     }, 5000);
                 };
                 runChecks();
