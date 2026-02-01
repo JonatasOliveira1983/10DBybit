@@ -11,16 +11,6 @@
       "createdTime": "123456789"
     },
     {
-      "symbol": "FFUSDT",
-      "side": "Buy",
-      "size": "3128.0",
-      "avgPrice": "0.07992",
-      "leverage": "50",
-      "stopLoss": "0.07976",
-      "takeProfit": "0.0815184",
-      "createdTime": "123456789"
-    },
-    {
       "symbol": "HYPEUSDT",
       "side": "Buy",
       "size": "8.51",
@@ -46,7 +36,7 @@
       "size": "1793.1",
       "avgPrice": "0.1453",
       "leverage": "50",
-      "stopLoss": "0.14675300000000002",
+      "stopLoss": "0.14617",
       "takeProfit": "0.14239400000000002",
       "createdTime": "123456789"
     },
@@ -56,23 +46,32 @@
       "size": "1377.6",
       "avgPrice": "0.18147",
       "leverage": "50",
-      "stopLoss": "0.1832847",
+      "stopLoss": "0.18038",
       "takeProfit": "0.1778406",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "EIGENUSDT",
+      "side": "Sell",
+      "avgPrice": 0.2514,
+      "stopLoss": 0.25391400000000003,
+      "size": 1084.0,
+      "positionValue": 272.5176,
+      "unrealisedPnl": 0
+    },
+    {
+      "symbol": "1000NEIROCTOUSDT",
+      "side": "Sell",
+      "size": "2913.0",
+      "avgPrice": "0.0858",
+      "leverage": "50",
+      "stopLoss": "0.0866681",
+      "takeProfit": "0.0840938",
       "createdTime": "123456789"
     }
   ],
-  "balance": 94.60054509960015,
+  "balance": 93.83192042760012,
   "history": [
-    {
-      "symbol": "DOGEUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.1037",
-      "avgExitPrice": "0.1056",
-      "closedPnl": "0.8866399999999995",
-      "leverage": "50.0",
-      "qty": "500.0",
-      "updatedTime": "1769969385586"
-    },
     {
       "symbol": "AAVEUSDT",
       "side": "Sell",
@@ -562,6 +561,16 @@
       "leverage": "50.0",
       "qty": "1129.8",
       "updatedTime": "1769978423928"
+    },
+    {
+      "symbol": "FFUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.07992",
+      "avgExitPrice": "0.07977",
+      "closedPnl": "-0.7686246720000351",
+      "leverage": "50.0",
+      "qty": "3128.0",
+      "updatedTime": "1769979204926"
     }
   ]
 }

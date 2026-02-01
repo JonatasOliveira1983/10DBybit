@@ -225,12 +225,30 @@ class GuardianAgent:
                                     was_closed = await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
                                     # Reset slot in Firebase after closure
                                     if was_closed:
-                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                        trade_data = {
+                                            "symbol": symbol,
+                                            "side": side,
+                                            "entry_price": entry,
+                                            "exit_price": last_price,
+                                            "qty": size,
+                                            "slot_id": slot_id,
+                                            "slot_type": slot_type
+                                        }
+                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd, trade_data=trade_data)
                                     else:
                                         logger.info(f"🛡️ [PAPER] {symbol} already handled by another loop. Skipping slot reset.")
                                 else:
                                     logger.warning(f"⚠️ [PAPER] Position {symbol} already closed. Cleaning up stuck slot.")
-                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                    trade_data = {
+                                        "symbol": symbol,
+                                        "side": side,
+                                        "entry_price": entry,
+                                        "exit_price": last_price,
+                                        "qty": size,
+                                        "slot_id": slot_id,
+                                        "slot_type": slot_type
+                                    }
+                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd, trade_data=trade_data)
                             else:
                                 # Close real position
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
@@ -301,12 +319,30 @@ class GuardianAgent:
                                     logger.info(f"🔨 [PAPER] SURF EXIT: Closing {symbol} | Size: {size}")
                                     was_closed = await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
                                     if was_closed:
-                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                        trade_data = {
+                                            "symbol": symbol,
+                                            "side": side,
+                                            "entry_price": entry,
+                                            "exit_price": last_price,
+                                            "qty": size,
+                                            "slot_id": slot_id,
+                                            "slot_type": slot_type
+                                        }
+                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd, trade_data=trade_data)
                                     else:
                                         logger.info(f"🛡️ [PAPER] SURF {symbol} already handled. Skipping reset.")
                                 else:
                                     logger.warning(f"⚠️ [PAPER] SURF Position {symbol} already closed. Cleaning slot.")
-                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                    trade_data = {
+                                        "symbol": symbol,
+                                        "side": side,
+                                        "entry_price": entry,
+                                        "exit_price": last_price,
+                                        "qty": size,
+                                        "slot_id": slot_id,
+                                        "slot_type": slot_type
+                                    }
+                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd, trade_data=trade_data)
                             else:
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
                                 for pos in positions:
