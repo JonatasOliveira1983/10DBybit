@@ -56,6 +56,7 @@ async def lifespan(app: FastAPI):
             
             logger.info("Step 0.2: Loading Bybit REST Service...")
             bybit_rest_service = importlib.import_module("services.bybit_rest").bybit_rest_service
+            await bybit_rest_service.initialize()
             await asyncio.sleep(1)
             
             logger.info("Step 0.3: Loading Bybit WS Service...")

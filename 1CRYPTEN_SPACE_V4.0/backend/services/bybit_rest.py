@@ -12,6 +12,7 @@ class BybitREST:
         self._session = None
         self.category = settings.BYBIT_CATEGORY
         self.time_offset = 0
+        self.is_initialized = False
         
         # Paper Trading State
         self.execution_mode = settings.BYBIT_EXECUTION_MODE # "REAL" or "PAPER"
@@ -25,45 +26,58 @@ class BybitREST:
         if not symbol: return symbol
         return symbol.replace(".P", "")
 
+    async def initialize(self):
+        """Asynchronously initializes the Bybit session and synchronizes time."""
+        if self.is_initialized:
+            return
+
+        logger.info("BybitREST: Initializing session and time sync...")
+        
+        # Create a temporary session to fetch server time
+        temp_session = HTTP(testnet=settings.BYBIT_TESTNET)
+        try:
+            local_start = int(time.time() * 1000)
+            server_time_resp = await asyncio.to_thread(temp_session.get_server_time)
+            server_time = int(server_time_resp.get("result", {}).get("timeSecond", 0)) * 1000
+            if server_time == 0: 
+                server_time = int(int(server_time_resp.get("result", {}).get("timeNano", 0)) / 1000000)
+            
+            if server_time > 0:
+                self.time_offset = server_time - local_start
+                logger.info(f"Bybit Time Sync: Offset detected as {self.time_offset}ms. Applying patch...")
+                
+                # Monkeypatch pybit's internal helper to use synced time
+                import pybit._helpers as pybit_helpers
+                _orig_time = time.time
+                def synced_timestamp():
+                    return int((_orig_time() + (self.time_offset / 1000.0)) * 1000)
+                
+                pybit_helpers.generate_timestamp = synced_timestamp
+                logger.info("Bybit Time Patch applied successfully.")
+        except Exception as e:
+            logger.error(f"Failed to sync time with Bybit: {e}")
+
+        # Create the actual session
+        self._session = HTTP(
+            testnet=settings.BYBIT_TESTNET,
+            api_key=settings.BYBIT_API_KEY.strip() if settings.BYBIT_API_KEY else None,
+            api_secret=settings.BYBIT_API_SECRET.strip() if settings.BYBIT_API_SECRET else None,
+            recv_window=30000,
+        )
+        self.is_initialized = True
+        logger.info("BybitREST: Session initialized.")
+
     @property
     def session(self):
-        """Lazy initialization of the Bybit HTTP session with time synchronization."""
+        """Returns the Bybit HTTP session. Ensure initialize() was called before use for best results."""
         if self._session is None:
-            # First, create a temporary session to fetch server time
-            temp_session = HTTP(testnet=settings.BYBIT_TESTNET)
-            try:
-                import time
-                local_start = int(time.time() * 1000)
-                server_time_resp = temp_session.get_server_time()
-                server_time = int(server_time_resp.get("result", {}).get("timeSecond", 0)) * 1000
-                if server_time == 0: 
-                    server_time = int(int(server_time_resp.get("result", {}).get("timeNano", 0)) / 1000000)
-                
-                if server_time > 0:
-                    self.time_offset = server_time - local_start
-                    logger.info(f"Bybit Time Sync: Offset detected as {self.time_offset}ms. Applying patch...")
-                    
-                    # Monkeypatch pybit's internal helper to use synced time
-                    # This is the most robust way to solve 10002 without touching local OS time
-                    import pybit._helpers as pybit_helpers
-                    _orig_time = time.time
-                    def synced_timestamp():
-                        # pybit's generate_timestamp uses time.time() * 10**3
-                        return int((_orig_time() + (self.time_offset / 1000.0)) * 1000)
-                    
-                    pybit_helpers.generate_timestamp = synced_timestamp
-                    logger.info("Bybit Time Patch applied to pybit._helpers.generate_timestamp")
-            except Exception as e:
-                logger.error(f"Failed to sync time with Bybit: {e}")
-
+            # Fallback for synchronous calls, though initialize() is preferred
             self._session = HTTP(
                 testnet=settings.BYBIT_TESTNET,
                 api_key=settings.BYBIT_API_KEY.strip() if settings.BYBIT_API_KEY else None,
                 api_secret=settings.BYBIT_API_SECRET.strip() if settings.BYBIT_API_SECRET else None,
                 recv_window=30000,
             )
-
-
         return self._session
     def get_top_200_usdt_pairs(self):
         """Optimized: Fetches top USDT pairs by 24h turnover and filters by leverage >= 50x (USDT.P Focused)."""
