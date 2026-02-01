@@ -29,6 +29,7 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - **BankrollManager**: Gestor de banca e risco. Garante limite de slots (máx 4 ativos) e gerencia os 10 "Squadron Slots".
 - **VaultService**: Gestor do Ciclo Sniper de 20 trades. Calcula PnL acumulado e gerencia retiradas.
 - **ExecutionProtocol**: O motor matemático. Define as regras de trailing, alvos de ROI e distâncias de SL/TP por slot.
+- **Precision Engine (V5.2.4)**: Utilitário em `BybitREST` que garante arredondamento cirúrgico de preços e ordens baseado no `tickSize` real de cada símbolo, eliminando erros 10001 da API.
 
 ---
 
@@ -58,6 +59,11 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - **Vault**: Dashboard do progresso para o saque de 20 trades.
 - **Settings**: Painel de controle de chaves, modo de operação e status técnico.
 
+### 🛡️ PWA State & Sync (V5.2.4)
+- **Snapshot Local**: `localStorage` cacheia slots, banca e logs para carregamento instantâneo.
+- **Stream-First Feed**: Priorização total de WebSockets para ticks e klines, mantidos por sistema de Heartbeat (Ping-Pong).
+- **Service Worker Turbo**: Configurado com `skipWaiting` e `clientsClaim` para controle imediato do app e performance máxima.
+
 ---
 
 ## 5. Protocolos Estratégicos 📜
@@ -76,4 +82,4 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - Pausa técnica de 5 minutos após qualquer trade fechado por Stop Loss para evitar overtrading em mercados sem tendência.
 
 ---
-*Versão do Documento: 5.2.3 | Contexto para Gemini AI*
+*Versão do Documento: 5.2.4 | Contexto para Gemini AI*

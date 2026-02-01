@@ -186,7 +186,7 @@ class ExecutionProtocol:
             return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)", None
         
         # 🔄 TRAIL SL: Calcula novo SL baseado na escada adaptativa
-        new_stop = self._calculate_sniper_trailing_stop(entry, roi, side, current_sl)
+        new_stop = self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
         
         return False, None, new_stop
     
@@ -237,7 +237,7 @@ class ExecutionProtocol:
         
         # Fallback para escada fixa se ATR não trouxe resultado ou ROI for menor/maior que faixas ATR
         if new_stop_price is None:
-            new_stop_price = self._calculate_surf_trailing_stop(entry, roi, side)
+            new_stop_price = self._calculate_surf_trailing_stop(symbol, entry, roi, side)
         
         # Só retorna novo SL se for uma melhoria
         if new_stop_price is not None:
@@ -253,7 +253,7 @@ class ExecutionProtocol:
         
         return False, None, None
     
-    def _calculate_surf_trailing_stop(self, entry_price: float, roi: float, side: str) -> Optional[float]:
+    def _calculate_surf_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str) -> Optional[float]:
         """
         Calcula o novo Stop Loss baseado na escada de proteção.
         
@@ -285,9 +285,11 @@ class ExecutionProtocol:
         else:  # Sell/Short
             new_stop = entry_price * (1 - price_offset_pct)
         
-        return new_stop
+        # V5.2.4: Surgical Precision Rounding
+        from services.bybit_rest import bybit_rest_service
+        return bybit_rest_service.round_price(symbol, new_stop)
     
-    def _calculate_sniper_trailing_stop(self, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
+    def _calculate_sniper_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
         """
         🆕 V5.0: Calcula o novo Stop Loss para SNIPER baseado na escada adaptativa.
         
@@ -331,6 +333,10 @@ class ExecutionProtocol:
             if current_sl > 0 and new_stop >= current_sl:
                 return None  # Não regride
         
+        # V5.2.4: Surgical Precision Rounding
+        from services.bybit_rest import bybit_rest_service
+        new_stop = bybit_rest_service.round_price(symbol, new_stop)
+
         return new_stop
     
     def process_order_logic(self, slot_data: Dict[str, Any], current_price: float) -> Tuple[bool, Optional[str], Optional[float]]:

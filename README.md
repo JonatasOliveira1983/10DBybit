@@ -34,6 +34,9 @@ Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerencia
 - **Overclock Mode**: 200ms polling em Flash Zone (80%+ ROI)
 - **Status Visual TRAILING**: Novo estado para indicar SL em movimento
 - **Sync & Persistence Elite**: 
+  - **PWA Instant-Load**: Cache local (`localStorage`) para carregamento instantâneo de slots e banca.
+  - **Stream-First Feed**: Priorização de WebSocket Bybit sobre polling para delay < 100ms.
+  - **Bybit Precision Engine**: Arredondamento cirúrgico baseado em `tickSize` (evita erro 10001).
   - Sincronização automática de Vault e Banca na inicialização.
   - Motor PAPER totalmente integrado ao Vault (resultados refletem no dashboard).
   - Escudo de Persistência 2.0: Previne re-adoção de trades encerrados.

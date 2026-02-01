@@ -1133,36 +1133,70 @@
                     }
                 };
 
-                const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-                const apiSymbol = symbol.replace('.P', '');
-                ws.onopen = () => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${tf}.${apiSymbol}`, `tickers.${apiSymbol}`] }));
-                    }
+                const chartWsRef = { current: null };
+                const chartReconnectTimeoutRef = { current: null };
+
+                const connectWs = () => {
+                    if (chartWsRef.current) chartWsRef.current.close();
+
+                    const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+                    chartWsRef.current = ws;
+                    const apiSymbol = symbol.replace('.P', '');
+
+                    let heartbeatInterval;
+
+                    ws.onopen = () => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${tf}.${apiSymbol}`, `tickers.${apiSymbol}`] }));
+                        }
+                        heartbeatInterval = setInterval(() => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ op: 'ping' }));
+                            }
+                        }, 20000);
+                    };
+
+                    ws.onmessage = (event) => {
+                        if (!active || !isMounted.current || !chartRef.current) return;
+                        const msg = JSON.parse(event.data);
+                        if (msg.topic && msg.topic.startsWith('kline') && seriesRef.current) {
+                            const k = msg.data[0];
+                            const update = { time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) };
+                            try {
+                                if (seriesRef.current) seriesRef.current.update(update);
+                                if (volumeSeriesRef.current) volumeSeriesRef.current.update({ ...update, value: parseFloat(k.volume), color: update.close >= update.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)' });
+                                if (zonesRef.current) zonesRef.current.update({ time: update.time, value: update.close });
+                            } catch (e) { }
+                        }
+                        if (msg.topic && msg.topic.startsWith('tickers') && msg.data.lastPrice) {
+                            setLastPrice(parseFloat(msg.data.lastPrice));
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        clearInterval(heartbeatInterval);
+                        if (active) {
+                            chartReconnectTimeoutRef.current = setTimeout(connectWs, 3000);
+                        }
+                    };
+
+                    ws.onerror = () => {
+                        ws.close();
+                    };
                 };
-                ws.onmessage = (event) => {
-                    if (!active || !isMounted.current || !chartRef.current) return;
-                    const msg = JSON.parse(event.data);
-                    if (msg.topic && msg.topic.startsWith('kline') && seriesRef.current) {
-                        const k = msg.data[0];
-                        const update = { time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) };
-                        try {
-                            if (seriesRef.current) seriesRef.current.update(update);
-                            if (volumeSeriesRef.current) volumeSeriesRef.current.update({ ...update, value: parseFloat(k.volume), color: update.close >= update.open ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)' });
-                            if (zonesRef.current) zonesRef.current.update({ time: update.time, value: update.close });
-                        } catch (e) { }
-                    }
-                    if (msg.topic && msg.topic.startsWith('tickers') && msg.data.lastPrice) {
-                        setLastPrice(parseFloat(msg.data.lastPrice));
-                    }
-                };
+
+                connectWs();
 
                 window.addEventListener('resize', handleResize);
 
                 return () => {
                     active = false;
                     window.removeEventListener('resize', handleResize);
-                    ws.close();
+                    if (chartWsRef.current) {
+                        chartWsRef.current.onclose = null;
+                        chartWsRef.current.close();
+                    }
+                    if (chartReconnectTimeoutRef.current) clearTimeout(chartReconnectTimeoutRef.current);
                     if (chartRef.current) {
                         chartRef.current.remove();
                         chartRef.current = null;
@@ -1297,34 +1331,69 @@
         // --- Hook: Real-time Bybit Tickers ---
         const useBybitTickers = (activeSymbols) => {
             const [tickers, setTickers] = useState({});
+            const wsRef = useRef(null);
+            const reconnectTimeoutRef = useRef(null);
 
             useEffect(() => {
                 if (!activeSymbols || activeSymbols.length === 0) return;
 
-                const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-                // Strip .P suffix for Bybit WebSocket subscription (Bybit uses ETHUSDT, not ETHUSDT.P)
-                const topics = activeSymbols.map(s => {
-                    const cleanSymbol = s.replace('.P', '').replace('.p', '');
-                    return `tickers.${cleanSymbol}`;
-                }).filter(Boolean);
+                const connect = () => {
+                    if (wsRef.current) wsRef.current.close();
 
-                ws.onopen = () => {
-                    if (topics.length > 0) {
-                        ws.send(JSON.stringify({ op: 'subscribe', args: topics }));
-                    }
+                    const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+                    wsRef.current = ws;
+
+                    const topics = activeSymbols.map(s => {
+                        const cleanSymbol = s.replace('.P', '').replace('.p', '');
+                        return `tickers.${cleanSymbol}`;
+                    }).filter(Boolean);
+
+                    let heartbeatInterval;
+
+                    ws.onopen = () => {
+                        console.log("[WS] Tickers Connected");
+                        if (topics.length > 0) {
+                            ws.send(JSON.stringify({ op: 'subscribe', args: topics }));
+                        }
+                        // Heartbeat Ping-Pong
+                        heartbeatInterval = setInterval(() => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ op: 'ping' }));
+                            }
+                        }, 20000);
+                    };
+
+                    ws.onmessage = (event) => {
+                        const msg = JSON.parse(event.data);
+                        if (msg.topic && msg.topic.startsWith('tickers')) {
+                            const symbol = msg.topic.split('.')[1];
+                            const price = parseFloat(msg.data.lastPrice);
+                            setTickers(prev => ({ ...prev, [symbol]: price }));
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        console.warn("[WS] Tickers Disconnected. Reconnecting...");
+                        clearInterval(heartbeatInterval);
+                        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+                    };
+
+                    ws.onerror = (err) => {
+                        console.error("[WS] Tickers Error:", err);
+                        ws.close();
+                    };
                 };
 
-                ws.onmessage = (event) => {
-                    const msg = JSON.parse(event.data);
-                    if (msg.topic && msg.topic.startsWith('tickers')) {
-                        const symbol = msg.topic.split('.')[1];
-                        const price = parseFloat(msg.data.lastPrice);
-                        setTickers(prev => ({ ...prev, [symbol]: price }));
-                    }
-                };
+                connect();
 
-                return () => ws.close();
-            }, [activeSymbols.join(',')]); // Re-connect if symbols list changes
+                return () => {
+                    if (wsRef.current) {
+                        wsRef.current.onclose = null; // Prevent reconnect on unmount
+                        wsRef.current.close();
+                    }
+                    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+                };
+            }, [activeSymbols.join(',')]);
 
             return tickers;
         };
@@ -1740,6 +1809,8 @@
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     <span className={`w-1.5 h-1.5 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
                                     <span className="text-[8px] text-slate-500 font-mono uppercase font-bold tracking-tighter">{pulseStatus === 'OFFLINE' ? 'OFFLINE' : `${latency}ms`}</span>
+                                    <div className="w-[1px] h-2 bg-white/10 mx-1"></div>
+                                    <span className="text-[8px] text-primary font-mono uppercase font-bold tracking-tighter">STREAM</span>
                                 </div>
                             </div>
 
@@ -1954,6 +2025,8 @@
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
                                     <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
+                                    <div className="w-[1px] h-3 bg-white/10 mx-1"></div>
+                                    <span className="text-[9px] text-primary font-mono uppercase font-bold tracking-widest">STREAM</span>
                                 </div>
                                 <h1 className="text-base sm:text-lg font-display font-bold text-white text-center uppercase">
                                     Radar
@@ -2074,12 +2147,22 @@
 
         // 3. Dashboard Page (Banca)
         const DashboardPage = () => {
-            const [banca, setBanca] = useState({ saldo_total: 0, risco_real_percent: 0 });
-            const [slots, setSlots] = useState([]);
+            // Optimistic UI: Initial state from localStorage
+            const [banca, setBanca] = useState(() => {
+                const cached = localStorage.getItem('banca_cache');
+                return cached ? JSON.parse(cached) : { saldo_total: 0, lucro_total_acumulado: 0, risco_real_percent: 0 };
+            });
+            const [slots, setSlots] = useState(() => {
+                const cached = localStorage.getItem('slots_cache');
+                return cached ? JSON.parse(cached) : [];
+            });
             const [selectedSlotId, setSelectedSlotId] = useState(null);
             const [isLoaded, setIsLoaded] = useState(false);
             const [isChartFullscreen, setIsChartFullscreen] = useState(false);
-            const [logs, setLogs] = useState([]);
+            const [logs, setLogs] = useState(() => {
+                const cached = localStorage.getItem('logs_cache');
+                return cached ? JSON.parse(cached) : [];
+            });
             const chatRef = useRef(null);
 
             // Auto-scroll chat to bottom on new messages
@@ -2117,17 +2200,16 @@
                         if (rBanca.ok) {
                             const data = await rBanca.json();
                             setBanca(data);
+                            localStorage.setItem('banca_cache', JSON.stringify(data));
                         }
 
                         // slots
                         const rSlots = await safeFetch(API_BASE + '/api/slots');
                         if (rSlots.ok) {
                             const data = await rSlots.json();
-                            // Resilience: Only update if we received a valid payload with slots
                             if (Array.isArray(data) && data.length > 0) {
                                 setSlots(data);
-                                // Sync selected slot persistence
-                                // Selection handled via derived state
+                                localStorage.setItem('slots_cache', JSON.stringify(data));
                             }
                         }
 
@@ -2136,6 +2218,7 @@
                         if (rLogs.ok) {
                             const data = await rLogs.json();
                             setLogs(data);
+                            localStorage.setItem('logs_cache', JSON.stringify(data));
                         }
 
                     } catch (e) {
