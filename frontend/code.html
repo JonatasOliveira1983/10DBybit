@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         name="viewport" />
-    <title>1CRYPTEN SPACE V5.2.4</title>
+    <title>1CRYPTEN SPACE V5.4.0</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -61,9 +61,60 @@
         };
     </script>
     <style>
+        :root {
+            --v5-bg-deep: #000000;
+            --v5-bg-card: #080808;
+            --v5-bg-input: #0F0F11;
+            --v5-border: rgba(255, 255, 255, 0.05);
+            --v5-border-primary: rgba(255, 215, 0, 0.3);
+            --v5-text-main: #d1d5db;
+            --v5-text-dim: #64748b;
+            --v5-accent: #FFD700;
+        }
+
+        .theme-gemini {
+            --v5-bg-deep: #131314;
+            --v5-bg-card: #1e1f20;
+            --v5-bg-input: #1e1f20;
+            --v5-border: rgba(68, 71, 70, 0.4);
+            --v5-border-primary: rgba(68, 71, 70, 0.6);
+            --v5-text-main: #e3e3e3;
+            --v5-text-dim: #9aa0a6;
+            --v5-accent: #e3e3e3;
+            /* Soft White */
+        }
+
+        .v5-bg-deep {
+            background-color: var(--v5-bg-deep) !important;
+        }
+
+        .v5-bg-card {
+            background-color: var(--v5-bg-card) !important;
+        }
+
+        .v5-bg-input {
+            background-color: var(--v5-bg-input) !important;
+        }
+
+        .v5-text-main {
+            color: var(--v5-text-main) !important;
+        }
+
+        .v5-text-dim {
+            color: var(--v5-text-dim) !important;
+        }
+
+        .v5-border-subtle {
+            border-color: var(--v5-border) !important;
+        }
+
+        .v5-border-primary {
+            border-color: var(--v5-border-primary) !important;
+        }
+
         body {
-            background-color: #000000;
-            color: #d1d5db;
+            background-color: var(--v5-bg-deep);
+            color: var(--v5-text-main);
             font-family: 'Inter', sans-serif;
             height: 100vh;
             height: 100dvh;
@@ -116,29 +167,29 @@
         }
 
         .glass-panel {
-            background: rgba(10, 10, 12, 0.7);
+            background: var(--v5-bg-deep);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--v5-border);
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.03);
+            background: var(--v5-bg-card);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--v5-border);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .glass-card:hover {
             background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(237, 188, 29, 0.3);
+            border-color: var(--v5-border-primary);
             transform: translateY(-2px);
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
         }
 
         .active-slot {
-            background: linear-gradient(145deg, rgba(255, 215, 0, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%);
-            border: 1px solid rgba(255, 215, 0, 0.15);
+            background: linear-gradient(145deg, rgba(255, 215, 0, 0.05) 0%, var(--v5-bg-deep) 100%);
+            border: 1px solid var(--v5-border-primary);
             box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.02);
         }
 
@@ -1831,12 +1882,12 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 overflow-hidden">
+                <div className="flex flex-col h-screen v5-bg-deep v5-text-main overflow-hidden">
                     {/* Sidebar Menu - V4.9.4.2 */}
                     {isMenuOpen && (
                         <div className="fixed inset-0 z-[100] flex">
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
-                            <div className="relative w-64 h-full bg-[#0A0A0B] border-r border-white/10 shadow-2xl flex flex-col p-6 animate-in slide-in-from-left duration-300">
+                            <div className="relative w-64 h-full v5-bg-deep border-r v5-border-subtle shadow-2xl flex flex-col p-6 animate-in slide-in-from-left duration-300">
                                 <div className="flex items-center gap-3 mb-12">
                                     <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain" />
                                     <h2 className="text-xl font-display font-bold gold-glow">MENU</h2>
@@ -1856,14 +1907,14 @@
                                     ))}
                                 </div>
                                 <div className="mt-auto pt-8 border-t border-white/5">
-                                    <p className="text-[10px] text-slate-600 uppercase tracking-widest text-center">Protocol V5.2.4.8</p>
+                                    <p className="text-[10px] text-slate-600 uppercase tracking-widest text-center">Protocol V5.4.0</p>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {/* Premium Header - Gemini Style */}
-                    <header className="flex-shrink-0 px-4 py-4 bg-black/90 backdrop-blur-2xl border-b border-white/5 sticky top-0 z-50">
+                    <header className="flex-shrink-0 px-4 py-4 v5-bg-deep/90 backdrop-blur-2xl border-b v5-border-subtle sticky top-0 z-50">
                         <div className="max-w-3xl mx-auto flex items-center justify-between">
                             <button onClick={() => setIsMenuOpen(true)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all">
                                 <span className="material-icons-round text-primary">menu</span>
@@ -1951,7 +2002,7 @@
                                         ) : (
                                             /* Captain Message - Larger, Left aligned with speaker */
                                             <div className="max-w-[85%] sm:max-w-[75%]">
-                                                <div className="relative bg-[#121214] border border-white/5 rounded-2xl rounded-tl-md px-4 py-4 shadow-xl">
+                                                <div className="relative v5-bg-card border v5-border-subtle rounded-2xl rounded-tl-md px-4 py-4 shadow-xl">
                                                     {/* Speaker Button */}
                                                     <button
                                                         onClick={() => speak(l.message.replace(/\[[A-Z0-9]+USDT\]/g, '').trim())}
@@ -1976,7 +2027,7 @@
 
                     {/* Input Area - Above Mobile Nav */}
                     {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar - V4.9.4.2.2 FLUSH */}
-                    <footer className="flex-shrink-0 px-3 sm:px-6 pt-3 pb-[env(safe-area-inset-bottom,12px)] bg-black/95 backdrop-blur-3xl border-t border-white/10 relative z-40">
+                    <footer className="flex-shrink-0 px-3 sm:px-6 pt-3 pb-[env(safe-area-inset-bottom,12px)] v5-bg-deep/95 backdrop-blur-3xl border-t v5-border-subtle relative z-40">
                         <div className="max-w-4xl mx-auto flex flex-col gap-2">
                             <div className="flex gap-2 items-end">
                                 {/* Microphone Button */}
@@ -2015,7 +2066,7 @@
                                         }}
                                         placeholder="Ordens, Capitão?"
                                         disabled={isSending}
-                                        className="w-full bg-[#0F0F11]/80 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-3 text-sm sm:text-base text-white placeholder-slate-600 outline-none focus:border-primary/50 focus:bg-black/60 focus:shadow-[0_0_25px_rgba(255,215,0,0.1)] transition-all disabled:opacity-50 resize-none overflow-y-auto min-h-[52px]"
+                                        className="w-full v5-bg-input backdrop-blur-md border v5-border-subtle rounded-2xl px-5 py-3 text-sm sm:text-base v5-text-main placeholder-slate-600 outline-none focus:v5-border-primary focus:bg-black/60 focus:shadow-[0_0_25px_rgba(255,215,0,0.1)] transition-all disabled:opacity-50 resize-none overflow-y-auto min-h-[52px]"
                                         style={{ scrollbarWidth: 'none' }}
                                     />
                                     {isListening && (
@@ -2040,7 +2091,7 @@
                             </div>
 
                             <p className="text-center text-[10px] text-slate-600 uppercase tracking-widest opacity-60">
-                                {isListening ? '🎤 Escuta ativa habilitada...' : 'V5.2.4.8 Micro-Compact Chat'}
+                                {isListening ? '🎤 Escuta ativa habilitada...' : 'V5.4.0 Gemini Mode Chat'}
                             </p>
                         </div>
                     </footer>
@@ -2082,7 +2133,7 @@
             const btcSignalsCount = signals.filter(s => s.symbol.includes("BTC")).length;
 
             return (
-                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'bg-[#0A0A0B]'} text-white pb-28 sm:pb-24`}>
+                <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'v5-bg-deep'} text-white pb-28 sm:pb-24`}>
                     {/* Premium Header - Gemini Style */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
@@ -2093,7 +2144,7 @@
                                     <div className="w-[1px] h-3 bg-white/10 mx-1"></div>
                                     <span className="text-[9px] text-primary font-mono uppercase font-bold tracking-widest">STREAM</span>
                                 </div>
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white text-center uppercase">
+                                <h1 className="text-base sm:text-lg font-display font-bold v5-text-main text-center uppercase">
                                     Radar
                                     {isHuntActive && <span className="ml-2 text-[8px] bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">HUNT</span>}
                                 </h1>
@@ -2137,7 +2188,7 @@
                                         <div key={signal.id || Math.random()}
                                             className={`p-2.5 sm:p-3 rounded-xl border transition-all ${isElite ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]' :
                                                 isBTC ? 'bg-primary/5 border-primary/20 opacity-70' :
-                                                    'bg-white/[0.02] border-white/5 opacity-60'
+                                                    'v5-bg-card border-none opacity-60'
                                                 }`}>
 
                                             {/* Header row */}
@@ -2370,7 +2421,7 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B]">
+                <div className="flex flex-col h-screen v5-bg-deep">
                     {pulseStatus === 'OFFLINE' && (
                         <div className="fixed inset-0 z-[100] bg-red-950/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                             <div className="bg-black/80 border border-red-500/50 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-pulse">
@@ -2384,7 +2435,7 @@
                     )}
 
                     {/* Premium Header - Gemini Style (Minimal) */}
-                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5 z-50">
+                    <header className="flex-shrink-0 px-4 py-4 v5-bg-deep/80 backdrop-blur-xl border-b v5-border-subtle z-50">
                         <div className="max-w-3xl mx-auto">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
@@ -2395,7 +2446,7 @@
                                 </div>
                                 <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-[0.2em] text-center ml-4">Deep Space</h1>
                                 <div className="flex justify-end gap-3 items-center">
-                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V5.2.4.8</span>
+                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V5.4.0</span>
                                     <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-90" />
                                 </div>
                             </div>
@@ -2406,7 +2457,7 @@
                         {/* Premium Portfolio Performance Cards */}
                         <section className="flex-shrink-0 grid grid-cols-3 gap-2">
                             {/* Total Balance Card */}
-                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-primary/30 transition-all duration-500">
+                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent v5-border-subtle flex flex-col justify-between group hover:border-primary/30 transition-all duration-500">
                                 <div className="flex items-center gap-1 mb-0.5">
                                     <span className="material-icons-round text-primary text-[12px]">account_balance_wallet</span>
                                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Equity</span>
@@ -2438,7 +2489,7 @@
                             </div>
 
                             {/* Risk Exposure Card */}
-                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent border-white/10 flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500">
+                            <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent v5-border-subtle flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500">
                                 <div className="flex justify-between items-center mb-0.5">
                                     <div className="flex items-center gap-1">
                                         <span className={`material-icons-round text-[12px] ${banca.risco_real_percent > 0.15 ? 'text-amber-500' : 'text-emerald-500'}`}>security</span>
@@ -2460,7 +2511,7 @@
                         {/* V5.1.0: BTC Command Center Widget */}
                         <section className="flex-shrink-0 grid grid-cols-2 gap-2 mb-1">
                             {/* Drag Mode Status */}
-                            <div className={`p-3 rounded-xl border-2 transition-all flex items-center justify-between ${btcCommandStatus.btc_drag_mode ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'bg-white/5 border-white/10 opacity-60'}`}>
+                            <div className={`p-3 rounded-xl border-2 transition-all flex items-center justify-between ${btcCommandStatus.btc_drag_mode ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'v5-bg-card v5-border-subtle opacity-60'}`}>
                                 <div className="flex items-center gap-2">
                                     <span className={`material-icons-round text-lg ${btcCommandStatus.btc_drag_mode ? 'text-amber-500 animate-pulse' : 'text-slate-500'}`}>
                                         {btcCommandStatus.btc_drag_mode ? 'bolt' : 'shutter_speed'}
@@ -2474,7 +2525,7 @@
                             </div>
 
                             {/* BTC Exhaustion Meter */}
-                            <div className="p-3 rounded-xl border-2 bg-white/5 border-white/10 flex flex-col justify-center">
+                            <div className="p-3 rounded-xl border-2 v5-bg-card v5-border-subtle flex flex-col justify-center">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Exhaustion</span>
                                     <span className={`text-[10px] font-mono font-bold ${btcCommandStatus.exhaustion > 80 ? 'text-red-500' : 'text-emerald-400'}`}>
@@ -2522,7 +2573,7 @@
                         </section>
 
                         {/* 2. SLOTS SECTION - Scrollável e ocupa espaço restante */}
-                        <section className="slots-container-mobile rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 border-white/10 p-3 custom-scrollbar">
+                        <section className="slots-container-mobile rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 v5-border-subtle p-3 custom-scrollbar">
                             {/* Sniper Squadron */}
                             <div className="mb-4 flex flex-col items-start">
                                 <h3 className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2 self-start">
@@ -2560,12 +2611,12 @@
         // 5. Vault Page (Iframe Integration)
         const VaultPage = () => {
             return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] pb-32 sm:pb-24">
+                <div className="flex flex-col h-screen v5-bg-deep pb-32 sm:pb-24">
                     {/* Header for Vault (since it's an iframe) */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="w-12"></div>
-                            <h1 className="text-base sm:text-lg font-display font-bold text-white text-center uppercase tracking-widest">Vault Management</h1>
+                            <h1 className="text-base sm:text-lg font-display font-bold v5-text-main text-center uppercase tracking-widest">Vault Management</h1>
                             <div className="flex justify-end">
                                 <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
                             </div>
@@ -2591,13 +2642,13 @@
             };
 
             return (
-                <div className="flex flex-col h-full bg-[#0A0A0B] text-slate-100 font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
+                <div className="flex flex-col h-full v5-bg-deep v5-text-main font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
                     {/* Premium Header - Gemini Style */}
-                    <header className="mb-6 bg-black/80 backdrop-blur-xl border-b border-white/5 -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
+                    <header className="mb-6 v5-bg-deep/80 backdrop-blur-xl border-b v5-border-subtle -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
                                 <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
-                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V5.2.4.8 Protocol</p>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V5.4.0 Protocol</p>
                             </div>
                             <div className="w-full"></div> {/* Placeholder for centering */}
                             <div className="flex justify-end">
@@ -2608,16 +2659,35 @@
 
                     <div className="grid grid-cols-1 gap-4">
                         {/* Control Section */}
-                        <div className="glass-card p-4 rounded-xl border border-white/5">
-                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest">
+                        <div className="glass-card p-4 rounded-xl border border-white/5 v5-bg-card v5-border-subtle">
+                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest v5-text-dim">
                                 <span className="material-icons-round text-sm">settings_suggest</span>
                                 Operação & Navegação
                             </h2>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button onClick={onLogout} className="flex flex-col items-center justify-center p-3 w-full bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
-                                    <span className="material-icons-round text-red-500 mb-1 group-hover:scale-110 transition-transform" style={{ fontSize: '20px' }}>logout</span>
-                                    <span className="text-[8px] font-bold uppercase text-red-500">Sair</span>
-                                </button>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest v5-text-dim">Modo Visual</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setTheme('classic')}
+                                            className={`flex-1 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all ${theme === 'classic' ? 'bg-primary text-black' : 'bg-white/5 text-slate-500 border border-white/5'}`}
+                                        >
+                                            Classic Dark
+                                        </button>
+                                        <button
+                                            onClick={() => setTheme('gemini')}
+                                            className={`flex-1 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all ${theme === 'gemini' ? 'bg-primary text-black' : 'bg-white/5 text-slate-500 border border-white/5'}`}
+                                        >
+                                            Modo Gemini
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1">
+                                    <button onClick={onLogout} className="flex items-center justify-center gap-2 p-3 w-full bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
+                                        <span className="material-icons-round text-red-500 group-hover:scale-110 transition-transform" style={{ fontSize: '20px' }}>logout</span>
+                                        <span className="text-[8px] font-bold uppercase text-red-500">Sair do Sistema</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -2637,7 +2707,7 @@
                         </div>
 
                         {/* API Info */}
-                        <div className="glass-card p-4 rounded-xl border border-white/5">
+                        <div className="glass-card p-4 rounded-xl border v5-border-subtle v5-bg-card">
                             <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest">
                                 <span className="material-icons-round text-primary text-sm">hubs</span>
                                 API Telemetry
@@ -2645,7 +2715,7 @@
                             <div className="space-y-4">
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Bybit Auth</label>
-                                    <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-[10px] font-mono text-slate-400 flex justify-between items-center">
+                                    <div className="bg-black/40 border v5-border-subtle rounded-lg p-3 text-[10px] font-mono text-slate-400 flex justify-between items-center">
                                         <span>••••••••••••••••••••••••</span>
                                         <span className="text-emerald-500 text-[8px] font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">SECURE</span>
                                     </div>
@@ -2654,7 +2724,7 @@
                                     <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Frequency Mode</label>
                                     <div className="flex gap-2">
                                         <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest">Testnet</button>
-                                        <button className="flex-1 bg-white/5 text-slate-500 border border-white/5 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest opacity-30">Mainnet</button>
+                                        <button className="flex-1 v5-bg-card text-slate-500 border v5-border-subtle font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest opacity-30">Mainnet</button>
                                     </div>
                                 </div>
                             </div>
@@ -2669,9 +2739,9 @@
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <span className="text-[11px] text-slate-300">Versão Atual</span>
-                                    <span className="text-base font-bold text-primary font-mono">V5.2.4.6</span>
+                                    <span className="text-base font-bold text-primary font-mono">V5.4.0</span>
                                 </div>
-                                <div className="flex justify-between items-center border-t border-white/5 pt-2">
+                                <div className="flex justify-between items-center border-t v5-border-subtle pt-2">
                                     <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Protocolo Elite</span>
                                     <span className="text-[9px] text-emerald-500 font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">ACTIVE</span>
                                 </div>
@@ -2700,7 +2770,7 @@
             );
 
             return (
-                <nav className="fixed bottom-0 w-full bg-[#0A0A0B]/95 backdrop-blur-xl border-t border-white/5 z-50 pb-4 pt-2">
+                <nav className="fixed bottom-0 w-full v5-bg-deep/95 backdrop-blur-xl border-t v5-border-subtle z-50 pb-4 pt-2">
                     <div className="max-w-4xl mx-auto flex justify-around items-end px-2">
                         <NavItem to="/" icon="space_dashboard" label="Banca" isActive={location.pathname === '/'} />
                         <NavItem to="/radar" icon="radar" label="Radar" isActive={location.pathname === '/radar'} />
@@ -2710,7 +2780,7 @@
                             to="/logs"
                             className={`flex items-center justify-center w-16 h-16 -mt-6 rounded-full transition-all ${location.pathname === '/logs'
                                 ? 'bg-primary text-black shadow-[0_0_30px_rgba(255,215,0,0.4)]'
-                                : 'bg-[#1A1A1A] text-primary border border-primary/20 hover:border-primary/40'
+                                : 'v5-bg-card text-primary border v5-border-primary hover:border-primary/40'
                                 }`}
                         >
                             <span className="material-icons-round" style={{ fontSize: '30px' }}>chat</span>
@@ -2869,6 +2939,14 @@
                 } catch (e) { return true; }
             });
             const [showChecklist, setShowChecklist] = useState(false);
+            const [theme, setTheme] = useState(() => {
+                const cached = localStorage.getItem('v5_theme');
+                return cached || 'classic';
+            });
+
+            useEffect(() => {
+                localStorage.setItem('v5_theme', theme);
+            }, [theme]);
 
             useEffect(() => {
                 const shield = document.getElementById('boot-shield');
@@ -2919,14 +2997,14 @@
 
             return (
                 <HashRouter>
-                    <div className="h-full">
+                    <div className={`h-full ${theme === 'gemini' ? 'theme-gemini' : 'theme-classic'}`}>
                         {showChecklist && <TakeoffModal onComplete={handleChecklistComplete} />}
                         <Routes>
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/radar" element={<JourneyPage />} />
                             <Route path="/logs" element={<LogsPage />} />
                             <Route path="/vault" element={<VaultPage />} />
-                            <Route path="/settings" element={<SettingsPage onLogout={handleLogout} />} />
+                            <Route path="/settings" element={<SettingsPage onLogout={handleLogout} theme={theme} setTheme={setTheme} />} />
                         </Routes>
                         <NavBar onLogout={handleLogout} />
                     </div>
