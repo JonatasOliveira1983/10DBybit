@@ -25,6 +25,10 @@ class BybitREST:
         self._instrument_cache = {} # Cache for tickSize and stepSize
         self.last_balance = 0.0 # V5.2.4.6: Cache for non-blocking health checks
         self.PAPER_STORAGE_FILE = "paper_storage.json"
+        
+        # V5.3.4: Closure Idempotency Shield
+        self.pending_closures = set()
+        self.closure_lock = asyncio.Lock()
 
     def _load_paper_state(self):
         """Loads paper positions and balance from disk."""
@@ -373,69 +377,93 @@ class BybitREST:
             logger.error(f"Failed to place atomic order for {symbol}: {e}")
             return None
 
-    async def close_position(self, symbol: str, side: str, qty: float):
-        """Closes a position at market."""
-        if self.execution_mode == "PAPER":
-            # [V5.2.5] Precision Shield: Normalize symbol for PAPER lookup
-            norm_symbol = self._strip_p(symbol).upper()
-            logger.info(f"[PAPER] Closing position {norm_symbol}")
-            # Find position
-            pos = next((p for p in self.paper_positions if p["symbol"].upper() == norm_symbol), None)
-            if pos:
-                # Calculate Realized PNL to update Paper Balance
-                try:
-                    from services.execution_protocol import execution_protocol
-                    api_symbol = self._strip_p(symbol)
-                    ticker = await asyncio.to_thread(self.session.get_tickers, category="linear", symbol=api_symbol)
-                    exit_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
-                    
-                    entry_price = float(pos["avgPrice"])
-                    size = float(pos["size"])
-                    leverage = float(pos.get("leverage", 50))
-                    side = pos["side"]
+    async def close_position(self, symbol: str, side: str, qty: float) -> bool:
+        """
+        Closes a position at market. 
+        V5.3.4: Added closure_lock and pending_closures for target/SL coordination.
+        Returns True if closure was executed, False if already closed/pending.
+        """
+        norm_symbol = self._strip_p(symbol).upper()
+        
+        async with self.closure_lock:
+            if norm_symbol in self.pending_closures:
+                logger.info(f"🛡️ [BYBIT] {norm_symbol} already has a pending closure. Skipping redundant call.")
+                return False
+            
+            if self.execution_mode == "PAPER":
+                logger.info(f"[PAPER] Closing position {norm_symbol}")
+                # Find position
+                pos = next((p for p in self.paper_positions if p["symbol"].upper() == norm_symbol), None)
+                if pos:
+                    # Mark as pending to avoid dual-entry from other tasks
+                    self.pending_closures.add(norm_symbol)
+                    try:
+                        # Calculate Realized PNL to update Paper Balance
+                        from services.execution_protocol import execution_protocol
+                        api_symbol = self._strip_p(symbol)
+                        ticker = await asyncio.to_thread(self.session.get_tickers, category="linear", symbol=api_symbol)
+                        exit_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
+                        
+                        entry_price = float(pos["avgPrice"])
+                        size = float(pos["size"])
+                        leverage = float(pos.get("leverage", 50))
+                        side = pos["side"]
 
-                    final_pnl = execution_protocol.calculate_pnl(entry_price, exit_price, size, side)
-                    
-                    self.paper_balance += final_pnl
-                    self.paper_orders_history.append({
-                        "symbol": symbol,
-                        "side": side,
-                        "avgEntryPrice": str(entry_price),
-                        "avgExitPrice": str(exit_price),
-                        "closedPnl": str(final_pnl),
-                        "leverage": str(leverage),
-                        "qty": str(size),
-                        "updatedTime": str(int(time.time() * 1000))
-                    })
-                    
-                    if pos in self.paper_positions:
-                        self.paper_positions.remove(pos)
-                    logger.info(f"[PAPER] Closed {symbol}. PNL: ${final_pnl:.2f}. New Balance: ${self.paper_balance:.2f}")
-                    self._save_paper_state()
-                    return {"retCode": 0}
-                except Exception as e:
-                    logger.error(f"[PAPER] Error during position closure: {e}")
-                    if pos in self.paper_positions:
-                        self.paper_positions.remove(pos)
-                    return {"retCode": 0}
-            return {"retCode": 0}
+                        final_pnl = execution_protocol.calculate_pnl(entry_price, exit_price, size, side)
+                        
+                        self.paper_balance += final_pnl
+                        self.paper_orders_history.append({
+                            "symbol": symbol,
+                            "side": side,
+                            "avgEntryPrice": str(entry_price),
+                            "avgExitPrice": str(exit_price),
+                            "closedPnl": str(final_pnl),
+                            "leverage": str(leverage),
+                            "qty": str(size),
+                            "updatedTime": str(int(time.time() * 1000))
+                        })
+                        
+                        if pos in self.paper_positions:
+                            self.paper_positions.remove(pos)
+                        logger.info(f"[PAPER] Closed {symbol}. PNL: ${final_pnl:.2f}. New Balance: ${self.paper_balance:.2f}")
+                        self._save_paper_state()
+                        
+                        # Cleanup pending after a small delay to let other loops sync
+                        asyncio.create_task(self._cleanup_pending_closure(norm_symbol))
+                        return True
+                    except Exception as e:
+                        logger.error(f"[PAPER] Error during position closure: {e}")
+                        if pos in self.paper_positions:
+                            self.paper_positions.remove(pos)
+                        self.pending_closures.discard(norm_symbol)
+                        return False
+                return False
 
-        try:
-            # Side is the current position side, so we sell to close a long
-            api_symbol = self._strip_p(symbol)
-            close_side = "Sell" if side == "Buy" else "Buy"
-            response = await asyncio.to_thread(self.session.place_order,
-                category=self.category,
-                symbol=api_symbol,
-                side=close_side,
-                orderType="Market",
-                qty=str(qty),
-                reduceOnly=True
-            )
-            return response
-        except Exception as e:
-            logger.error(f"Error closing position for {symbol}: {e}")
-            return None
+            # REAL MODE
+            try:
+                self.pending_closures.add(norm_symbol)
+                api_symbol = self._strip_p(symbol)
+                close_side = "Sell" if side == "Buy" else "Buy"
+                response = await asyncio.to_thread(self.session.place_order,
+                    category=self.category,
+                    symbol=api_symbol,
+                    side=close_side,
+                    orderType="Market",
+                    qty=str(qty),
+                    reduceOnly=True
+                )
+                # Cleanup pending
+                asyncio.create_task(self._cleanup_pending_closure(norm_symbol))
+                return True
+            except Exception as e:
+                logger.error(f"Error closing position for {symbol}: {e}")
+                self.pending_closures.discard(norm_symbol)
+                return False
+
+    async def _cleanup_pending_closure(self, symbol: str, delay: int = 15):
+        """V5.3.4: Helper to clear pending closure flag after a delay."""
+        await asyncio.sleep(delay)
+        self.pending_closures.discard(symbol)
 
     async def get_closed_pnl(self, symbol: str, limit: int = 1):
         """Fetches final PnL for closed trades."""
@@ -601,7 +629,11 @@ class BybitREST:
                     slot_id = close_data.get("slot_id")
                     
                     # Close position (this updates paper_balance)
-                    await self.close_position(sym, side, size)
+                    was_closed = await self.close_position(sym, side, size)
+                    
+                    if not was_closed:
+                        logger.info(f"⏭️ [PAPER] {sym} already closed or handled. Skipping slot reset/log.")
+                        continue
                     
                     # Reset Firebase slot atomically
                     if slot_id:
@@ -623,6 +655,13 @@ class BybitREST:
                         }
                         
                         await firebase_service.hard_reset_slot(slot_id, close_data["reason"], pnl, trade_data)
+                        
+                        # V5.3.2: Redundancy - Register Persistent Cooldown if SL
+                        if "SL" in close_data["reason"] or "STOP" in close_data["reason"]:
+                            try:
+                                await firebase_service.register_sl_cooldown(sym)
+                            except Exception as cd_err:
+                                logger.warning(f"[PAPER] Redundancy: Failed to register persistent cooldown: {cd_err}")
                         
                         # V5.2.3: Notify bankroll/vault for statistics sync
                         try:

@@ -21,8 +21,8 @@ asyncio.get_event_loop().set_default_executor(executor)
 
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
-VERSION = "5.3.1"
-DEPLOYMENT_ID = "V531_PAPER_SL_SHIELD_PRECISION"
+VERSION = "V5.3.4"
+DEPLOYMENT_ID = "V534_IDEMPOTENT_SHIELD"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -500,6 +500,7 @@ async def text_to_speech(payload: dict):
             )
             audio_base64 = base64.b64encode(response.audio_content).decode("utf-8")
             
+            logger.info(f"✅ Google TTS Success: {target_voice} | {len(audio_base64)} bytes")
             return {
                 "audio": audio_base64,
                 "format": "mp3",
@@ -507,7 +508,7 @@ async def text_to_speech(payload: dict):
                 "provider": "google"
             }
         except Exception as google_err:
-            logger.warning(f"⚠️ Google TTS failed, falling back to Edge-TTS: {google_err}")
+            logger.warning(f"⚠️ Google TTS failed ({google_err}), falling back to Edge-TTS...")
             
             # Fallback to Edge-TTS
             import edge_tts
@@ -519,6 +520,7 @@ async def text_to_speech(payload: dict):
             
             audio_data.seek(0)
             audio_base64 = base64.b64encode(audio_data.read()).decode("utf-8")
+            logger.info(f"✅ Edge-TTS Fallback Success: Antonio | {len(audio_base64)} bytes")
             
             return {
                 "audio": audio_base64,

@@ -64,26 +64,15 @@ class CaptainAgent:
         self.cooldown_registry = {}  # {symbol: timestamp_blocked_until}
         self.cooldown_duration = 300  # 5 minutos de cooldown após SL
     
-    def is_symbol_in_cooldown(self, symbol: str) -> tuple:
-        """🆕 V5.0: Verifica se símbolo está em cooldown após SL."""
-        norm_symbol = symbol.replace(".P", "").upper()
-        blocked_until = self.cooldown_registry.get(norm_symbol, 0)
-        
-        if time.time() < blocked_until:
-            remaining = int(blocked_until - time.time())
-            return True, remaining
-        
-        # Limpa registro expirado
-        if norm_symbol in self.cooldown_registry:
-            del self.cooldown_registry[norm_symbol]
-        
-        return False, 0
+    async def is_symbol_in_cooldown(self, symbol: str) -> tuple:
+        """🆕 V5.3.2: Verifica se símbolo está em cooldown persistente no Firebase."""
+        is_blocked, remaining = await firebase_service.is_symbol_blocked(symbol)
+        return is_blocked, remaining
     
-    def register_sl_cooldown(self, symbol: str):
-        """🆕 V5.0: Registra cooldown quando ordem fecha por SL."""
-        norm_symbol = symbol.replace(".P", "").upper()
-        self.cooldown_registry[norm_symbol] = time.time() + self.cooldown_duration
-        logger.warning(f"⏱️ COOLDOWN ACTIVATED: {symbol} blocked for {self.cooldown_duration}s after SL")
+    async def register_sl_cooldown(self, symbol: str):
+        """🆕 V5.3.2: Registra cooldown persistente no Firebase quando ordem fecha por SL."""
+        await firebase_service.register_sl_cooldown(symbol, self.cooldown_duration)
+        logger.warning(f"⏱️ PERSISTENT COOLDOWN ACTIVATED: {symbol} blocked for {self.cooldown_duration}s")
 
     async def monitor_signals(self):
         """
@@ -147,10 +136,10 @@ class CaptainAgent:
 
                     norm_sym = normalize_symbol(signal["symbol"])
                     
-                    # 🆕 V5.0: Cooldown Anti-Whipsaw check
-                    in_cooldown, remaining = self.is_symbol_in_cooldown(signal["symbol"])
+                    # 🆕 V5.3.2: Cooldown Anti-Whipsaw check (PERSISTENT)
+                    in_cooldown, remaining = await self.is_symbol_in_cooldown(signal["symbol"])
                     if in_cooldown:
-                        logger.info(f"⏱️ Signal {signal['symbol']} BLOCKED: {remaining}s remaining in cooldown")
+                        logger.info(f"⏱️ Signal {signal['symbol']} BLOCKED: {remaining}s remaining in persistent cooldown")
                         continue
                     
                     # Sensor Audit

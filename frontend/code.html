@@ -1601,96 +1601,123 @@
             return { isListening, transcript, isSupported, startListening, stopListening, setTranscript };
         };
 
-        // Hook for Text-to-Speech (TTS) - V4.3.1 Premium with Edge-TTS
+        // Hook for Text-to-Speech (TTS) - V5.3.3 Enhanced for Mobile
         const useSpeechSynthesis = () => {
             const [isSpeaking, setIsSpeaking] = useState(false);
+            const [voices, setVoices] = useState([]);
             const audioRef = useRef(null);
+
+            // Load voices once
+            useEffect(() => {
+                const loadVoices = () => {
+                    const availableVoices = window.speechSynthesis.getVoices();
+                    if (availableVoices.length > 0) {
+                        setVoices(availableVoices);
+                    }
+                };
+                loadVoices();
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = loadVoices;
+                }
+            }, []);
 
             const speak = async (text) => {
                 if (!text) return;
 
+                // Stop any current speaking
+                stop();
                 setIsSpeaking(true);
 
                 try {
-                    // Try Premium Edge-TTS API first
+                    // 1. Try Premium API (Antonio/Google)
                     const response = await fetch(`${API_BASE}/api/tts`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             text: text,
-                            voice: 'pt-BR-AntonioNeural' // Premium Microsoft Neural Voice (Masculina)
+                            voice: 'pt-BR-AntonioNeural'
                         })
                     });
 
                     const data = await response.json();
 
                     if (data.audio) {
-                        // Play the audio from base64
                         const audioBlob = new Blob(
                             [Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))],
                             { type: 'audio/mp3' }
                         );
                         const audioUrl = URL.createObjectURL(audioBlob);
 
-                        if (audioRef.current) {
-                            audioRef.current.pause();
-                        }
+                        const audio = new Audio();
+                        audio.src = audioUrl;
+                        audioRef.current = audio;
 
-                        audioRef.current = new Audio(audioUrl);
-                        audioRef.current.onended = () => {
+                        audio.onended = () => {
                             setIsSpeaking(false);
                             URL.revokeObjectURL(audioUrl);
                         };
-                        audioRef.current.onerror = () => {
-                            setIsSpeaking(false);
-                            // Fallback to Web Speech API
+                        audio.onerror = () => {
+                            console.warn("Audio element error, falling back...");
                             fallbackSpeak(text);
                         };
-                        audioRef.current.play().catch(err => {
-                            console.warn("Auto-play blocked or failed:", err);
+
+                        try {
+                            await audio.play();
+                            return; // SUCCESS
+                        } catch (playErr) {
+                            console.warn("Auto-play blocked, using fallback:", playErr);
+                            // If blocked, fallback to Web Speech which has better bypass on some devices
                             fallbackSpeak(text);
-                        });
-                        return;
+                            return;
+                        }
                     }
                 } catch (e) {
-                    console.log('Premium TTS unavailable, using fallback:', e);
+                    console.log('Premium TTS unavailable:', e);
                 }
 
-                // Fallback to Web Speech API
                 fallbackSpeak(text);
             };
 
             const fallbackSpeak = (text) => {
-                if ('speechSynthesis' in window && text) {
-                    window.speechSynthesis.cancel();
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'pt-BR';
-                    utterance.rate = 1.0;
-                    utterance.pitch = 1.0;
-
-                    const voices = window.speechSynthesis.getVoices();
-                    // V4.9.4.2: Aggressive male voice search
-                    let maleVoice = voices.find(v =>
-                        v.lang.startsWith('pt') &&
-                        (v.name.toLowerCase().includes('antonio') || v.name.toLowerCase().includes('daniel') || v.name.toLowerCase().includes('male'))
-                    );
-
-                    // Fallback to Google voces if Antonio/Daniel not found
-                    if (!maleVoice) {
-                        maleVoice = voices.find(v => v.lang.startsWith('pt') && v.name.includes('Google') && !v.name.includes('Female'));
-                    }
-
-                    const ptVoice = maleVoice || voices.find(v => v.lang.startsWith('pt'));
-                    if (ptVoice) utterance.voice = ptVoice;
-
-                    utterance.onstart = () => setIsSpeaking(true);
-                    utterance.onend = () => setIsSpeaking(false);
-                    utterance.onerror = () => setIsSpeaking(false);
-
-                    window.speechSynthesis.speak(utterance);
-                } else {
+                if (!('speechSynthesis' in window)) {
                     setIsSpeaking(false);
+                    return;
                 }
+
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+
+                const availableVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
+
+                // V5.3.3: Extreme Male Voice search (Mobile prioritized)
+                // Prioritize "Daniel" (iOS Male), then "Antonio" (Edge), then generic "Male"
+                let maleVoice = availableVoices.find(v =>
+                    v.lang.startsWith('pt') &&
+                    (v.name.includes('Daniel') || v.name.includes('Antonio') || v.name.includes('Guilherme'))
+                );
+
+                if (!maleVoice) {
+                    maleVoice = availableVoices.find(v =>
+                        v.lang.startsWith('pt') &&
+                        (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('masculino'))
+                    );
+                }
+
+                // Fallback to first PT voice
+                const finalVoice = maleVoice || availableVoices.find(v => v.lang.startsWith('pt'));
+                if (finalVoice) utterance.voice = finalVoice;
+
+                utterance.onstart = () => setIsSpeaking(true);
+                utterance.onend = () => setIsSpeaking(false);
+                utterance.onerror = (err) => {
+                    console.error("SpeechSynthesis Error:", err);
+                    setIsSpeaking(false);
+                };
+
+                window.speechSynthesis.speak(utterance);
             };
 
             const stop = () => {
@@ -1762,6 +1789,14 @@
             // Send message
             const sendMessage = async () => {
                 if (!inputValue.trim() || isSending) return;
+
+                // V5.3.3: Unlock audio context on user gesture (Essential for Mobile PWA)
+                try {
+                    const unlockAudio = new Audio();
+                    unlockAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+                    unlockAudio.play().catch(() => { });
+                } catch (e) { }
+
                 const message = inputValue.trim();
                 setInputValue('');
                 setIsSending(true);

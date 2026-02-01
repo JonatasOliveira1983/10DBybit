@@ -203,7 +203,7 @@ class GuardianAgent:
                         if is_stop_loss:
                             try:
                                 from services.agents.captain import captain_agent
-                                captain_agent.register_sl_cooldown(symbol)
+                                await captain_agent.register_sl_cooldown(symbol)
                             except Exception as cd_err:
                                 logger.warning(f"Could not register cooldown: {cd_err}")
                         
@@ -222,9 +222,12 @@ class GuardianAgent:
 
                                 if paper_pos:
                                     logger.info(f"🔨 [PAPER] GUARDIAN HAMMER: Closing {symbol} | Size: {size}")
-                                    await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
+                                    was_closed = await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
                                     # Reset slot in Firebase after closure
-                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                    if was_closed:
+                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                    else:
+                                        logger.info(f"🛡️ [PAPER] {symbol} already handled by another loop. Skipping slot reset.")
                                 else:
                                     logger.warning(f"⚠️ [PAPER] Position {symbol} already closed. Cleaning up stuck slot.")
                                     await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
@@ -279,7 +282,7 @@ class GuardianAgent:
                         if is_stop_loss:
                             try:
                                 from services.agents.captain import captain_agent
-                                captain_agent.register_sl_cooldown(symbol)
+                                await captain_agent.register_sl_cooldown(symbol)
                             except Exception as cd_err:
                                 logger.warning(f"Could not register cooldown: {cd_err}")
                         
@@ -296,10 +299,13 @@ class GuardianAgent:
 
                                 if paper_pos:
                                     logger.info(f"🔨 [PAPER] SURF EXIT: Closing {symbol} | Size: {size}")
-                                    await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
-                                    await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                    was_closed = await bybit_rest_service.close_position(symbol, paper_pos["side"], size)
+                                    if was_closed:
+                                        await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
+                                    else:
+                                        logger.info(f"🛡️ [PAPER] SURF {symbol} already handled. Skipping reset.")
                                 else:
-                                    logger.warning(f"⚠️ [PAPER] SURF {symbol} already closed. Cleaning up stuck slot.")
+                                    logger.warning(f"⚠️ [PAPER] SURF Position {symbol} already closed. Cleaning slot.")
                                     await firebase_service.hard_reset_slot(slot_id, close_reason, pnl_usd)
                             else:
                                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)

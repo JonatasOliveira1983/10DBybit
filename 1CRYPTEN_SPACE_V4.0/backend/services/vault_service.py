@@ -168,14 +168,12 @@ class VaultService:
             current = await self.get_cycle_status()
             cycle_num = current.get("cycle_number", 1)
             
-            # 1. Fetch trades for this cycle
+            # 1. Fetch trades for this cycle (Sniper & Surf)
             def _get_history():
-                docs = (firebase_service.db.collection("trade_history")
-                        .where("slot_type", "==", "SNIPER")
-                        .stream()) # No filter by cycle_number initially if not stored, we check timestamp?
+                docs = (firebase_service.db.collection("trade_history").stream())
                 return [d.to_dict() for d in docs]
             
-            trades = await asyncio.to_thread(_get_history)
+            all_trades = await asyncio.to_thread(_get_history)
             
             # Filtro opcional: apenas trades após a data de início do ciclo
             started_at = current.get("started_at")
@@ -185,43 +183,56 @@ class VaultService:
                     trades = [t for t in trades if datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00")) >= start_dt]
                 except: pass
 
-            logger.info(f"Encontrados {len(trades)} trades para o Ciclo #{cycle_num}")
+            logger.info(f"Encontrados {len(all_trades)} trades para o Ciclo #{cycle_num}")
             
             # 2. Recalculate
             new_wins = 0
             new_profit = 0.0
             new_losses = 0.0
+            new_surf_profit = 0.0
             
             from services.execution_protocol import execution_protocol
             
-            for t in trades:
+            for t in all_trades:
                 pnl = t.get("pnl", 0)
                 roi = t.get("pnl_percent", 0)
+                slot_type = t.get("slot_type", "SNIPER")
                 
-                if roi == 0 and t.get("entry_price") and t.get("exit_price"):
-                    roi = execution_protocol.calculate_roi(t["entry_price"], t["exit_price"], t.get("side", "Buy"))
-                
-                if roi >= 80.0:
-                    new_wins += 1
-                
-                new_profit += pnl
-                if pnl < 0:
-                    new_losses += abs(pnl)
+                # Filter by timestamp if cycle start is known
+                if started_at:
+                    try:
+                        t_dt = datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00"))
+                        if t_dt < start_dt: continue
+                    except: pass
+
+                if slot_type == "SNIPER":
+                    if roi == 0 and t.get("entry_price") and t.get("exit_price"):
+                        roi = execution_protocol.calculate_roi(t["entry_price"], t["exit_price"], t.get("side", "Buy"))
+                    
+                    if roi >= 80.0:
+                        new_wins += 1
+                    
+                    new_profit += pnl
+                    if pnl < 0:
+                        new_losses += abs(pnl)
+                elif slot_type == "SURF":
+                    new_surf_profit += pnl
             
             # 3. Update Database
             update_data = {
                 "sniper_wins": new_wins,
                 "cycle_profit": new_profit,
                 "cycle_losses": new_losses,
-                "total_trades_cycle": len(trades)
+                "surf_profit": new_surf_profit,
+                "total_trades_cycle": len([t for t in all_trades if t.get('slot_type') == 'SNIPER']) # Sniper count for Meta 100
             }
             
             def _push():
                 firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
             
             await asyncio.to_thread(_push)
-            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Total Trades: {len(trades)} | Profit: ${new_profit:.2f}")
-            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Trades: {len(trades)}/100 | Profit: ${new_profit:.2f}", "SUCCESS")
+            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Total Trades (Sniper): {len([t for t in all_trades if t.get('slot_type') == 'SNIPER'])} | Profit: ${new_profit:.2f}")
+            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Trades (Sniper): {len([t for t in all_trades if t.get('slot_type') == 'SNIPER'])}/100 | Profit: ${new_profit:.2f}", "SUCCESS")
             
         except Exception as e:
             logger.error(f"Error syncing vault with history: {e}")

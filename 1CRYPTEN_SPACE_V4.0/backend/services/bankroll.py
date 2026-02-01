@@ -525,8 +525,8 @@ class BankrollManager:
 
     async def register_sniper_trade(self, trade_data: dict):
         """
-        V4.2/V4.3.1: Registra um trade Sniper no ciclo de 20 trades.
-        Chamado pelo Position Reaper quando um trade SNIPER fecha.
+        V4.2/V4.3.1: Registra um trade no ciclo (Sniper ou Surf).
+        Chamado pelo Position Reaper quando um trade fecha.
         """
         try:
             slot_type = trade_data.get("slot_type", "SNIPER")
@@ -537,7 +537,11 @@ class BankrollManager:
                 await vault_service.register_sniper_trade(trade_data)
                 status_msg = "Win" if pnl > 0 else "Loss"
                 logger.info(f"Sniper {status_msg} registered in Vault: {trade_data.get('symbol')} ${pnl:.2f}")
+            elif slot_type == "SURF":
+                # V5.3.1: Support for Surf Vault Registration
+                await vault_service.register_surf_trade(trade_data)
+                logger.info(f"Surf trade registered in Vault: {trade_data.get('symbol')} ${pnl:.2f}")
         except Exception as e:
-            logger.error(f"Error registering sniper trade: {e}")
+            logger.error(f"Error registering trade in vault: {e}")
 
 bankroll_manager = BankrollManager()

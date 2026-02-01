@@ -438,17 +438,29 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error clearing chat history: {e}")
 
+    async def get_slot(self, slot_id: int) -> dict:
+        """Fetch a specific slot state from Firestore."""
+        if not self.is_active: return None
+        try:
+            doc_ref = self.db.collection("slots_ativos").document(str(slot_id))
+            doc = await asyncio.to_thread(doc_ref.get)
+            return doc.to_dict() if doc.exists else None
+        except Exception:
+            return None
+
     async def hard_reset_slot(self, slot_id: int, reason: str, pnl: float = 0, trade_data: dict = None):
         """
-        V4.3.1: Reset atômico de slot após fechamento de ordem.
-        Garante que o Firebase e a memória local liberem o slot instantaneamente.
-        
-        Args:
-            slot_id: ID do slot a resetar
-            reason: Motivo do fechamento (SNIPER_TP_100_ROI, SURF_TRAILING_STOP_HIT, etc.)
-            pnl: PNL realizado
-            trade_data: Dados adicionais do trade para histórico
+        V5.3.4 Idempotent Reset: Verify slot still active before logging and resetting.
         """
+        # Cross-Loop Idempotency check:
+        # If this slot was already reset by another loop (e.g. Guardian vs BybitREST), 
+        # we skip the logging to avoid duplicates.
+        current_state = await self.get_slot(slot_id)
+        if not current_state or not current_state.get("symbol"):
+            if trade_data:
+                logger.warning(f"⚠️ [IDEMPOTENCY] Slot {slot_id} already reset. Skipping duplicate log for {trade_data.get('symbol')}")
+            return
+
         logger.info(f"🚨 [HARD RESET] Slot {slot_id} | Motivo: {reason} | PNL: ${pnl:.2f}")
         
         reset_data = {
@@ -563,5 +575,63 @@ class FirebaseService:
                 logger.info(f"Captain learned new fact: {fact}")
         except Exception as e:
             logger.error(f"Error adding learned fact: {e}")
+
+    # --- Persistent SL Cooldowns V5.3.2 ---
+    async def register_sl_cooldown(self, symbol: str, duration_seconds: int = 300):
+        """
+        Registers a symbol in SL cooldown in Firebase RTDB.
+        Symbol is normalized to ensure consistency.
+        """
+        if not self.is_active or not self.rtdb: return
+        try:
+            norm_symbol = symbol.replace(".P", "").upper()
+            expiry_time = time.time() + duration_seconds
+            
+            def _register_sync():
+                ref = self.rtdb.child("system_cooldowns").child(norm_symbol)
+                ref.set({
+                    "symbol": norm_symbol,
+                    "expiry_time": expiry_time,
+                    "duration": duration_seconds,
+                    "timestamp": time.time()
+                })
+            await asyncio.to_thread(_register_sync)
+            logger.warning(f"🛡️ [FIREBASE] Cooldown persistence: {norm_symbol} blocked until {datetime.fromtimestamp(expiry_time).strftime('%H:%M:%S')}")
+        except Exception as e:
+            logger.error(f"Error registering SL cooldown in Firebase: {e}")
+
+    async def is_symbol_blocked(self, symbol: str) -> tuple:
+        """
+        Checks if a symbol is in persistent SL cooldown.
+        Returns (is_blocked, remaining_seconds).
+        """
+        if not self.is_active or not self.rtdb: return False, 0
+        try:
+            norm_symbol = symbol.replace(".P", "").upper()
+            
+            def _check_sync():
+                ref = self.rtdb.child("system_cooldowns").child(norm_symbol)
+                snapshot = ref.get()
+                return snapshot if snapshot else None
+                
+            data = await asyncio.to_thread(_check_sync)
+            if not data:
+                return False, 0
+                
+            expiry = data.get("expiry_time", 0)
+            current_time = time.time()
+            
+            if current_time < expiry:
+                remaining = int(expiry - current_time)
+                return True, remaining
+            else:
+                # Cleanup expired cooldown
+                def _cleanup_sync():
+                    self.rtdb.child("system_cooldowns").child(norm_symbol).delete()
+                await asyncio.to_thread(_cleanup_sync)
+                return False, 0
+        except Exception as e:
+            logger.error(f"Error checking SL cooldown in Firebase: {e}")
+            return False, 0
 
 firebase_service = FirebaseService()

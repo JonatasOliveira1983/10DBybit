@@ -1,12 +1,27 @@
-# 1CRYPTEN SPACE - V5.2.4 (Full Market Scan & CVD Sync) 🛡️🚀
+# 1CRYPTEN SPACE - V5.3.4 (Idempotent Shield & Captain's Voice) 🛡️🚀
 
 Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerenciamento Dinâmico de Risco e Proteção Anti-Whipsaw.
 
 ---
 
+## 🆕 Novidades V5.3.4 - Escudo de Idempotência
+- **Idempotência de Histórico**: Trava atômica que evita lançamentos duplicados no histórico de trades, mesmo com múltiplos processos de monitoramento redundante.
+- **Validação de Reset**: Double-check de estado do Firebase antes de qualquer registro de fechamento.
+
+## 🆕 Novidades V5.3.3 - Captain's Voice Shield
+- **Voz do Capitão Mobile**: Otimização Premium para PWA e dispositivos mobile, priorizando vozes masculinas (Daniel/Antonio).
+- **Auto-unlock de Áudio**: Mecanismo para contornar restrições de auto-play em navegadores móveis.
+- **Manual Speak**: Botão de reprodução manual nas mensagens do Capitão.
+
+## 🆕 Novidades V5.3.2 - Redundant SL Shield
+- **Persistent SL Cooldown**: Bloqueio de símbolos após Stop Loss agora persistente no Firebase (sobrevive a reinicializações do backend).
+- **Paper Protection**: Blindagem total contra reabertura imediata de ordens após Stop Loss em modo Simulação.
+
+---
+
 ## 🆕 Novidades V5.0 - Adaptive Stop Loss
 
-### 🎯 SNIPER Adaptive SL (Novo!)
+### 🎯 SNIPER Adaptive SL
 - **Stop Loss Dinâmico**: O SL do SNIPER agora move automaticamente conforme o lucro aumenta
 - **Escada de Proteção SNIPER**:
   | ROI Atingido | Novo Stop Loss |
@@ -18,28 +33,19 @@ Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerencia
 - **Take Profit**: Mantém 100% ROI (2% movimento @ 50x)
 
 ### 🏄 SURF Enhanced Ladder
-- **8 Níveis de Proteção** (era 6): Escada mais granular
-- **Breakeven Antecipado**: Ativa em ROI 10% (era 5%)
-- **Mega Surf**: Novo nível 200% ROI com proteção em 170%
+- **8 Níveis de Proteção**: Escada mais granular para maximizar lucros.
+- **Breakeven Antecipado**: Ativa em ROI 10%.
+- **Mega Surf**: Novo nível 200% ROI com proteção em 170%.
 
-### ⏱️ Cooldown Anti-Whipsaw (Novo!)
-- **5 Minutos de Bloqueio**: Após fechamento por SL, par fica em cooldown
-- **Evita Reentradas Ruins**: Protege contra whipsaws consecutivos
-- **Registro Automático**: Guardian notifica Captain após cada SL
+### ⏱️ Cooldown Anti-Whipsaw
+- **Bloqueio de Par**: Após fechamento por SL, o par entra em cooldown para evitar reentradas em volatilidade.
+- **Registro Automático**: Sincronizado entre Guardian e Captain.
 
-### 🛡️ Guardian V5.2.4
-- **Full Market Monitoring (83 Symbols)**: Corrigido timeout de scan e compatibilidade Python 3.10.
-- **CVD Symbol Sync**: Sincronização de nomenclatura para detecção de sinais em tempo real.
-- **Move SL de SNIPER**: Agora atualiza Stop Loss via `set_trading_stop`
-- **Overclock Mode**: 200ms polling em Flash Zone (80%+ ROI)
-- **Status Visual TRAILING**: Novo estado para indicar SL em movimento
-- **Sync & Persistence Elite**: 
-  - **PWA Instant-Load**: Cache local (`localStorage`) para carregamento instantâneo de slots e banca.
-  - **Stream-First Feed**: Priorização de WebSocket Bybit sobre polling para delay < 100ms.
-  - **Bybit Precision Engine**: Arredondamento cirúrgico baseado em `tickSize` (evita erro 10001).
-  - Sincronização automática de Vault e Banca na inicialização.
-  - Motor PAPER totalmente integrado ao Vault (resultados refletem no dashboard).
-  - Escudo de Persistência 2.0: Previne re-adoção de trades encerrados.
+### 🛡️ Guardian & Sync Elite
+- **Full Market Monitoring**: Monitoramento simultâneo de todos os pares USDT.
+- **CVD Symbol Sync**: Detecção de sinais baseada em fluxo de ordens.
+- **PWA Instant-Load**: Cache local para carregamento instantâneo.
+- **Bybit Precision Engine**: Normalização de preços e quantidades.
 
 ---
 
@@ -55,7 +61,7 @@ Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerencia
 ## 📊 Gerenciamento de Risco Elite
 - **Protocolo 4-Slots Máximo:** Limite de 4 ordens em risco (20% da banca)
 - **Expansão Inteligente:** Novos slots liberados quando existentes atingem Risk-Zero
-- **Cooldown por Símbolo:** 5 minutos após SL para evitar overtrading
+- **Cooldown Persistente:** Proteção que sobrevive a reinícios do sistema.
 
 ---
 
@@ -70,4 +76,4 @@ Acesse `http://localhost:5001`
 
 ---
 
-**Operação: 10D - Full Market & CVD Sync - V5.2.4**
+**Operação: 10D - Idempotent Shield & Captain's Voice - V5.3.4**
