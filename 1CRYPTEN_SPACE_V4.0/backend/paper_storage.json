@@ -1,16 +1,6 @@
 {
   "positions": [
     {
-      "symbol": "1000000MOGUSDT",
-      "side": "Sell",
-      "size": "1299.0",
-      "avgPrice": "0.19252",
-      "leverage": "50",
-      "stopLoss": "0.18854",
-      "takeProfit": "0.1886696",
-      "createdTime": "123456789"
-    },
-    {
       "symbol": "ENSUSDT",
       "side": "Sell",
       "size": "36.3",
@@ -18,16 +8,6 @@
       "leverage": "50",
       "stopLoss": "6.841",
       "takeProfit": "6.7443599999999995",
-      "createdTime": "123456789"
-    },
-    {
-      "symbol": "KITEUSDT",
-      "side": "Sell",
-      "size": "1721.0",
-      "avgPrice": "0.14524",
-      "leverage": "50",
-      "stopLoss": "0.14437",
-      "takeProfit": "0.1423352",
       "createdTime": "123456789"
     },
     {
@@ -56,7 +36,7 @@
       "size": "4904.0",
       "avgPrice": "0.05098",
       "leverage": "50",
-      "stopLoss": "0.05129",
+      "stopLoss": "0.05108",
       "takeProfit": "0.049960399999999995",
       "createdTime": "123456789"
     },
@@ -81,15 +61,6 @@
       "createdTime": "123456789"
     },
     {
-      "symbol": "1000PEPEUSDT",
-      "side": "Sell",
-      "avgPrice": 0.004191,
-      "stopLoss": "0.004183",
-      "size": 59666.0,
-      "positionValue": 250.06020600000002,
-      "unrealisedPnl": 0
-    },
-    {
       "symbol": "AAVEUSDT",
       "side": "Sell",
       "size": "2.06",
@@ -98,9 +69,18 @@
       "stopLoss": "125.0481",
       "takeProfit": "121.3338",
       "createdTime": "123456789"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "side": "Sell",
+      "avgPrice": 0.10388,
+      "stopLoss": 0.10409,
+      "size": 2407.0,
+      "positionValue": 250.03916,
+      "unrealisedPnl": 0
     }
   ],
-  "balance": 102.07520231480018,
+  "balance": 107.80139829480017,
   "history": [
     {
       "symbol": "DOGEUSDT",
@@ -501,6 +481,36 @@
       "leverage": "50.0",
       "qty": "43059.0",
       "updatedTime": "1769977730740"
+    },
+    {
+      "symbol": "1000000MOGUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "0.19252",
+      "avgExitPrice": "0.18884",
+      "closedPnl": "4.485956207999985",
+      "leverage": "50.0",
+      "qty": "1299.0",
+      "updatedTime": "1769977871568"
+    },
+    {
+      "symbol": "KITEUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "0.14524",
+      "avgExitPrice": "0.14438",
+      "closedPnl": "1.1818864239999995",
+      "leverage": "50.0",
+      "qty": "1721.0",
+      "updatedTime": "1769977945691"
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "0.004191",
+      "avgExitPrice": "0.004185",
+      "closedPnl": "0.05835334799999575",
+      "leverage": "50.0",
+      "qty": "59666.0",
+      "updatedTime": "1769977985708"
     }
   ]
 }

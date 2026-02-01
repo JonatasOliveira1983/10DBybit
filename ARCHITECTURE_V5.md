@@ -1,4 +1,4 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.3) 🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.4.0) 🛰️
 
 Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE. Utilize este contexto para planejar melhorias em lógica de IA, otimização de execução e interface.
 
@@ -8,7 +8,7 @@ Este documento descreve o funcionamento interno, fluxos de dados e protocolos do
 
 O sistema opera de forma assíncrona com três camadas integradas:
 
-- **Frontend (UI)**: React/Tailwind em arquivo único (`code.html`), focado em baixa latência e visualização premium.
+- **Frontend (UI)**: React/Tailwind em arquivo único (`code.html`), com suporte a múltiplos temas (Modo Gemini).
 - **Backend (API)**: FastAPI (`main.py`) orquestrando sessões Bybit, IAs e persistência.
 - **Agents (Background)**: Loops `asyncio` que executam monitoramento e decisões em tempo real.
 
@@ -18,77 +18,53 @@ O sistema opera de forma assíncrona com três camadas integradas:
 
 ### 🛡️ Agents (services/agents/)
 - **Captain (`captain.py`)**: Orquestrador tático. Escaneia sinais, verifica protocolos de risco (Bankroll) e cooldowns. Único agente autorizado a abrir ordens.
-- **Guardian (`guardian.py`)**: Zelador das posições. Monitora lucros em tempo real, move o Stop Loss (Overdrive/Trailing) e gerencia o fechamento.
-- **Signal Generator (`signal_generator.py`)**: Analisador de mercado. Transforma dados brutos de CVD (Cumulative Volume Delta) em scores de oportunidade (75-99).
-- **AI Service (`ai_service.py`)**: Ponte para modelos LLM (Gemini 1.5 Pro/Flash, OpenAI, OpenRouter). Gerencia o contexto e a personalidade do Capitão.
+- **Guardian (`guardian.py`)**: Zelador das posições (Reaper). Monitora lucros em tempo real, move o Stop Loss e gerencia o fechamento. (V5.3.4: Sincronizado com o Escudo de Idempotência).
+- **Signal Generator (`signal_generator.py`)**: Analisador de mercado. Transforma dados brutos de CVD em scores de oportunidade.
+- **AI Service (`ai_service.py`)**: Ponte para modelos LLM. Gerencia o contexto e a personalidade do Capitão.
 
 ### 🔌 Services (services/)
-- **BybitREST**: V5.3.4: Idempotent Execution & Redundant SL Shield. Optimized for PAPER mode coordination with Guardian.
- Simulação (PAPER)** que replica o comportamento da exchange sem risco real. (V5.3.1: Blindagem de Stop Loss implementada com normalização de símbolos e remoção de filtros de depuração).
+- **BybitREST**: V5.3.4: **Idempotent Execution Shield**. Implementa travas atômicas e sets de fechamento pendente para evitar execuções duplicadas e registros de histórico em dobro.
 - **BybitWS**: Gerencia conexões WebSocket para Tickers e Klines, alimentando o radar de CVD.
-- **FirebaseService**: CRUD unificado para Firestore (Histórico, Slots) e RTDB (Pulso de Mercado).
-- **BankrollManager**: Gestor de banca e risco. Garante limite de slots (máx 4 ativos) e gerencia os 10 "Squadron Slots".
+- **FirebaseService**: V5.3.4: Inclui verificação de estado dinâmico (`get_slot`) em resets de slot para garantir atomicidade.
+- **BankrollManager**: Gestor de banca e risco. Garante limite de slots e gerencia os 10 "Squadron Slots".
 - **VaultService**: Gestor do Ciclo Sniper de 20 trades. Calcula PnL acumulado e gerencia retiradas.
-- **ExecutionProtocol**: O motor matemático. Define as regras de trailing, alvos de ROI e distâncias de SL/TP por slot.
-- **Precision Engine (V5.2.4)**: Utilitário em `BybitREST` que garante arredondamento cirúrgico de preços e ordens baseado no `tickSize` real de cada símbolo, eliminando erros 10001 da API.
-- **Resilience Engine (V5.2.4.8)**: Mecanismo de retry com backoff exponencial para conexões e timeouts rígidos (5-10s) em todas as chamadas externas.
 
 ---
 
-## 3. Fluxos de Dados Críticos 🔄
+## 3. Visual Engine & Temas (V5.4.0) 🎨
+
+O sistema agora utiliza um motor de temas baseado em variáveis CSS (`:root`), permitindo personalização profunda da UI sem alteração de lógica.
+
+- **Classic Dark**: O tema original baseado em preto absoluto e dourado.
+- **Modo Gemini**: Interface inspirada no Google Gemini, utilizando cinza profundo (`#131314`), bordas suaves e design minimalista.
+- **Persistência**: O estado do tema é gerenciado no componente `App` e persistido via `localStorage`.
+
+---
+
+## 4. Fluxos de Dados Críticos 🔄
 
 ### A. Geração de Sinais
 `BybitWS` (Fluxo Ordens) ➡️ `SignalGenerator` (Cálculo CVD) ➡️ `Firestore` (journey_signals)
 
-### B. Ciclo de Vida do Trade (Sniper/Surf)
+### B. Ciclo de Vida do Trade (Idempotente)
 1. `Captain` detecta sinal ➡️ `Bankroll` valida slots ➡️ `BybitREST` envia Ordem.
-2. `Firestore` grava Slot Ativo ➡️ `Guardian` inicia monitoramento.
-3. `Guardian` avalia ROI ➡️ `ExecutionProtocol` solicita novo SL ➡️ `BybitREST` atualiza Exchange.
-
-### C. Sincronização e Vault
-1. Ordem fechada (TP/SL/Manual) ➡️ `BybitREST` limpa cache ➡️ `Firestore` registra no Histórico.
-2. `VaultService` detecta fechamento ➡️ Valida ROI >= 80% ➡️ Incrementa contador de Wins e Lucro do Ciclo.
-3. `Initial Sync` (Startup): O sistema varre o histórico do dia ao iniciar para corrigir qualquer discrepância de valores.
+2. `Guardian` ou `BybitREST` detectam condição de fechamento.
+3. **Escudo V5.3.4**: Uma trava (`closure_lock`) é ativada. Se uma tentativa de fechamento já estiver em curso, a segunda é descartada.
+4. Registro único no Histórico e limpeza do Slot no Firebase.
 
 ---
 
-## 4. Estrutura de Páginas (Frontend) 🖥️
+## 5. Protocolos Estratégicos (V5.3 - V5.4) 📜
 
-- **Dashboard**: "Torre de Controle" com lucro total, status dos agentes e pulso de mercado.
-- **Slots**: Interface tática visualizando ROI dinâmico, Squads e botões de pânico por par.
-- **Radar**: Lista de sinais detectados.
-- **History**: Registro forense de todos os trades realizados.
-- **Vault**: Dashboard do progresso para o saque de 20 trades.
-- **Settings**: Painel de controle de chaves, modo de operação e status técnico.
-
-### 🛡️ PWA State & Sync (V5.2.4)
-- **Snapshot Local**: `localStorage` cacheia slots, banca e logs para carregamento instantâneo.
-- **Stream-First Feed**: Priorização total de WebSockets para ticks e klines, mantidos por sistema de Heartbeat (Ping-Pong).
-- **Service Worker Turbo**: Configurado com `skipWaiting` e `clientsClaim` para controle imediato do app e performance máxima.
-
-### ☁️ Camada de Resiliência de Produção (V5.2.4.8)
-- **Startup Shield**: Configuração de `startupProbe` com delay de 40s no Cloud Run para garantir inicialização completa de serviços pesados (Firebase/Bybit) antes do tráfego.
-- **SSL Hardening**: Uso de `urllib3` v2.x e certificados atualizados (`cacerts`) no Dockerfile para evitar erros de handshake com Google APIs.
-- **Async Core**: Arquitetura 100% assíncrona no `BybitREST` com thread pool expandido (32 workers) para evitar bloqueios de Event Loop.
-- **Non-Blocking Health**: Endpoint `/health` responde instantaneamente com cache de saldo, prevenindo reinicializações por falso timeout.
-
----
-
-## 5. Protocolos Estratégicos (V5.3) 📜
-
-### 🎯 SNIPER OVERDRIVE (Upgrade V5.3)
-- **Modo Overdrive**: Ativado quando ROI >= 100%.
-- **Floor Protection**: Assim que atinge 100% de lucro, o SL é movido para garantir esses 100% (Risco Zero de devolução de lucro).
-- **Chase Logic**: Se o preço continua subindo (150%, 200%...), o Stop Loss persegue o topo mantendo uma distância de 20%.
-- **Trailing Pré-100%**: SL sobe em ROI 15%, 30%, 50% e 70% (Escada Adaptativa Clássica).
+### 🎯 SNIPER OVERDRIVE
+- **Floor Protection**: Lucro 100% garantido após atingido.
+- **Chase Logic**: Perseguição de topo com distância de 20%.
 
 ### 🏄 SURF Trailing
-- Alvo: Infinito.
-- Trailing: Escada de 8 níveis baseada em máximas atingidas.
-- **Risk Zero**: Ativado automaticamente ao atingir 50% ROI.
+- Trailing em escada de 8 níveis. Risk Zero automático em 50% ROI.
 
-### ⏱️ Cooldown Anti-Whipsaw
-- Pausa técnica de 5 minutos após qualquer trade fechado por Stop Loss para evitar overtrading em mercados sem tendência.
+### ⏱️ Cooldown Persistente (V5.3.4)
+- Bloqueio de símbolos em nível de Firebase para garantir que a pausa técnica persista mesmo após reinicializações do servidor.
 
 ---
-*Versão do Documento: 5.3 | Contexto para Gemini AI*
+*Versão do Documento: 5.4.0 | Contexto para Gemini AI*
