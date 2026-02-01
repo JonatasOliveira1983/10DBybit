@@ -1,4 +1,4 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.2.4) 🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.2.4.8) 🛰️
 
 Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE. Utilize este contexto para planejar melhorias em lógica de IA, otimização de execução e interface.
 
@@ -30,6 +30,7 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - **VaultService**: Gestor do Ciclo Sniper de 20 trades. Calcula PnL acumulado e gerencia retiradas.
 - **ExecutionProtocol**: O motor matemático. Define as regras de trailing, alvos de ROI e distâncias de SL/TP por slot.
 - **Precision Engine (V5.2.4)**: Utilitário em `BybitREST` que garante arredondamento cirúrgico de preços e ordens baseado no `tickSize` real de cada símbolo, eliminando erros 10001 da API.
+- **Resilience Engine (V5.2.4.8)**: Mecanismo de retry com backoff exponencial para conexões e timeouts rígidos (5-10s) em todas as chamadas externas.
 
 ---
 
@@ -64,6 +65,12 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - **Stream-First Feed**: Priorização total de WebSockets para ticks e klines, mantidos por sistema de Heartbeat (Ping-Pong).
 - **Service Worker Turbo**: Configurado com `skipWaiting` e `clientsClaim` para controle imediato do app e performance máxima.
 
+### ☁️ Camada de Resiliência de Produção (V5.2.4.8)
+- **Startup Shield**: Configuração de `startupProbe` com delay de 40s no Cloud Run para garantir inicialização completa de serviços pesados (Firebase/Bybit) antes do tráfego.
+- **SSL Hardening**: Uso de `urllib3` v2.x e certificados atualizados (`cacerts`) no Dockerfile para evitar erros de handshake com Google APIs.
+- **Async Core**: Arquitetura 100% assíncrona no `BybitREST` com thread pool expandido (32 workers) para evitar bloqueios de Event Loop.
+- **Non-Blocking Health**: Endpoint `/health` responde instantaneamente com cache de saldo, prevenindo reinicializações por falso timeout.
+
 ---
 
 ## 5. Protocolos Estratégicos 📜
@@ -82,4 +89,4 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - Pausa técnica de 5 minutos após qualquer trade fechado por Stop Loss para evitar overtrading em mercados sem tendência.
 
 ---
-*Versão do Documento: 5.2.4 | Contexto para Gemini AI*
+*Versão do Documento: 5.2.4.8 | Contexto para Gemini AI*
