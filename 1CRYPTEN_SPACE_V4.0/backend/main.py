@@ -13,10 +13,15 @@ import uvicorn
 import ssl
 import urllib3
 from config import settings
+from concurrent.futures import ThreadPoolExecutor
 
-# V5.2.4.5 Sync/Async Emergency Fix - Production Protocol
-VERSION = "5.2.4.5"
-DEPLOYMENT_ID = "V5245_SYNC_ASYNC_FIX"
+# V5.2.4.6: Increase Thread Pool size for concurrent network calls
+executor = ThreadPoolExecutor(max_workers=32)
+asyncio.get_event_loop().set_default_executor(executor)
+
+# V5.2.4.6 Production Stability & Connectivity - Resilience Protocol
+VERSION = "5.2.4.6"
+DEPLOYMENT_ID = "V5246_STABILITY_RESILIENCE"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -237,10 +242,9 @@ async def health_check():
     balance = 0.0
     if bybit_rest_service:
         try:
-            # We don't want to do a full network call here, so we check if session is initialized
-            # but for 1CRYPTEN, we should at least return a default balance if in PAPER mode
-            bybit_conn = True # Server is ALIVE, services are staggered
-            balance = await bybit_rest_service.get_wallet_balance()
+            # V5.2.4.6: NON-BLOCKING Balance retrieval for Cloud Run Health Check
+            bybit_conn = True 
+            balance = bybit_rest_service.last_balance
         except:
             pass
 

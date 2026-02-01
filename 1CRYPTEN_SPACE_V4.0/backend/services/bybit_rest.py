@@ -21,6 +21,7 @@ class BybitREST:
         self.paper_orders_history = [] 
         self._paper_engine_task = None
         self._instrument_cache = {} # Cache for tickSize and stepSize
+        self.last_balance = 0.0 # V5.2.4.6: Cache for non-blocking health checks
     def _strip_p(self, symbol: str) -> str:
         """Strips the .P suffix for Bybit API calls."""
         if not symbol: return symbol
@@ -150,6 +151,7 @@ class BybitREST:
                 result = response.get("result", {}).get("list", [{}])[0]
                 equity = float(result.get("totalEquity", 0))
                 logger.info(f"UNIFIED Equity: {equity}")
+                self.last_balance = equity # V5.2.4.6: Update cache
                 if equity > 0: return equity
             except Exception as ue: 
                 logger.warning(f"UNIFIED balance fetch failed: {ue}")
@@ -163,10 +165,11 @@ class BybitREST:
             usdt_coin = next((c for c in coins if c.get("coin") == "USDT"), {})
             equity = float(usdt_coin.get("equity", 0))
             logger.info(f"CONTRACT Equity: {equity}")
+            self.last_balance = equity # V5.2.4.6: Update cache
             return equity
         except Exception as e:
             logger.error(f"Error fetching wallet balance: {e}")
-            return 0.0
+            return self.last_balance # V5.2.4.6: Return cached on error
 
     async def get_active_positions(self, symbol: str = None):
         """Fetches currently open linear positions (Real or Simulated)."""
