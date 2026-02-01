@@ -14,9 +14,9 @@ import ssl
 import urllib3
 from config import settings
 
-# V5.2.4.4 SSL & Stability Shield - Production Protocol
-VERSION = "5.2.4.4"
-DEPLOYMENT_ID = "V5244_SSL_STABILITY_SHIELD"
+# V5.2.4.5 Sync/Async Emergency Fix - Production Protocol
+VERSION = "5.2.4.5"
+DEPLOYMENT_ID = "V5245_SYNC_ASYNC_FIX"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -240,7 +240,7 @@ async def health_check():
             # We don't want to do a full network call here, so we check if session is initialized
             # but for 1CRYPTEN, we should at least return a default balance if in PAPER mode
             bybit_conn = True # Server is ALIVE, services are staggered
-            balance = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
+            balance = await bybit_rest_service.get_wallet_balance()
         except:
             pass
 
@@ -287,7 +287,7 @@ async def get_banca():
         # If status is empty OR balance is 0, attempt real-time update
         if not status or status.get("saldo_total", 0) == 0:
             logger.info("Banca is empty or Offline, fetching real-time balance from Bybit...")
-            equity = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
+            equity = await bybit_rest_service.get_wallet_balance()
             return {
                 "saldo_total": equity,
                 "risco_real_percent": 0.0,

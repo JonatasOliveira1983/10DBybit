@@ -88,7 +88,7 @@ class GuardianAgent:
 
             # Batch Ticker Update - V4.9.4.3: Surgical Normalization
             try:
-                tickers_resp = await asyncio.to_thread(bybit_rest_service.session.get_tickers, category="linear")
+                tickers_resp = await bybit_rest_service.get_tickers()
                 ticker_list = tickers_resp.get("result", {}).get("list", [])
                 
                 # Normalize ALL keys: remove .P, remove USDT, uppercase

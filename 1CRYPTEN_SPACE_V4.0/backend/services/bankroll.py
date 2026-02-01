@@ -109,7 +109,7 @@ class BankrollManager:
                         # V5.2.2: Register closed trade before clearing slot
                         try:
                             # Fetch last closed PnL for this symbol
-                            closed_list = await asyncio.to_thread(bybit_rest_service.get_closed_pnl, symbol=symbol, limit=1)
+                            closed_list = await bybit_rest_service.get_closed_pnl(symbol=symbol, limit=1)
                             if closed_list:
                                 last_pnl = closed_list[0]
                                 pnl_val = float(last_pnl.get("closedPnl", 0))
@@ -304,7 +304,7 @@ class BankrollManager:
             available_slots_count = sum(1 for s in slots if s["symbol"] is None)
             
             # Fetch real balance from Bybit - NON-BLOCKING
-            total_equity = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
+            total_equity = await bybit_rest_service.get_wallet_balance()
             
             banca = await firebase_service.get_banca_status()
             if banca:
@@ -379,10 +379,10 @@ class BankrollManager:
                 logger.error(f"Could not fetch price for {symbol}")
                 return None
 
-            info = await asyncio.to_thread(bybit_rest_service.get_instrument_info, symbol)
+            info = await bybit_rest_service.get_instrument_info(symbol)
             qty_step = float(info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
             
-            balance = await asyncio.to_thread(bybit_rest_service.get_wallet_balance)
+            balance = await bybit_rest_service.get_wallet_balance()
             if balance < 10:
                 logger.warning(f"Balance too low: ${balance}")
                 return None

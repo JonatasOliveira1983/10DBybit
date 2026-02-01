@@ -129,7 +129,7 @@ class BybitREST:
             logger.error(f"Error in Operation Sniper scan: {e}")
             return ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P"]
 
-    def get_wallet_balance(self):
+    async def get_wallet_balance(self):
         """Fetches the total equity from the Bybit account (UNIFIED or CONTRACT)."""
         logger.info(f"[DEBUG] get_wallet_balance called. Mode: {self.execution_mode}")
         if self.execution_mode == "PAPER":
@@ -201,14 +201,15 @@ class BybitREST:
             logger.error(f"Error fetching tickers for {symbol}: {e}")
             return {}
 
-    def get_instrument_info(self, symbol: str):
+    async def get_instrument_info(self, symbol: str):
         """Fetches precision and lot size filtering for a symbol with local caching."""
         try:
             api_symbol = self._strip_p(symbol)
             if api_symbol in self._instrument_cache:
                 return self._instrument_cache[api_symbol]
 
-            response = self.session.get_instruments_info(category="linear", symbol=api_symbol)
+            # V5.2.4.3: Added 5s timeout
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_instruments_info, category="linear", symbol=api_symbol), timeout=5.0)
             info = response.get("result", {}).get("list", [{}])[0]
             
             if info:
@@ -219,14 +220,14 @@ class BybitREST:
             logger.error(f"Error fetching instrument info for {symbol}: {e}")
             return {}
 
-    def round_price(self, symbol: str, price: float) -> float:
+    async def round_price(self, symbol: str, price: float) -> float:
         """
         Rounds the price to the nearest tickSize allowed by Bybit.
         Essential for avoiding 10001 errors and ensuring 'Maker' precision.
         """
         if price <= 0: return price
         
-        info = self.get_instrument_info(symbol)
+        info = await self.get_instrument_info(symbol)
         tick_size_str = info.get("priceFilter", {}).get("tickSize")
         
         if not tick_size_str:
@@ -379,7 +380,7 @@ class BybitREST:
             logger.error(f"Error closing position for {symbol}: {e}")
             return None
 
-    def get_closed_pnl(self, symbol: str, limit: int = 1):
+    async def get_closed_pnl(self, symbol: str, limit: int = 1):
         """Fetches final PnL for closed trades."""
         if self.execution_mode == "PAPER":
             # Filter history by symbol
@@ -389,22 +390,24 @@ class BybitREST:
 
         try:
             api_symbol = self._strip_p(symbol)
-            response = self.session.get_closed_pnl(category=self.category, symbol=api_symbol, limit=limit)
+            # V5.2.4.3: Added 5s timeout
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_closed_pnl, category=self.category, symbol=api_symbol, limit=limit), timeout=5.0)
             return response.get("result", {}).get("list", [])
         except Exception as e:
             logger.error(f"Error fetching closed PnL for {symbol}: {e}")
             return []
 
-    def get_klines(self, symbol: str, interval: str = "60", limit: int = 20):
+    async def get_klines(self, symbol: str, interval: str = "60", limit: int = 20):
         """Fetches historical klines for ATR and variation calculations."""
         try:
             api_symbol = self._strip_p(symbol)
-            response = self.session.get_mark_price_kline(
+            # V5.2.4.3: Added 5s timeout
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_mark_price_kline,
                 category=self.category,
                 symbol=api_symbol,
                 interval=interval,
                 limit=limit
-            )
+            ), timeout=5.0)
             return response.get("result", {}).get("list", [])
         except Exception as e:
             logger.error(f"Error fetching klines for {symbol}: {e}")
@@ -574,7 +577,7 @@ class BybitREST:
                 # 6. Update trailing stops in Firebase
                 for sym, new_sl, slot_id in to_update_sl:
                     # V5.2.4: Ensure new_sl is rounded at the engine level too
-                    new_sl = self.round_price(sym, new_sl)
+                    new_sl = await self.round_price(sym, new_sl)
                     
                     # Update paper position
                     pos = next((p for p in self.paper_positions if p["symbol"] == sym), None)
