@@ -19,9 +19,9 @@ from concurrent.futures import ThreadPoolExecutor
 executor = ThreadPoolExecutor(max_workers=32)
 asyncio.get_event_loop().set_default_executor(executor)
 
-# V5.2.4.6 Production Stability & Connectivity - Resilience Protocol
-VERSION = "5.2.4.6"
-DEPLOYMENT_ID = "V5246_STABILITY_RESILIENCE"
+# V5.2.4.7 Production Stability & Connectivity - SSL & Coroutine Fix
+VERSION = "5.2.4.7"
+DEPLOYMENT_ID = "V5247_SSL_COROUTINE_FIX"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -11,6 +11,8 @@ pandas==2.2.0
 numpy==1.26.3
 pybit==5.8.0
 urllib3>=2.1.0
+requests>=2.31.0
+google-auth>=2.23.0
 gunicorn==21.2.0
 firebase-admin==6.5.0
 pyopenssl>=24.0.0

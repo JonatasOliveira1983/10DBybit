@@ -83,7 +83,7 @@ class BybitWS:
         
         try:
             # 1. Update BTC Variation (1h)
-            btc_klines = await asyncio.to_thread(bybit_rest_service.get_klines, symbol="BTCUSDT", interval="60", limit=2)
+            btc_klines = await bybit_rest_service.get_klines(symbol="BTCUSDT", interval="60", limit=2)
             if len(btc_klines) >= 2:
                 # Bybit returns newest first: [current, previous]
                 curr_close = float(btc_klines[0][4])
@@ -95,7 +95,7 @@ class BybitWS:
             now = time.time()
             if now - self.last_atr_update > 600: # Every 10 mins
                 for symbol in self.active_symbols:
-                    klines = await asyncio.to_thread(bybit_rest_service.get_klines, symbol=symbol, interval="60", limit=15)
+                    klines = await bybit_rest_service.get_klines(symbol=symbol, interval="60", limit=15)
                     if len(klines) >= 14:
                         # Simple ATR calculation: average of (High - Low)
                         total_tr = 0
