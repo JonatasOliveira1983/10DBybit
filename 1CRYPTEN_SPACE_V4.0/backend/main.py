@@ -21,8 +21,8 @@ asyncio.get_event_loop().set_default_executor(executor)
 
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
-VERSION = "V5.4.0"
-DEPLOYMENT_ID = "V540_GEMINI_MODE"
+VERSION = "V5.4.1"
+DEPLOYMENT_ID = "V541_STABILITY_FIX"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

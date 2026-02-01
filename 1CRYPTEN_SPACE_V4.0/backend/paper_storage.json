@@ -36,25 +36,15 @@
       "size": "1793.1",
       "avgPrice": "0.1453",
       "leverage": "50",
-      "stopLoss": "0.14617",
+      "stopLoss": "0.14501",
       "takeProfit": "0.14239400000000002",
-      "createdTime": "123456789"
-    },
-    {
-      "symbol": "IMXUSDT",
-      "side": "Sell",
-      "size": "1377.6",
-      "avgPrice": "0.18147",
-      "leverage": "50",
-      "stopLoss": "0.18038",
-      "takeProfit": "0.1778406",
       "createdTime": "123456789"
     },
     {
       "symbol": "EIGENUSDT",
       "side": "Sell",
       "avgPrice": 0.2514,
-      "stopLoss": 0.25391400000000003,
+      "stopLoss": "0.2509",
       "size": 1084.0,
       "positionValue": 272.5176,
       "unrealisedPnl": 0
@@ -65,23 +55,33 @@
       "size": "2913.0",
       "avgPrice": "0.0858",
       "leverage": "50",
-      "stopLoss": "0.0866681",
+      "stopLoss": "0.08597",
       "takeProfit": "0.0840938",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "BLURUSDT",
+      "side": "Sell",
+      "size": "11216.0",
+      "avgPrice": "0.02228",
+      "leverage": "50",
+      "stopLoss": "0.02241",
+      "takeProfit": "0.0218442",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "LINEAUSDT",
+      "side": "Buy",
+      "size": "56587.0",
+      "avgPrice": "0.004418",
+      "leverage": "50",
+      "stopLoss": "0.00437382",
+      "takeProfit": "0.00450636",
       "createdTime": "123456789"
     }
   ],
-  "balance": 93.83192042760012,
+  "balance": 98.5937876916001,
   "history": [
-    {
-      "symbol": "AAVEUSDT",
-      "side": "Sell",
-      "avgEntryPrice": "123.65",
-      "avgExitPrice": "125.91",
-      "closedPnl": "-0.9644367999999963",
-      "leverage": "50.0",
-      "qty": "0.4",
-      "updatedTime": "1769969388284"
-    },
     {
       "symbol": "AXSUSDT",
       "side": "Sell",
@@ -571,6 +571,16 @@
       "leverage": "50.0",
       "qty": "3128.0",
       "updatedTime": "1769979204926"
+    },
+    {
+      "symbol": "IMXUSDT.P",
+      "side": "Sell",
+      "avgEntryPrice": "0.18147",
+      "avgExitPrice": "0.1778",
+      "closedPnl": "4.76186726399997",
+      "leverage": "50.0",
+      "qty": "1377.6",
+      "updatedTime": "1769980144624"
     }
   ]
 }

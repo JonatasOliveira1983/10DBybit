@@ -31,8 +31,15 @@ O sistema opera de forma assíncrona com três camadas integradas:
 
 ---
 
-## 3. Visual Engine & Temas (V5.4.0) 🎨
+## 3. Visual Engine & Temas 🎨
 
+### [V5.4.1] - 2026-02-01 (Stability Patch)
+*   **Fix**: Desestruturação correta de `theme` e `setTheme` no componente `SettingsPage`.
+*   **Fix**: Implementação de `trade_data` no `GuardianAgent` para garantir logging de histórico em fechamentos automáticos.
+*   **Maintenance**: Remoção de redundâncias de reset de slot no `PositionReaper`.
+
+### [V5.4.0] - 2026-02-01 (Gemini Mode)
+*   **Visual Engine Evolution**: Novo motor de temas dinâmicos (Classic vs Gemini).
 O sistema agora utiliza um motor de temas baseado em variáveis CSS (`:root`), permitindo personalização profunda da UI sem alteração de lógica.
 
 - **Classic Dark**: O tema original baseado em preto absoluto e dourado.
