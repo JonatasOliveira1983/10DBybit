@@ -1,0 +1,13 @@
+@echo off
+echo 🚨 UNLEASHING THE KRAKEN ON PORT 5001...
+for /f "tokens=5" %%a in ('netstat -aon ^| find ":5001" ^| find "LISTENING"') do taskkill /f /pid %%a
+for /f "tokens=5" %%a in ('netstat -aon ^| find ":5001" ^| find "ESTABLISHED"') do taskkill /f /pid %%a
+
+echo 💀 Double Tap: Killing python.exe...
+taskkill /IM python.exe /F 2>nul
+
+echo ⏳ Cooling down...
+timeout /t 3
+
+echo 🚀 IGNITION: Starting Backend...
+python main.py

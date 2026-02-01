@@ -2237,7 +2237,7 @@
                         const rSlots = await safeFetch(API_BASE + '/api/slots');
                         if (rSlots.ok) {
                             const data = await rSlots.json();
-                            if (Array.isArray(data) && data.length > 0) {
+                            if (Array.isArray(data)) {
                                 setSlots(data);
                                 localStorage.setItem('slots_cache', JSON.stringify(data));
                             }

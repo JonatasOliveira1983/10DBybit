@@ -23,7 +23,7 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - **AI Service (`ai_service.py`)**: Ponte para modelos LLM (Gemini 1.5 Pro/Flash, OpenAI, OpenRouter). Gerencia o contexto e a personalidade do Capitão.
 
 ### 🔌 Services (services/)
-- **BybitREST**: Abstração da API Bybit. Inclui o **Motor de Simulação (PAPER)** que replica o comportamento da exchange sem risco real.
+- **BybitREST**: Abstração da API Bybit. Inclui o **Motor de Simulação (PAPER)** que replica o comportamento da exchange sem risco real. (V5.3.1: Blindagem de Stop Loss implementada com normalização de símbolos e remoção de filtros de depuração).
 - **BybitWS**: Gerencia conexões WebSocket para Tickers e Klines, alimentando o radar de CVD.
 - **FirebaseService**: CRUD unificado para Firestore (Histórico, Slots) e RTDB (Pulso de Mercado).
 - **BankrollManager**: Gestor de banca e risco. Garante limite de slots (máx 4 ativos) e gerencia os 10 "Squadron Slots".

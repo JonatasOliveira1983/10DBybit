@@ -21,8 +21,8 @@ asyncio.get_event_loop().set_default_executor(executor)
 
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
-VERSION = "5.2.5"
-DEPLOYMENT_ID = "V525_PRECISION_ENGINE_VAULT_META100"
+VERSION = "5.3.1"
+DEPLOYMENT_ID = "V531_PAPER_SL_SHIELD_PRECISION"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

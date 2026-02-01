@@ -1,0 +1,183 @@
+{
+  "positions": [
+    {
+      "symbol": "NEARUSDT",
+      "side": "Buy",
+      "avgPrice": 1.1678,
+      "stopLoss": "1.1748",
+      "size": 213.9,
+      "positionValue": 249.79242,
+      "unrealisedPnl": 0
+    },
+    {
+      "symbol": "HYPEUSDT",
+      "side": "Buy",
+      "avgPrice": 29.119,
+      "stopLoss": 28.670395,
+      "size": 8.59,
+      "positionValue": 250.13221,
+      "unrealisedPnl": 0
+    },
+    {
+      "symbol": "BNBUSDT",
+      "side": "Buy",
+      "avgPrice": 750.4,
+      "stopLoss": 739.0455,
+      "size": 0.33,
+      "positionValue": 247.632,
+      "unrealisedPnl": 0
+    },
+    {
+      "symbol": "1000NEIROCTOUSDT",
+      "side": "Sell",
+      "size": "2862.0",
+      "avgPrice": "0.08734",
+      "leverage": "50",
+      "stopLoss": "0.0882134",
+      "takeProfit": "0.0855932",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "NIGHTUSDT",
+      "side": "Buy",
+      "size": "5358.0",
+      "avgPrice": "0.04666",
+      "leverage": "50",
+      "stopLoss": "0.04638",
+      "takeProfit": "0.0475932",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "OMUSDT",
+      "side": "Buy",
+      "size": "4891.0",
+      "avgPrice": "0.0511",
+      "leverage": "50",
+      "stopLoss": "0.0505989",
+      "takeProfit": "0.052132200000000004",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "JTOUSDT",
+      "side": "Sell",
+      "size": "854.7",
+      "avgPrice": "0.2926",
+      "leverage": "50",
+      "stopLoss": "0.295425",
+      "takeProfit": "0.28664999999999996",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "side": "Buy",
+      "avgPrice": 0.1037,
+      "stopLoss": "0.10432",
+      "size": 2412.0,
+      "positionValue": 250.1244,
+      "unrealisedPnl": 0
+    }
+  ],
+  "balance": 67.07282340000006,
+  "history": [
+    {
+      "symbol": "DOGEUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.1037",
+      "avgExitPrice": "0.1056",
+      "closedPnl": "0.8866399999999995",
+      "leverage": "50.0",
+      "qty": "500.0",
+      "updatedTime": "1769969385586"
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "123.65",
+      "avgExitPrice": "125.91",
+      "closedPnl": "-0.9644367999999963",
+      "leverage": "50.0",
+      "qty": "0.4",
+      "updatedTime": "1769969388284"
+    },
+    {
+      "symbol": "AXSUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "1.7619",
+      "avgExitPrice": "1.7971",
+      "closedPnl": "-5.297154535999986",
+      "leverage": "50.0",
+      "qty": "141.8",
+      "updatedTime": "1769969390967"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "9.848",
+      "avgExitPrice": "10.01",
+      "closedPnl": "-4.4199047999999745",
+      "leverage": "50.0",
+      "qty": "25.4",
+      "updatedTime": "1769969393685"
+    },
+    {
+      "symbol": "ASTERUSDT.P",
+      "side": "Sell",
+      "avgEntryPrice": "0.5334",
+      "avgExitPrice": "0.5449",
+      "closedPnl": "-5.7123236000000315",
+      "leverage": "50.0",
+      "qty": "470.0",
+      "updatedTime": "1769969395532"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "0.2881",
+      "avgExitPrice": "0.2907",
+      "closedPnl": "-3.3705241199999896",
+      "leverage": "50.0",
+      "qty": "1143.0",
+      "updatedTime": "1769969399097"
+    },
+    {
+      "symbol": "PAXGUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "4839.7",
+      "avgExitPrice": "4850.2",
+      "closedPnl": "-0.8486524799999999",
+      "leverage": "50.0",
+      "qty": "0.052",
+      "updatedTime": "1769969400898"
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "123.65",
+      "avgExitPrice": "125.97",
+      "closedPnl": "-4.991751279999987",
+      "leverage": "50.0",
+      "qty": "2.02",
+      "updatedTime": "1769969491022"
+    },
+    {
+      "symbol": "AXSUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "1.7619",
+      "avgExitPrice": "1.7979",
+      "closedPnl": "-5.410730664000005",
+      "leverage": "50.0",
+      "qty": "141.8",
+      "updatedTime": "1769969556759"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "0.2881",
+      "avgExitPrice": "0.2902",
+      "closedPnl": "-2.7983383199999894",
+      "leverage": "50.0",
+      "qty": "1143.0",
+      "updatedTime": "1769969557868"
+    }
+  ]
+}

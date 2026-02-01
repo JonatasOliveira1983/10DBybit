@@ -1,6 +1,8 @@
-import logging
 import asyncio
+import logging
 import time
+import json
+import os
 from pybit.unified_trading import HTTP
 from config import settings
 
@@ -22,6 +24,39 @@ class BybitREST:
         self._paper_engine_task = None
         self._instrument_cache = {} # Cache for tickSize and stepSize
         self.last_balance = 0.0 # V5.2.4.6: Cache for non-blocking health checks
+        self.PAPER_STORAGE_FILE = "paper_storage.json"
+
+    def _load_paper_state(self):
+        """Loads paper positions and balance from disk."""
+        if self.execution_mode != "PAPER": return
+        try:
+            if os.path.exists(self.PAPER_STORAGE_FILE):
+                with open(self.PAPER_STORAGE_FILE, 'r') as f:
+                    data = json.load(f)
+                    self.paper_positions = data.get("positions", [])
+                    self.paper_balance = data.get("balance", settings.BYBIT_SIMULATED_BALANCE)
+                    self.paper_orders_history = data.get("history", [])
+                logger.info(f"📂 [PAPER] State loaded. Positions: {len(self.paper_positions)} | Balance: ${self.paper_balance:.2f}")
+            else:
+                logger.info("📂 [PAPER] No storage file found. Starting fresh.")
+        except Exception as e:
+            logger.error(f"❌ [PAPER] Failed to load state: {e}")
+
+    def _save_paper_state(self):
+        """Saves paper positions and balance to disk."""
+        if self.execution_mode != "PAPER": return
+        try:
+            data = {
+                "positions": self.paper_positions,
+                "balance": self.paper_balance,
+                "history": self.paper_orders_history[-50:] # Keep last 50 only
+            }
+            with open(self.PAPER_STORAGE_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+            # logger.debug("💾 [PAPER] State saved.")
+        except Exception as e:
+            logger.error(f"❌ [PAPER] Failed to save state: {e}")
+
     def _strip_p(self, symbol: str) -> str:
         """Strips the .P suffix for Bybit API calls."""
         if not symbol: return symbol
@@ -67,6 +102,11 @@ class BybitREST:
         )
         self.is_initialized = True
         logger.info("BybitREST: Session initialized.")
+        
+        # Load Paper State on startup
+        if self.execution_mode == "PAPER":
+            self._load_paper_state()
+
 
     @property
     def session(self):
@@ -175,7 +215,8 @@ class BybitREST:
         """Fetches currently open linear positions (Real or Simulated)."""
         if self.execution_mode == "PAPER":
             if symbol:
-                return [p for p in self.paper_positions if p["symbol"] == symbol]
+                norm_symbol = self._strip_p(symbol).upper()
+                return [p for p in self.paper_positions if p["symbol"].upper() == norm_symbol]
             return self.paper_positions
 
         try:
@@ -294,6 +335,7 @@ class BybitREST:
                 
                 self.paper_positions.append(new_position)
                 logger.info(f"[PAPER] Position Created: {api_symbol} Entry={last_price}")
+                self._save_paper_state()
                 
                 # Return fake order response
                 return {
@@ -334,9 +376,11 @@ class BybitREST:
     async def close_position(self, symbol: str, side: str, qty: float):
         """Closes a position at market."""
         if self.execution_mode == "PAPER":
-            logger.info(f"[PAPER] Closing position {symbol}")
+            # [V5.2.5] Precision Shield: Normalize symbol for PAPER lookup
+            norm_symbol = self._strip_p(symbol).upper()
+            logger.info(f"[PAPER] Closing position {norm_symbol}")
             # Find position
-            pos = next((p for p in self.paper_positions if p["symbol"] == symbol), None)
+            pos = next((p for p in self.paper_positions if p["symbol"].upper() == norm_symbol), None)
             if pos:
                 # Calculate Realized PNL to update Paper Balance
                 try:
@@ -367,6 +411,7 @@ class BybitREST:
                     if pos in self.paper_positions:
                         self.paper_positions.remove(pos)
                     logger.info(f"[PAPER] Closed {symbol}. PNL: ${final_pnl:.2f}. New Balance: ${self.paper_balance:.2f}")
+                    self._save_paper_state()
                     return {"retCode": 0}
                 except Exception as e:
                     logger.error(f"[PAPER] Error during position closure: {e}")
@@ -434,6 +479,7 @@ class BybitREST:
             pos = next((p for p in self.paper_positions if p["symbol"] == api_symbol), None)
             if pos:
                 pos["stopLoss"] = str(stopLoss)
+                self._save_paper_state()
                 return {"retCode": 0, "result": {}}
             else:
                 return {"retCode": 10001, "retMsg": f"Position {api_symbol} not found in Paper Trading"}
@@ -527,11 +573,11 @@ class BybitREST:
                     # 4. Execute Protocol Logic
                     should_close, reason, new_sl = await execution_protocol.process_order_logic(slot_data, current_price)
 
-                    # DEBUG V5.2.8: Trace Logic
-                    if "PEPE" in symbol:
+                    # [V5.2.5] ELITE FIX: Always process closure if should_close is TRUE
+                    if should_close:
                         # Re-calculate ROI for log
                         debug_roi = execution_protocol.calculate_roi(slot_data["entry_price"], current_price, slot_data["side"])
-                        logger.info(f"🧐 DEBUG LOGIC: {symbol} | ROI: {debug_roi:.2f}% | Should Close: {should_close} | Reason: {reason} | SL: {slot_data.get('current_stop')}")
+                        logger.info(f"🧐 [PAPER] PROTOCOL HIT: {symbol} | ROI: {debug_roi:.2f}% | Reason: {reason}")
 
                         to_close.append({
                             "symbol": symbol,
@@ -539,7 +585,7 @@ class BybitREST:
                             "size": float(pos["size"]),
                             "reason": reason,
                             "slot_id": slot_data.get("slot_id"),
-                            "slot_type": slot_data.get("slot_type", "SNIPER"), # Store type here
+                            "slot_type": slot_data.get("slot_type", "SNIPER"),
                             "entry_price": slot_data["entry_price"],
                             "exit_price": current_price
                         })
