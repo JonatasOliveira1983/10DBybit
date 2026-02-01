@@ -61,10 +61,29 @@ class BankrollManager:
                 norm_symbol = (bybit_rest_service._strip_p(symbol) or "").upper()
                 slot_id = slot["id"]
 
-                # V4.2.6: Persistence Shield - Don't even touch if opened in the last 120 seconds
+                # V4.2.6: Persistence Shield - Don't even touch if opened in the last 10 seconds
                 entry_ts = slot.get("timestamp_last_update") or 0
-                if (time.time() - entry_ts) < 120:
+                if (time.time() - entry_ts) < 10:
                      continue
+
+                if norm_symbol in exchange_map:
+                    # UPDATING ACTIVE SLOT WITH REAL EXCHANGE DATA
+                    pos = exchange_map[norm_symbol]
+                    real_margin = float(pos.get("positionIM", 0))
+                    if real_margin <= 0:
+                        real_margin = (float(pos.get("size", 0)) * float(pos.get("avgPrice", 0))) / 50
+                    
+                    unrealised_pnl = float(pos.get("unrealisedPnl", 0))
+                    pnl_pct = (unrealised_pnl / real_margin * 100) if real_margin > 0 else 0
+                    
+                    await firebase_service.update_slot(slot_id, {
+                        "entry_margin": real_margin,
+                        "pnl_percent": pnl_pct,
+                        "qty": float(pos.get("size", 0)),
+                        "entry_price": float(pos.get("avgPrice", 0)),
+                        "timestamp_last_update": time.time()
+                    })
+                    continue
 
                 if bybit_rest_service.execution_mode == "PAPER":
                     if norm_symbol not in exchange_map:
@@ -140,7 +159,7 @@ class BankrollManager:
 
                         logger.warning(f"Sync [REAL]: Clearing stale slot {slot_id} for {symbol}")
                         await firebase_service.update_slot(slot_id, {
-                            "symbol": None, "entry_price": 0, "current_stop": 0, 
+                            "symbol": None, "entry_price": 0, "current_stop": 0, "entry_margin": 0,
                             "status_risco": "IDLE", "side": None, "pnl_percent": 0
                         })
 
@@ -159,9 +178,10 @@ class BankrollManager:
                     "symbol": symbol,
                     "side": pos.get("side"),
                     "entry_price": float(pos.get("avgPrice", 0)),
+                    "entry_margin": float(pos.get("positionIM", 0)),
                     "current_stop": float(pos.get("stopLoss", 0)),
                     "status_risco": "RECOVERED",
-                    "pnl_percent": 0,
+                    "pnl_percent": float(pos.get("unrealisedPnl", 0)) / float(pos.get("positionIM", 1)) * 100 if float(pos.get("positionIM", 0)) > 0 else 0,
                     "qty": float(pos.get("size", 0)),
                     "timestamp_last_update": time.time()
                 })
@@ -312,12 +332,19 @@ class BankrollManager:
                 trades = await firebase_service.get_trade_history(limit=1000)
                 total_pnl = sum(t.get("pnl", 0) for t in trades)
                 
+                # [V5.2.5] Fetch cycle-specific data from Vault Service
+                vault_status = await vault_service.get_cycle_status()
+                cycle_profit = vault_status.get("cycle_profit", 0)
+                vault_total = vault_status.get("vault_total", 0)
+                
                 await firebase_service.update_banca_status({
                     "id": banca.get("id", "status"),
                     "saldo_total": total_equity,
                     "risco_real_percent": real_risk,
                     "slots_disponiveis": available_slots_count,
-                    "lucro_total_acumulado": total_pnl  # NEW: Cumulative PNL
+                    "lucro_total_acumulado": total_pnl,
+                    "lucro_ciclo": cycle_profit,
+                    "vault_total": vault_total
                 })
                 
                 # Snapshot logging: Log once every 6 hours (approx)
@@ -387,7 +414,8 @@ class BankrollManager:
                 logger.warning(f"Balance too low: ${balance}")
                 return None
                 
-            margin = balance * self.margin_per_slot
+            # [V5.2.5] Margem Dinâmica: Obrigatória 5% do saldo total acumulado
+            margin = await vault_service.get_dynamic_margin()
             raw_qty = (margin * settings.LEVERAGE) / current_price
             
             import math
@@ -422,6 +450,7 @@ class BankrollManager:
                     "side": side,
                     "qty": qty,
                     "entry_price": current_price,
+                    "entry_margin": margin,
                     "current_stop": final_sl,
                     "target_price": final_tp,
                     "slot_type": slot_type,

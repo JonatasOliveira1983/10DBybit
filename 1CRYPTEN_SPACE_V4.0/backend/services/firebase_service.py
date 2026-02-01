@@ -199,12 +199,20 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error logging trade: {e}")
 
-    async def get_trade_history(self, limit: int = 50):
-        """Fetches completed trade history."""
+    async def get_trade_history(self, limit: int = 50, last_timestamp: str = None):
+        """
+        Fetches completed trade history with pagination support.
+        [V5.2.5] Support for last_timestamp to enable infinite scroll/pagination.
+        """
         if not self.is_active: return []
         try:
             def _get_trades():
-                docs = self.db.collection("trade_history").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(limit).stream()
+                query = self.db.collection("trade_history").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(limit)
+                
+                if last_timestamp:
+                    query = query.start_after({"timestamp": last_timestamp})
+                
+                docs = query.stream()
                 return [doc.to_dict() for doc in docs]
             return await asyncio.to_thread(_get_trades)
         except Exception as e:

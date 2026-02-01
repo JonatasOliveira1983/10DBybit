@@ -1,4 +1,4 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.2.4.8) 🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.3) 🛰️
 
 Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE. Utilize este contexto para planejar melhorias em lógica de IA, otimização de execução e interface.
 
@@ -18,7 +18,7 @@ O sistema opera de forma assíncrona com três camadas integradas:
 
 ### 🛡️ Agents (services/agents/)
 - **Captain (`captain.py`)**: Orquestrador tático. Escaneia sinais, verifica protocolos de risco (Bankroll) e cooldowns. Único agente autorizado a abrir ordens.
-- **Guardian (`guardian.py`)**: Zelador das posições. Monitora lucros em tempo real, move o Stop Loss (Adaptive SL) e executa o fechamento forçado em Flash Zone.
+- **Guardian (`guardian.py`)**: Zelador das posições. Monitora lucros em tempo real, move o Stop Loss (Overdrive/Trailing) e gerencia o fechamento.
 - **Signal Generator (`signal_generator.py`)**: Analisador de mercado. Transforma dados brutos de CVD (Cumulative Volume Delta) em scores de oportunidade (75-99).
 - **AI Service (`ai_service.py`)**: Ponte para modelos LLM (Gemini 1.5 Pro/Flash, OpenAI, OpenRouter). Gerencia o contexto e a personalidade do Capitão.
 
@@ -54,7 +54,7 @@ O sistema opera de forma assíncrona com três camadas integradas:
 ## 4. Estrutura de Páginas (Frontend) 🖥️
 
 - **Dashboard**: "Torre de Controle" com lucro total, status dos agentes e pulso de mercado.
-- **Slots**: Interface tática visualizando ROI dinâmico e botões de pânico por par.
+- **Slots**: Interface tática visualizando ROI dinâmico, Squads e botões de pânico por par.
 - **Radar**: Lista de sinais detectados.
 - **History**: Registro forense de todos os trades realizados.
 - **Vault**: Dashboard do progresso para o saque de 20 trades.
@@ -73,20 +73,21 @@ O sistema opera de forma assíncrona com três camadas integradas:
 
 ---
 
-## 5. Protocolos Estratégicos 📜
+## 5. Protocolos Estratégicos (V5.3) 📜
 
-### 🎯 SNIPER Adaptive SL
-- Alvo: 100% ROI.
-- Trailing: SL sobe em ROI 15%, 30%, 50% e 70%.
-- **Flash Zone**: Ao atingir 80% ROI, o modo Overclock (200ms) trava o lucro para garantir o win.
+### 🎯 SNIPER OVERDRIVE (Upgrade V5.3)
+- **Modo Overdrive**: Ativado quando ROI >= 100%.
+- **Floor Protection**: Assim que atinge 100% de lucro, o SL é movido para garantir esses 100% (Risco Zero de devolução de lucro).
+- **Chase Logic**: Se o preço continua subindo (150%, 200%...), o Stop Loss persegue o topo mantendo uma distância de 20%.
+- **Trailing Pré-100%**: SL sobe em ROI 15%, 30%, 50% e 70% (Escada Adaptativa Clássica).
 
 ### 🏄 SURF Trailing
 - Alvo: Infinito.
 - Trailing: Escada de 8 níveis baseada em máximas atingidas.
-- **Risk Zero**: Ativado automaticamente ao atingir 10% ROI.
+- **Risk Zero**: Ativado automaticamente ao atingir 50% ROI.
 
 ### ⏱️ Cooldown Anti-Whipsaw
 - Pausa técnica de 5 minutos após qualquer trade fechado por Stop Loss para evitar overtrading em mercados sem tendência.
 
 ---
-*Versão do Documento: 5.2.4.8 | Contexto para Gemini AI*
+*Versão do Documento: 5.3 | Contexto para Gemini AI*

@@ -59,13 +59,23 @@
             background: linear-gradient(180deg, #0a0a0a 0%, #121212 100%);
         }
 
+        /* [V5.2.5] Discrete Scrollbar */
         .custom-scroll::-webkit-scrollbar {
-            width: 4px;
+            width: 3px;
+            height: 3px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
         }
 
         .custom-scroll::-webkit-scrollbar-thumb {
-            background: #333;
+            background: rgba(0, 224, 255, 0.1);
             border-radius: 10px;
+        }
+
+        .custom-scroll:hover::-webkit-scrollbar-thumb {
+            background: rgba(0, 224, 255, 0.3);
         }
 
         /* Layout 70/30 para gráfico e slots - FORÇADO */
@@ -305,13 +315,13 @@
         <div class="flex justify-between items-end mt-2 sm:mt-4">
             <div>
                 <p class="text-[10px] sm:text-xs text-slate-400 font-medium uppercase tracking-tighter">Total Equity</p>
-                <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">$142,850.42</h2>
+                <h2 id="total-equity" class="text-2xl sm:text-3xl font-bold tracking-tight text-white">$0.00</h2>
             </div>
             <div class="text-right">
                 <p class="text-[10px] sm:text-xs text-slate-400 font-medium uppercase tracking-tighter">Risk Level</p>
                 <div class="flex items-center gap-1 sm:gap-1.5 justify-end">
-                    <span class="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <h3 class="text-base sm:text-xl font-mono text-emerald-400">1.25%</h3>
+                    <span id="risk-dot" class="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-slate-500"></span>
+                    <h3 id="risk-level" class="text-base sm:text-xl font-mono text-slate-400">0.00%</h3>
                 </div>
             </div>
         </div>
@@ -352,115 +362,12 @@
             </div>
         </section>
         <section class="slots-container px-3 sm:px-4 py-3 sm:py-4 custom-scroll">
-            <h3
+            <h3 id="slots-header"
                 class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 sm:mb-4 flex items-center gap-2">
-                Active Deployments <span class="h-1 w-1 rounded-full bg-slate-500"></span> 5 Assets
+                Active Deployments <span class="h-1 w-1 rounded-full bg-slate-500"></span> 0 Assets
             </h3>
-            <div class="grid grid-cols-2 gap-2 sm:gap-3">
-                <div
-                    class="slot-card bg-card dark:bg-card p-2.5 sm:p-4 rounded-lg sm:rounded-xl border border-white/5 gold-glow flex flex-col justify-between">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-white text-sm sm:text-base">BTC/USDT</h4>
-                            <p
-                                class="text-[8px] sm:text-[10px] text-gold font-bold uppercase tracking-tighter flex items-center gap-0.5 sm:gap-1">
-                                <span class="material-icons-round text-[10px] sm:text-[12px]">verified</span> Zero Risk
-                            </p>
-                        </div>
-                        <span class="text-[10px] sm:text-xs font-mono text-emerald-400">+12.4%</span>
-                    </div>
-                    <div class="mt-2 sm:mt-4">
-                        <div class="flex justify-between text-[8px] sm:text-[9px] text-slate-500 mb-1">
-                            <span>GAS</span>
-                            <span>84%</span>
-                        </div>
-                        <div class="w-full h-0.5 sm:h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-gold" style="width: 84%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    class="slot-card bg-card dark:bg-card p-2.5 sm:p-4 rounded-lg sm:rounded-xl border border-white/5 flex flex-col justify-between">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-white text-sm sm:text-base">ETH/USDT</h4>
-                            <p class="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                Trailing Stop</p>
-                        </div>
-                        <span class="text-[10px] sm:text-xs font-mono text-emerald-400">+5.2%</span>
-                    </div>
-                    <div class="mt-2 sm:mt-4">
-                        <div class="flex justify-between text-[8px] sm:text-[9px] text-slate-500 mb-1">
-                            <span>GAS</span>
-                            <span>42%</span>
-                        </div>
-                        <div class="w-full h-0.5 sm:h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-primary" style="width: 42%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    class="slot-card bg-card dark:bg-card p-2.5 sm:p-4 rounded-lg sm:rounded-xl border border-white/5 flex flex-col justify-between">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-white text-sm sm:text-base">SOL/USDT</h4>
-                            <p class="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-tighter">At
-                                Entry</p>
-                        </div>
-                        <span class="text-[10px] sm:text-xs font-mono text-slate-400">0.0%</span>
-                    </div>
-                    <div class="mt-2 sm:mt-4">
-                        <div class="flex justify-between text-[8px] sm:text-[9px] text-slate-500 mb-1">
-                            <span>GAS</span>
-                            <span>15%</span>
-                        </div>
-                        <div class="w-full h-0.5 sm:h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-primary" style="width: 15%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    class="slot-card bg-card dark:bg-card p-2.5 sm:p-4 rounded-lg sm:rounded-xl border border-white/5 gold-glow flex flex-col justify-between">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-white text-sm sm:text-base">AVAX/USDT</h4>
-                            <p
-                                class="text-[8px] sm:text-[10px] text-gold font-bold uppercase tracking-tighter flex items-center gap-0.5 sm:gap-1">
-                                <span class="material-icons-round text-[10px] sm:text-[12px]">verified</span> Zero Risk
-                            </p>
-                        </div>
-                        <span class="text-[10px] sm:text-xs font-mono text-emerald-400">+45.8%</span>
-                    </div>
-                    <div class="mt-2 sm:mt-4">
-                        <div class="flex justify-between text-[8px] sm:text-[9px] text-slate-500 mb-1">
-                            <span>GAS</span>
-                            <span>95%</span>
-                        </div>
-                        <div class="w-full h-0.5 sm:h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-gold" style="width: 95%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    class="slot-card bg-card dark:bg-card p-2.5 sm:p-4 rounded-lg sm:rounded-xl border border-white/5 flex flex-col justify-between">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-white text-sm sm:text-base">LINK/USDT</h4>
-                            <p class="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-tighter">In
-                                Drawdown</p>
-                        </div>
-                        <span class="text-[10px] sm:text-xs font-mono text-danger">-2.1%</span>
-                    </div>
-                    <div class="mt-2 sm:mt-4">
-                        <div class="flex justify-between text-[8px] sm:text-[9px] text-slate-500 mb-1">
-                            <span>GAS</span>
-                            <span>8%</span>
-                        </div>
-                        <div class="w-full h-0.5 sm:h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-primary" style="width: 8%"></div>
-                        </div>
-                    </div>
-                </div>
+            <div id="slots-list" class="grid grid-cols-2 gap-2 sm:gap-3">
+                <!-- Slots dynamic -->
             </div>
         </section>
     </main>
@@ -595,7 +502,74 @@
 
         // Initial load
         fetchLogs();
+        fetchBancaStatus();
+        fetchActiveSlots();
+
         setInterval(fetchLogs, 10000);
+        setInterval(fetchBancaStatus, 15000);
+        setInterval(fetchActiveSlots, 5000);
+
+        async function fetchBancaStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/api/stats`);
+                const data = await res.json();
+
+                document.getElementById('total-equity').textContent = `$${(data.saldo_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                const risk = (data.risco_real_percent || 0) * 100;
+                document.getElementById('risk-level').textContent = `${risk.toFixed(2)}%`;
+
+                const dot = document.getElementById('risk-dot');
+                dot.className = "h-2 w-2 rounded-full animate-pulse " + (risk > 10 ? 'bg-danger' : (risk > 5 ? 'bg-orange-400' : 'bg-emerald-500'));
+                document.getElementById('risk-level').className = "text-xl font-mono " + (risk > 10 ? 'text-danger' : (risk > 5 ? 'text-orange-400' : 'text-emerald-400'));
+            } catch (e) { }
+        }
+
+        async function fetchActiveSlots() {
+            try {
+                const res = await fetch(`${API_BASE}/api/slots`);
+                const slots = await res.json();
+                const active = slots.filter(s => s.symbol);
+
+                document.getElementById('slots-header').innerHTML = `Active Deployments <span class="h-1 w-1 rounded-full bg-slate-500"></span> ${active.length} Assets`;
+
+                const container = document.getElementById('slots-list');
+                if (active.length === 0) {
+                    container.innerHTML = `<div class="col-span-2 py-10 text-center opacity-30 uppercase font-bold text-[10px]">Silêncio Radar: Aguardando Sinais</div>`;
+                    return;
+                }
+
+                container.innerHTML = active.map(s => {
+                    const pnl = s.pnl_percent || 0;
+                    const pnlClass = pnl >= 0 ? 'text-emerald-400' : 'text-danger';
+                    const isZeroRisk = s.status_risco && (s.status_risco.includes('RISK ZERO') || s.status_risco.includes('PROTEGIDO'));
+                    const borderClass = isZeroRisk ? 'gold-glow' : 'border-white/5';
+                    const gas = Math.min(100, Math.max(0, pnl * 2)); // Dynamic visual gas
+
+                    return `
+                        <div class="slot-card bg-card p-4 rounded-xl border ${borderClass} flex flex-col justify-between transition-all">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-white text-base">${s.symbol}</h4>
+                                    <p class="text-[10px] ${isZeroRisk ? 'text-gold' : 'text-slate-500'} font-bold uppercase tracking-tighter flex items-center gap-1">
+                                        ${isZeroRisk ? '<span class="material-icons-round text-[12px]">verified</span> Zero Risk' : (s.slot_type || 'Sniper')}
+                                    </p>
+                                </div>
+                                <span class="text-xs font-mono ${pnlClass}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%</span>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex justify-between text-[9px] text-slate-500 mb-1">
+                                    <span>PNL RELATIVO</span>
+                                    <span>${pnl.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div class="h-full ${isZeroRisk ? 'bg-gold' : 'bg-primary'}" style="width: ${Math.abs(pnl)}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) { }
+        }
     </script>
 </body>
 

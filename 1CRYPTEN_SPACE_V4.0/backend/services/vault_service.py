@@ -62,7 +62,9 @@ class VaultService:
             "rest_until": None,
             "vault_total": 0.0,
             "cautious_mode": False,
-            "min_score_threshold": 75
+            "min_score_threshold": 75,
+            "total_trades_cycle": 0,    # [V5.2.5] Contador para Meta 100
+            "accumulated_vault": 0.0    # [V5.2.5] Saldo base + lucros para Juros Compostos
         }
     
     async def initialize_cycle(self):
@@ -120,11 +122,13 @@ class VaultService:
                 result_label = "LOSS ❌"
                 
             new_profit = current.get("cycle_profit", 0) + pnl
+            new_total_trades = current.get("total_trades_cycle", 0) + 1
             
             update_data = {
                 "sniper_wins": new_wins,
                 "cycle_losses": new_losses,
-                "cycle_profit": new_profit
+                "cycle_profit": new_profit,
+                "total_trades_cycle": new_total_trades
             }
             
             def _update():
@@ -132,8 +136,13 @@ class VaultService:
             
             await asyncio.to_thread(_update)
             
+            # [V5.2.5] Meta 100 Trigger
+            if new_total_trades >= 100:
+                await firebase_service.log_event("VAULT", "🚨 META 100 ATINGIDA! Sistema bloqueado para extração de 50% do lucro.", "SUCCESS")
+                # Trigger voice alert (placeholder for TTS implementation)
+                
             event_type = "SUCCESS" if pnl > 0 else "WARNING"
-            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/20 | PnL: ${pnl:.2f}"
+            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/20 | Trade #{new_total_trades}/100 | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
             
             if new_wins >= 20:
@@ -203,15 +212,16 @@ class VaultService:
             update_data = {
                 "sniper_wins": new_wins,
                 "cycle_profit": new_profit,
-                "cycle_losses": new_losses
+                "cycle_losses": new_losses,
+                "total_trades_cycle": len(trades)
             }
             
             def _push():
                 firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
             
             await asyncio.to_thread(_push)
-            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Profit: ${new_profit:.2f}")
-            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Profit: ${new_profit:.2f}", "SUCCESS")
+            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Total Trades: {len(trades)} | Profit: ${new_profit:.2f}")
+            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Trades: {len(trades)}/100 | Profit: ${new_profit:.2f}", "SUCCESS")
             
         except Exception as e:
             logger.error(f"Error syncing vault with history: {e}")
@@ -432,10 +442,32 @@ class VaultService:
                 rest_until = status.get("rest_until", "")
                 return False, f"Admiral's Rest ativo até {rest_until}"
             
+            # [V5.2.5] Meta 100 Block
+            if status.get("total_trades_cycle", 0) >= 100:
+                return False, "META 100 ATINGIDA: Extraia 50% do lucro para continuar."
+            
             return True, "Trading autorizado"
         except Exception as e:
             logger.error(f"Error checking trading permission: {e}")
             return True, "Fallback: Trading autorizado"
+
+    async def get_dynamic_margin(self) -> float:
+        """
+        [V5.2.5] Calcula a margem dinâmica: 5% do saldo total (Banca + Lucro Ciclo).
+        Garante o crescimento exponencial conforme planejado.
+        """
+        try:
+            from services.bybit_rest import bybit_rest_service
+            balance = await bybit_rest_service.get_wallet_balance()
+            
+            # Margem = 5% do saldo total atual
+            margin = balance * 0.05
+            
+            # Garantir mínimo de $5 para evitar ordens rejeitadas
+            return max(5.0, margin)
+        except Exception as e:
+            logger.error(f"Error calculating dynamic margin: {e}")
+            return 5.0
     
     async def get_min_score_threshold(self) -> int:
         """Retorna o threshold de score atual (75 normal, 85+ em modo cautela)."""

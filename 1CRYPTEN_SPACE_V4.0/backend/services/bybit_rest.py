@@ -228,6 +228,12 @@ class BybitREST:
         Rounds the price to the nearest tickSize allowed by Bybit.
         Essential for avoiding 10001 errors and ensuring 'Maker' precision.
         """
+        return await self.format_precision(symbol, price)
+
+    async def format_precision(self, symbol: str, price: float) -> float:
+        """
+        [V5.2.5] Precision Engine: Normaliza preços baseado no tickSize real da Bybit.
+        """
         if price <= 0: return price
         
         info = await self.get_instrument_info(symbol)
@@ -300,20 +306,23 @@ class BybitREST:
                 return None
 
         try:
-            api_symbol = self._strip_p(symbol)
+            # [V5.2.5] Precision Engine: Normalizar preços antes do envio
+            sl_final = await self.format_precision(symbol, sl_price)
+            tp_final = await self.format_precision(symbol, tp_price) if tp_price else None
+
             order_params = {
                 "category": self.category,
                 "symbol": api_symbol,
                 "side": side,
                 "orderType": "Market",
                 "qty": str(qty),
-                "stopLoss": str(sl_price),
+                "stopLoss": str(sl_final) if sl_final > 0 else None,
                 "tpTriggerBy": "LastPrice",
                 "slTriggerBy": "LastPrice",
-                "tpslMode": "Full", # Use Full T/SL mode
+                "tpslMode": "Full",
             }
-            if tp_price:
-                order_params["takeProfit"] = str(tp_price)
+            if tp_final:
+                order_params["takeProfit"] = str(tp_final)
 
             response = await asyncio.to_thread(self.session.place_order, **order_params)
             logger.info(f"Atomic order placed for {symbol}: {response}")
@@ -516,16 +525,21 @@ class BybitREST:
                     }
 
                     # 4. Execute Protocol Logic
-                    should_close, reason, new_sl = execution_protocol.process_order_logic(slot_data, current_price)
+                    should_close, reason, new_sl = await execution_protocol.process_order_logic(slot_data, current_price)
 
-                    if should_close:
-                        logger.info(f"🎯 [PAPER] CLOSE TRIGGERED: {symbol} | Reason: {reason} | Price: {current_price}")
+                    # DEBUG V5.2.8: Trace Logic
+                    if "PEPE" in symbol:
+                        # Re-calculate ROI for log
+                        debug_roi = execution_protocol.calculate_roi(slot_data["entry_price"], current_price, slot_data["side"])
+                        logger.info(f"🧐 DEBUG LOGIC: {symbol} | ROI: {debug_roi:.2f}% | Should Close: {should_close} | Reason: {reason} | SL: {slot_data.get('current_stop')}")
+
                         to_close.append({
                             "symbol": symbol,
                             "side": pos["side"],
                             "size": float(pos["size"]),
                             "reason": reason,
                             "slot_id": slot_data.get("slot_id"),
+                            "slot_type": slot_data.get("slot_type", "SNIPER"), # Store type here
                             "entry_price": slot_data["entry_price"],
                             "exit_price": current_price
                         })
@@ -558,7 +572,8 @@ class BybitREST:
                             "entry_price": entry,
                             "exit_price": exit_price,
                             "qty": size,
-                            "slot_id": slot_id
+                            "slot_id": slot_id,
+                            "slot_type": close_data.get("slot_type", "SNIPER") # Use stored type
                         }
                         
                         await firebase_service.hard_reset_slot(slot_id, close_data["reason"], pnl, trade_data)
@@ -570,7 +585,7 @@ class BybitREST:
                                 **trade_data,
                                 "pnl": pnl,
                                 "pnl_percent": (pnl / (close_data["entry_price"] * size / 50)) * 100 if size > 0 else 0, # Rough ROI estimate
-                                "slot_type": slot_data["slot_type"]
+                                "slot_type": close_data.get("slot_type", "SNIPER") # Use stored type
                             })
                         except Exception as e:
                             logger.error(f"[PAPER] Failed to notify bankroll of trade closure: {e}")

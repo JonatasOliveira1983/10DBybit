@@ -20,8 +20,9 @@ executor = ThreadPoolExecutor(max_workers=32)
 asyncio.get_event_loop().set_default_executor(executor)
 
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
-VERSION = "5.2.4.8"
-DEPLOYMENT_ID = "V5248_STARTUP_PROBE_FIX"
+# V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
+VERSION = "5.2.5"
+DEPLOYMENT_ID = "V525_PRECISION_ENGINE_VAULT_META100"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -371,14 +372,42 @@ async def get_stats():
     }
 
 @app.get("/api/history")
-async def get_history(limit: int = 50):
+async def get_history(limit: int = 50, last_timestamp: str = None):
     from services.firebase_service import firebase_service
     try:
-        # Fetch real trade history instead of generic signals
-        return await firebase_service.get_trade_history(limit=limit)
+        # [V5.2.5] Support for pagination
+        return await firebase_service.get_trade_history(limit=limit, last_timestamp=last_timestamp)
     except Exception as e:
         logger.error(f"Error fetching trade history: {e}")
         return []
+
+@app.post("/api/history/report")
+async def get_trade_report(payload: dict):
+    """[V5.2.5] Generates a full AI report for a specific trade in PT-BR."""
+    from services.agents.ai_service import ai_service
+    trade_data = payload.get("trade_data")
+    if not trade_data:
+        return {"error": "Missing trade data"}
+    
+    symbol = trade_data.get("symbol", "Desconhecido")
+    pnl = trade_data.get("pnl", 0)
+    side = trade_data.get("side", "N/A")
+    roi = trade_data.get("roi", 0) # If available
+    
+    prompt = f"""
+    Como Capitão da 1CRYPTEN, gere um relatório detalhado e tático para o trade abaixo:
+    Símbolo: {symbol}
+    Lado: {side}
+    PnL: ${pnl:.2f}
+    ROI: {roi:.2f}% (se aplicável)
+    Motivo de Fechamento: {trade_data.get('close_reason', 'N/A')}
+    
+    O relatório deve ser em PT-BR, com tom de Comandante, analítico, destacando o que deu certo e lições aprendidas. 
+    Use markdown para formatação. Máximo 200 palavras.
+    """
+    
+    report = await ai_service.generate_content(prompt, system_instruction="Você é o Capitão 1CRYPTEN. Suas análises são a bíblia tática do Almirante.")
+    return {"report": report or "Sincronização neural falhou ao gerar o relatório."}
 
 @app.get("/api/logs")
 async def get_logs(limit: int = 50):
@@ -433,44 +462,117 @@ async def text_to_speech(payload: dict):
     import io
     
     text = payload.get("text", "")
-    # V5.0.1: FORCE ANTONIO VOICE - User reported Francisca appearing in production
+    # [V5.2.5] USE GOOGLE NEURAL EQUIVALENT (pt-BR-AntonioNeural is Microsoft's best male, 
+    # but we will try to use Google if credentials exist, otherwise Antonio)
     voice = payload.get("voice", "pt-BR-AntonioNeural")
-    if "Francisca" in voice:
-        logger.warning(f"⚠️ TTS: Francisca voice requested, OVERRIDING to Antonio")
-        voice = "pt-BR-AntonioNeural"
     
     if not text:
         return {"error": "No text provided"}
     
-    logger.info(f"🎤 TTS V5.0.1: '{text[:30]}...' using VOICE={voice}")
+    logger.info(f"🎤 TTS V5.2.5: '{text[:30]}...' using VOICE={voice}")
     try:
-        # Generate audio
-        communicate = edge_tts.Communicate(text, voice)
-        audio_data = io.BytesIO()
-        
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data.write(chunk["data"])
-        
-        audio_data.seek(0)
-        audio_base64 = base64.b64encode(audio_data.read()).decode("utf-8")
-        
-        return {
-            "audio": audio_base64,
-            "format": "mp3",
-            "voice": voice
-        }
+        # [V5.2.5] GOOGLE CLOUD TTS IMPLEMENTATION
+        try:
+            from google.cloud import texttospeech
+            import os
+            
+            # Use service account if available
+            creds_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
+            if os.path.exists(creds_path):
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+                
+            client = texttospeech.TextToSpeechClient()
+            synthesis_input = texttospeech.SynthesisInput(text=text)
+            
+            # Select the voice: Neural2-B (requested)
+            target_voice = "pt-BR-Neural2-B" if "Neural2" in voice or "Wavenet-B" in voice else "pt-BR-Wavenet-B"
+            
+            voice_params = texttospeech.VoiceSelectionParams(
+                language_code="pt-BR",
+                name=target_voice
+            )
+            audio_config = texttospeech.AudioConfig(
+                audio_encoding=texttospeech.AudioEncoding.MP3
+            )
+            
+            response = client.synthesize_speech(
+                input=synthesis_input, voice=voice_params, audio_config=audio_config
+            )
+            audio_base64 = base64.b64encode(response.audio_content).decode("utf-8")
+            
+            return {
+                "audio": audio_base64,
+                "format": "mp3",
+                "voice": target_voice,
+                "provider": "google"
+            }
+        except Exception as google_err:
+            logger.warning(f"⚠️ Google TTS failed, falling back to Edge-TTS: {google_err}")
+            
+            # Fallback to Edge-TTS
+            import edge_tts
+            communicate = edge_tts.Communicate(text, "pt-BR-AntonioNeural")
+            audio_data = io.BytesIO()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data.write(chunk["data"])
+            
+            audio_data.seek(0)
+            audio_base64 = base64.b64encode(audio_data.read()).decode("utf-8")
+            
+            return {
+                "audio": audio_base64,
+                "format": "mp3",
+                "voice": "pt-BR-AntonioNeural",
+                "provider": "edge"
+            }
     except Exception as e:
-        logger.error(f"TTS Error: {e}")
+        logger.error(f"TTS Total Failure: {e}")
         return {"error": str(e)}
+
+@app.get("/api/pnl/live")
+async def get_live_pnl():
+    """[V5.2.5] Returns dynamic ROI for all active slots using BybitWS prices."""
+    from services.firebase_service import firebase_service
+    from services.bybit_ws import bybit_ws_service
+    from services.execution_protocol import execution_protocol
+    
+    try:
+        slots = await firebase_service.get_active_slots()
+        pnl_data = []
+        
+        for slot in slots:
+            symbol = slot.get("symbol")
+            if not symbol: continue
+            
+            entry = slot.get("entry_price", 0)
+            if entry <= 0: continue
+            
+            current_price = bybit_ws_service.get_current_price(symbol)
+            if current_price <= 0: continue
+            
+            side = (slot.get("side") or "").upper()
+            roi = execution_protocol.calculate_roi(entry, current_price, side)
+            
+            pnl_data.append({
+                "id": slot["id"],
+                "symbol": symbol,
+                "roi": roi,
+                "current_price": current_price,
+                "visual_status": execution_protocol.get_visual_status(slot, roi)
+            })
+            
+        return pnl_data
+    except Exception as e:
+        logger.error(f"Live PnL Error: {e}")
+        return []
 
 
 @app.get("/api/tts/voices")
 async def get_tts_voices():
-    """List available premium voices for TTS."""
+    """List available premium voices for TTS. Francisca removed."""
     return {
         "voices": [
-            {"id": "pt-BR-FranciscaNeural", "name": "Francisca", "lang": "pt-BR", "gender": "Female"},
             {"id": "pt-BR-AntonioNeural", "name": "Antonio", "lang": "pt-BR", "gender": "Male"},
             {"id": "en-US-GuyNeural", "name": "Guy", "lang": "en-US", "gender": "Male"},
             {"id": "en-US-JennyNeural", "name": "Jenny", "lang": "en-US", "gender": "Female"},

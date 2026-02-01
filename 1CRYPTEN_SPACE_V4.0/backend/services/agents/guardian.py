@@ -192,7 +192,7 @@ class GuardianAgent:
                 # V5.0: SNIPER ADAPTIVE SL LOGIC (TP, SL & Trailing)
                 # ==========================================
                 if slot_type == "SNIPER":
-                    should_close, close_reason, new_stop = execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
+                    should_close, close_reason, new_stop = await execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
                     
                     if should_close:
                         is_stop_loss = "SL" in close_reason or pnl_pct < 0
@@ -268,7 +268,7 @@ class GuardianAgent:
                 # V4.5.1: SURF SHIELD LOGIC (Trailing SL)
                 # ==========================================
                 if slot_type == "SURF":
-                    should_close, close_reason, new_stop = execution_protocol.process_surf_logic(slot_data, last_price, pnl_pct)
+                    should_close, close_reason, new_stop = await execution_protocol.process_surf_logic(slot_data, last_price, pnl_pct)
                     
                     if should_close:
                         is_stop_loss = "SL" in close_reason or "STOP" in close_reason or pnl_pct < 0

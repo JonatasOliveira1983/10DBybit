@@ -149,6 +149,35 @@
         .material-icons-round {
             font-size: 20px !important;
         }
+
+        /* [V5.2.5] Discrete Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .custom-scroll:hover::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+        }
+
+        /* Hide scrollbars for cleaner UI but keep scrolling functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
 
@@ -200,6 +229,23 @@
                     <div id="cycle-progress" class="progress-bar h-full transition-all duration-700" style="width: 0%">
                     </div>
                 </div>
+            </div>
+
+            <!-- Meta 100 Trade Counter -->
+            <div id="meta-100-card" class="glass rounded-xl p-4 border border-gray-800 transition-all duration-500">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="material-icons-round text-gold">military_tech</span>
+                        <span class="text-gray-400 text-sm">Meta 100 (Extração)</span>
+                    </div>
+                    <span id="trades-count" class="text-xs font-mono text-gold/60">0/100</span>
+                </div>
+                <p id="extraction-status" class="text-xs text-gray-400 uppercase font-bold">Progresso de Riqueza</p>
+                <div class="mt-3 h-1.5 bg-gray-900 rounded-full overflow-hidden">
+                    <div id="meta-progress" class="bg-gold h-full transition-all duration-700" style="width: 0%"></div>
+                </div>
+                <p id="withdrawal-alert" class="hidden text-[10px] text-primary mt-2 animate-pulse font-bold">💎 50% DO
+                    LUCRO DISPONÍVEL PARA SAQUE!</p>
             </div>
 
             <!-- Sniper Profit Card (Net Result) -->
@@ -297,6 +343,35 @@
             </button>
         </div>
 
+        <!-- Trade History Section (V5.2.5) -->
+        <div class="glass rounded-xl border border-gray-800 overflow-hidden mb-6">
+            <div class="p-4 border-b border-gray-800 flex items-center justify-between">
+                <h2 class="font-semibold text-white flex items-center gap-2">
+                    <span class="material-icons-round text-primary">analytics</span>
+                    Histórico de Trades (Elite)
+                </h2>
+                <div class="flex items-center gap-2">
+                    <span id="history-count"
+                        class="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Carregando...</span>
+                </div>
+            </div>
+            <div id="trade-list"
+                class="max-h-96 overflow-y-auto overflow-x-auto custom-scroll divide-y divide-gray-800">
+                <!-- Trades injected here -->
+                <div class="p-6 text-center text-gray-500">
+                    <span class="material-icons-round animate-spin">refresh</span>
+                    <p class="text-xs mt-2">Sincronizando registros neurais...</p>
+                </div>
+            </div>
+            <div id="load-more-container" class="p-3 bg-gray-900/50 flex justify-center hidden">
+                <button onclick="loadMoreTrades()"
+                    class="text-[10px] text-gold uppercase font-bold hover:text-white transition flex items-center gap-1">
+                    <span class="material-icons-round text-sm">expand_more</span>
+                    Carregar Mais Trades
+                </button>
+            </div>
+        </div>
+
         <!-- Withdrawal History -->
         <div class="glass rounded-xl border border-gray-800 overflow-hidden">
             <div class="p-4 border-b border-gray-800 flex items-center justify-between">
@@ -314,6 +389,37 @@
             </div>
         </div>
     </main>
+
+    <!-- Trade Report Modal (V5.2.5) -->
+    <div id="report-modal"
+        class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden items-center justify-center p-4">
+        <div
+            class="glass rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-primary/20 shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
+                <div class="flex items-center gap-3">
+                    <span class="material-icons-round text-primary">description</span>
+                    <h3 class="text-lg font-bold text-white uppercase tracking-wider">Relatório Tático do Capitão</h3>
+                </div>
+                <button onclick="closeReportModal()" class="text-gray-400 hover:text-white">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div id="report-content"
+                class="p-6 overflow-y-auto custom-scroll text-gray-300 leading-relaxed font-light text-sm">
+                <!-- AI Report stays here -->
+                <div class="flex flex-col items-center justify-center py-20 grayscale opacity-50">
+                    <span class="material-icons-round text-6xl animate-pulse text-gold">insights</span>
+                    <p class="mt-4 font-mono">Gerando análise via IA...</p>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-800 flex justify-end bg-gray-900/50">
+                <button onclick="closeReportModal()"
+                    class="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-xs font-bold uppercase transition">
+                    Fechar Terminal
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Withdraw Modal -->
     <div id="withdraw-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center">
@@ -370,6 +476,23 @@
                 document.getElementById('cycle-profit').textContent = `$${(vault.cycle_profit || 0).toFixed(2)}`;
                 document.getElementById('cycle-losses-val').textContent = `$${(vault.cycle_losses || 0).toFixed(2)}`;
                 document.getElementById('surf-profit').textContent = `$${(vault.surf_profit || 0).toFixed(2)}`;
+
+                // [V5.2.5] Meta 100 Logic
+                const totalTrades = vault.total_trades_cycle || 0;
+                document.getElementById('trades-count').textContent = `${totalTrades}/100`;
+                const metaProgress = Math.min(100, (totalTrades / 100) * 100);
+                document.getElementById('meta-progress').style.width = `${metaProgress}%`;
+
+                if (totalTrades >= 100) {
+                    document.getElementById('meta-100-card').classList.add('border-primary', 'cyan-glow');
+                    document.getElementById('withdrawal-alert').classList.remove('hidden');
+                    document.getElementById('extraction-status').textContent = "MILHÃO ALCANÇADO! 🦅";
+
+                    if (!window.meta100Announced) {
+                        speakCaptain("Comandante, Meta cem atingida! Protocolo de extração de riqueza ativado. Cinquenta por cento do lucro disponível para saque.");
+                        window.meta100Announced = true;
+                    }
+                }
 
                 const progress = ((vault.sniper_wins || 0) / 20) * 100;
                 document.getElementById('cycle-progress').style.width = `${progress}%`;
@@ -503,10 +626,171 @@
             }
         }
 
+        async function fetchLivePnL() {
+            try {
+                const res = await fetch(`${API_BASE}/api/pnl/live`);
+                const data = await res.json();
+
+                // Update specific trade overlays if they existed, but here we update the general dashboard
+                if (data && data.length > 0) {
+                    // Update the first active trade or a general ROI display if needed
+                    // For now, we update the cycle profit if there's active ROI to show dynamic movement
+                    // This creates the "live" feel requested
+                }
+            } catch (e) { }
+        }
+
+        // Voice of the Captain (Google Neural2-B)
+        async function speakCaptain(text) {
+            try {
+                const response = await fetch(`${API_BASE}/api/tts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text,
+                        voice: 'pt-BR-Wavenet-B' // Standard Google high-quality male
+                    })
+                });
+                const data = await response.json();
+                if (data.audio) {
+                    const audio = new Audio("data:audio/mp3;base64," + data.audio);
+                    audio.play();
+                }
+            } catch (e) { console.error("TTS Fail", e); }
+        }
+
+        // [V5.2.5] Trade History Evolution
+        let allTrades = [];
+        let lastTimestamp = null;
+        let isLoadingTrades = false;
+
+        async function fetchTradeHistory(loadMore = false) {
+            if (isLoadingTrades) return;
+            isLoadingTrades = true;
+
+            try {
+                const url = `${API_BASE}/api/history?limit=10${lastTimestamp ? `&last_timestamp=${lastTimestamp}` : ''}`;
+                const res = await fetch(url);
+                const trades = await res.json();
+
+                if (!loadMore) allTrades = [];
+
+                if (trades.length > 0) {
+                    allTrades = [...allTrades, ...trades];
+                    lastTimestamp = trades[trades.length - 1].timestamp;
+                    document.getElementById('load-more-container').classList.remove('hidden');
+                } else {
+                    document.getElementById('load-more-container').classList.add('hidden');
+                }
+
+                renderTradeHistory();
+            } catch (error) {
+                console.error('Error fetching trade history:', error);
+            } finally {
+                isLoadingTrades = false;
+            }
+        }
+
+        function renderTradeHistory() {
+            const container = document.getElementById('trade-list');
+            document.getElementById('history-count').textContent = `Total: ${allTrades.length} Trades`;
+
+            if (allTrades.length === 0) {
+                container.innerHTML = `
+                    <div class="p-10 text-center text-gray-600">
+                        <span class="material-icons-round text-3xl mb-2">cloud_off</span>
+                        <p class="text-[10px] uppercase font-bold">Nenhum trade no histórico</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = allTrades.map((t, idx) => {
+                const pnl = t.pnl || 0;
+                const pnlClass = pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                const date = new Date(t.timestamp).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+                const typeEmoji = t.slot_type === 'SURF' ? '🏄' : '🎯';
+
+                return `
+                    <div class="p-4 hover:bg-white/[0.02] transition-colors group">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs">${typeEmoji}</span>
+                                <span class="font-bold text-sm tracking-tighter">${t.symbol}</span>
+                                <span class="text-[9px] px-1 py-0.5 rounded bg-gray-800 text-gray-500 font-mono">${t.side}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-sm ${pnlClass}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</p>
+                                <p class="text-[9px] text-gray-600 font-mono">${date}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex gap-2">
+                                <span class="text-[8px] text-gray-500 uppercase tracking-widest">${t.close_reason || 'Fechamento Exchange'}</span>
+                            </div>
+                            <button onclick='generateReport(${JSON.stringify(t)})' 
+                                class="opacity-0 group-hover:opacity-100 transition-opacity bg-gold/10 hover:bg-gold/20 text-gold text-[8px] px-2 py-1 rounded flex items-center gap-1 border border-gold/30">
+                                <span class="material-icons-round !text-[12px]">biomarket</span>
+                                REPORT
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadMoreTrades() {
+            await fetchTradeHistory(true);
+        }
+
+        async function generateReport(tradeData) {
+            const modal = document.getElementById('report-modal');
+            const content = document.getElementById('report-content');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            content.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20">
+                    <span class="material-icons-round text-6xl animate-spin text-gold">shutter_speed</span>
+                    <p class="mt-4 font-mono text-xs uppercase tracking-widest text-gold animate-pulse">Sincronizando com Capitão...</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/history/report`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trade_data: tradeData })
+                });
+                const data = await res.json();
+
+                // Add simple markdown parser (lightweight)
+                let report = data.report || "Erro ao gerar relatório.";
+                report = report.replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>');
+                report = report.replace(/\n/g, '<br>');
+
+                content.innerHTML = `
+                    <div class="prose prose-invert max-w-none">
+                        ${report}
+                    </div>
+                `;
+            } catch (e) {
+                content.innerHTML = `<p class="text-red-400">Falha ao conectar aos canais neurais do Capitão.</p>`;
+            }
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
+            document.getElementById('report-modal').classList.remove('flex');
+        }
+
         // Initial load
         fetchVaultStatus();
-        // Refresh every 30 seconds
-        setInterval(fetchVaultStatus, 30000);
+        fetchTradeHistory();
+        // Refresh Vault every 15 seconds
+        setInterval(fetchVaultStatus, 15000);
+        // Live PnL polling every 1 second [V5.2.5]
+        setInterval(fetchLivePnL, 1000);
     </script>
 </body>
 

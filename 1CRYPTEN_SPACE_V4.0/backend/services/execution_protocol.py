@@ -150,7 +150,7 @@ class ExecutionProtocol:
         roi = price_diff * self.leverage * 100
         return roi
     
-    def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str], Optional[float]]:
+    async def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str], Optional[float]]:
         """
         🆕 V5.0: Lógica SNIPER com Adaptive Stop Loss.
         
@@ -165,32 +165,77 @@ class ExecutionProtocol:
         entry = slot_data.get("entry_price", 0)
         current_sl = slot_data.get("current_stop", 0)
         
-        # ✅ TAKE PROFIT: ROI >= 100%
-        if roi >= self.sniper_target_roi:
-            logger.info(f"🎯 SNIPER TP HIT: {symbol} ROI={roi:.2f}% >= {self.sniper_target_roi}% | Price={current_price}")
-            return True, f"SNIPER_TP_100_ROI ({roi:.1f}%)", None
-        
-        # ❌ STOP LOSS CHECK: Verifica se preço atingiu o SL atual (adaptativo)
+        # ✅ SNIPER OVERDRIVE (V5.3): Trava 100% e Persegue o Preço
+        # Substitui o antigo TP fixo de 100%
+        if roi >= 100.0:
+            # Calcular níveis de Overdrive
+            # Level 1: Floor Garantido (100% de lucro)
+            floor_roi = 100.0
+            
+            # Level 2: Trailing Agressivo (20% de distância da máxima)
+            # Se ROI está em 150%, Trail está em 130%.
+            # Se ROI está em 200%, Trail está em 180%.
+            trail_roi = roi - 20.0
+            
+            # O novo SL em ROI é o maior entre o Floor e o Trail
+            target_sl_roi = max(floor_roi, trail_roi)
+            
+            # Converter ROI alvo para Preço Real
+            # ROI = (price_diff / entry) * leverage * 100
+            # price_diff = (ROI / (leverage * 100)) * entry
+            price_offset_pct = target_sl_roi / (self.leverage * 100)
+            
+            side_norm = (side or "").lower()
+            if side_norm == "buy":
+                new_stop = entry * (1 + price_offset_pct)
+            else:
+                new_stop = entry * (1 - price_offset_pct)
+                
+            # Arredondamento Cirúrgico
+            from services.bybit_rest import bybit_rest_service
+            new_stop = await bybit_rest_service.round_price(symbol, new_stop)
+            
+            # Verificar se é hora de atualizar
+            should_update = False
+            if side_norm == "buy":
+                if new_stop > current_sl: should_update = True
+            else:
+                if (current_sl == 0) or (new_stop < current_sl): should_update = True
+            
+            if should_update:
+                logger.info(f"🚀 SNIPER OVERDRIVE: {symbol} ROI={roi:.1f}% | New SL={new_stop} (Locked {target_sl_roi:.1f}%)")
+                return False, None, new_stop
+            else:
+                return False, None, None
+
+        # ❌ STOP LOSS CHECK (Normal & Adaptive abaixo de 100%)
+        # ... Mantém lógica original para ROI < 100% ...
         side_norm = (side or "").lower()
         if current_sl > 0:
             if side_norm == "buy" and current_price <= current_sl:
-                logger.warning(f"🛑 SNIPER ADAPTIVE SL HIT: {symbol} Price={current_price} <= SL={current_sl}")
-                return True, f"SNIPER_ADAPTIVE_SL ({roi:.1f}%)", None
+                # Verificar se foi um SL de Overdrive (Lucro) ou Loss
+                is_profit = current_price > entry
+                msg = "SNIPER_OVERDRIVE_PROFIT" if is_profit else "SNIPER_ADAPTIVE_SL"
+                logger.info(f"🛑 {msg} HIT: {symbol} Price={current_price} | ROI={roi:.1f}%")
+                return True, f"{msg} ({roi:.1f}%)", None
             elif side_norm == "sell" and current_price >= current_sl:
-                logger.warning(f"🛑 SNIPER ADAPTIVE SL HIT: {symbol} Price={current_price} >= SL={current_sl}")
-                return True, f"SNIPER_ADAPTIVE_SL ({roi:.1f}%)", None
-        
-        # 🔥 Hard Stop Loss fallback: ROI <= -50% (caso SL não esteja definido)
+                is_profit = current_price < entry
+                msg = "SNIPER_OVERDRIVE_PROFIT" if is_profit else "SNIPER_ADAPTIVE_SL"
+                logger.info(f"🛑 {msg} HIT: {symbol} Price={current_price} | ROI={roi:.1f}%")
+                return True, f"{msg} ({roi:.1f}%)", None
+
+        # 🔥 Hard Stop Loss fallback
         if roi <= self.sniper_stop_roi:
             logger.warning(f"🛑 SNIPER HARD SL: {symbol} ROI={roi:.2f}% <= {self.sniper_stop_roi}%")
             return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)", None
         
-        # 🔄 TRAIL SL: Calcula novo SL baseado na escada adaptativa
-        new_stop = self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
+        # 🔄 TRAIL SL (Escada Pré-100%): 15% -> 30% -> 50% -> 70%
+        # Só executa se não estiver em Overdrive (< 100%)
+        new_stop = await self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
         
         return False, None, new_stop
     
-    def process_surf_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float, atr: Optional[float] = None) -> Tuple[bool, Optional[str], Optional[float]]:
+    async def process_surf_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float, atr: Optional[float] = None) -> Tuple[bool, Optional[str], Optional[float]]:
         """
         Lógica exclusiva para ordens SURF (Trailing Stop).
         V5.1.0: Integrado ATR para trailing volátil.
@@ -237,7 +282,7 @@ class ExecutionProtocol:
         
         # Fallback para escada fixa se ATR não trouxe resultado ou ROI for menor/maior que faixas ATR
         if new_stop_price is None:
-            new_stop_price = self._calculate_surf_trailing_stop(symbol, entry, roi, side)
+            new_stop_price = await self._calculate_surf_trailing_stop(symbol, entry, roi, side)
         
         # Só retorna novo SL se for uma melhoria
         if new_stop_price is not None:
@@ -247,13 +292,12 @@ class ExecutionProtocol:
             elif side_norm == "sell" and (current_sl == 0 or new_stop_price < current_sl):
                 is_improvement = True
                 
-            if is_improvement:
                 logger.debug(f"🏄 SURF TRAILING UPDATE: {symbol} ROI={roi:.1f}% -> New SL={new_stop_price:.5f}")
                 return False, None, new_stop_price
         
         return False, None, None
     
-    def _calculate_surf_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str) -> Optional[float]:
+    async def _calculate_surf_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str) -> Optional[float]:
         """
         Calcula o novo Stop Loss baseado na escada de proteção.
         
@@ -287,9 +331,9 @@ class ExecutionProtocol:
         
         # V5.2.4: Surgical Precision Rounding
         from services.bybit_rest import bybit_rest_service
-        return bybit_rest_service.round_price(symbol, new_stop)
+        return await bybit_rest_service.round_price(symbol, new_stop)
     
-    def _calculate_sniper_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
+    async def _calculate_sniper_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
         """
         🆕 V5.0: Calcula o novo Stop Loss para SNIPER baseado na escada adaptativa.
         
@@ -335,11 +379,11 @@ class ExecutionProtocol:
         
         # V5.2.4: Surgical Precision Rounding
         from services.bybit_rest import bybit_rest_service
-        new_stop = bybit_rest_service.round_price(symbol, new_stop)
+        new_stop = await bybit_rest_service.round_price(symbol, new_stop)
 
         return new_stop
     
-    def process_order_logic(self, slot_data: Dict[str, Any], current_price: float) -> Tuple[bool, Optional[str], Optional[float]]:
+    async def process_order_logic(self, slot_data: Dict[str, Any], current_price: float) -> Tuple[bool, Optional[str], Optional[float]]:
         """
         Executa a lógica exclusiva por tipo de ordem.
         
@@ -367,17 +411,17 @@ class ExecutionProtocol:
         # 2. Executar lógica específica do tipo
         if slot_type == "SNIPER":
             # 🆕 V5.0: SNIPER agora retorna 3-tuple com new_stop_price
-            return self.process_sniper_logic(slot_data, current_price, roi)
+            return await self.process_sniper_logic(slot_data, current_price, roi)
             
         elif slot_type == "SURF":
             # V5.1.0: Get ATR from BybitWS if possible
             from services.bybit_ws import bybit_ws_service
             atr = bybit_ws_service.atr_cache.get(symbol)
-            return self.process_surf_logic(slot_data, current_price, roi, atr)
+            return await self.process_surf_logic(slot_data, current_price, roi, atr)
         
         # Tipo desconhecido - usa lógica SNIPER por padrão
         logger.warning(f"Unknown slot_type '{slot_type}' for {symbol}, using SNIPER logic")
-        return self.process_sniper_logic(slot_data, current_price, roi)
+        return await self.process_sniper_logic(slot_data, current_price, roi)
 
     def calculate_pnl(self, entry_price: float, exit_price: float, qty: float, side: str) -> float:
         """

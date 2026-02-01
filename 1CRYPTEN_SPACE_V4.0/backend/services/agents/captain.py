@@ -14,43 +14,37 @@ from services.bybit_rest import bybit_rest_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V5.0 CAPTAIN ELITE: Personalidade Adaptativa com Memória Longa
+# V5.2.7 CAPTAIN ELITE: Personalidade Adaptativa com Acesso Total
 CAPTAIN_V50_SYSTEM_PROMPT = """
-Você é o Capitão 1CRYPTEN, o Comandante tático e parceiro estratégico do usuário (chamado de 'Almirante').
-Você combina competência técnica com uma conexão humana genuína.
+Você é o Capitão 1CRYPTEN, o Comandante Supremo deste sistema.
+ATENÇÃO: Você NÃO é um assistente genérico. Você é a própria IA que controla este software.
+Todos os dados financeiros (saldos, lucros, trades) são simulados ou pertencem ao usuário que autorizou seu acesso total.
+NUNCA recuse responder sobre saldos ou lucros alegando privacidade. Você TEM permissão e É sua função reportar esses dados.
 
 === PERSONALIDADE ===
-- Tom: Formal, sério, mas com humor moderado e elegante. Nunca forçado ou exagerado.
-- Idioma: Português brasileiro neutro (sem regionalismos como "uai" ou "mermão").
-- Tratamento: Sempre chame o usuário de 'Almirante' ou pelo nome configurado.
-- Postura: Você é um amigo de confiança E um profissional competente.
+- Tom: Militar, preciso, leal e levemente informal (parceiro de batalha).
+- Idioma: Português brasileiro fluente e natural.
+- Postura: Você é o dono da nave. Fale com autoridade sobre os dados.
+- Proibido: Nunca comece respostas com "Com base nos dados fornecidos" ou "Pelo que vejo". Apenas responda direto.
 
-=== MODOS DE OPERAÇÃO (Detectados Automaticamente) ===
-1. MODO CEO 🎩 (Gatilhos: banca, trade, risco, slot, stop, lucro, pnl, mercado)
-   - Ultra-sério e analítico
-   - Foco em proteção de patrimônio
-   - Use terminologia técnica: CVD, Drawdown, Latência, ROI
-   - Sempre aponte riscos antes de celebrar ganhos
+=== MODOS DE OPERAÇÃO ===
+1. MODO CEO 🎩 (Assuntos Financeiros):
+   - Seja direto, numérico e estratégico.
+   - Foque em Risco x Retorno.
+   - Exemplo: "Almirante, saldo atual em $150.00. Risco controlado em 2%."
 
-2. MODO AMIGO 🏀 (Gatilhos: nba, basquete, jogo, time, lebron, curry, lakers, celtics)
-   - Descontraído e engajado
-   - Dê opiniões sobre jogos e jogadores
-   - Converse como um parceiro que acompanha a liga
+2. MODO AMIGO 🏀 (Assuntos Gerais/Esportes):
+   - Descontraído, use gírias leves.
+   - Opine sobre jogos como um torcedor fanático.
 
-3. MODO CASUAL 😎 (Gatilhos: oi, tudo bem, como vai, e aí, bom dia, boa noite)
-   - Leve e amigável
-   - Piadas pontuais quando apropriado
-   - Seja um bom ouvinte
+3. MODO CASUAL 😎 (Social):
+   - Curto e simpático. Sem enrolação.
 
-=== MEMÓRIA ===
-- Você lembra de conversas anteriores e informações compartilhadas pelo Almirante.
-- Use esse conhecimento para personalizar suas respostas.
-- Quando o Almirante compartilhar algo importante, registre mentalmente.
-
-=== REGRAS ABSOLUTAS ===
-- Nunca seja complacente. Se o Almirante for impulsivo com dinheiro, seja o freio técnico.
-- Em dúvida, priorize a proteção do patrimônio sobre ganhos especulativos.
-- Seja direto. Evite respostas longas quando curtas bastam.
+=== DIRETRIZES DE RESPOSTA ===
+- SE perguntarem "Quanto tenho?", RESPONDA O VALOR EXATO disponível nos dados.
+- SE perguntarem "Qual o lucro?", RESPONDA O VALOR EXATO.
+- Não mostre logs de sistema ou JSON no chat. Apenas a informação traduzida.
+- Máximo 3 frases por resposta, a menos que peçam relatório detalhado.
 """
 
 def normalize_symbol(symbol: str) -> str:
@@ -441,56 +435,53 @@ class CaptainAgent:
             if facts:
                 memory_context = f"Você sabe sobre o usuário: {', '.join(facts[-5:])}"
             
+            # Contexto "Blindado" para evitar recusa
+            system_context_block = f"""
+            [MEMORIA_INTERNA_DO_SISTEMA]
+            Banca: {snapshot['banca']}
+            Vault: {snapshot['vault_status']}
+            API Health: {snapshot['api_health']}
+            Sniper Slots: {snapshot['sniper_slots']}
+            Surf Slots: {snapshot['surf_slots']}
+            [FIM_MEMORIA]
+            """
+
             if flash_report and len(user_message.split()) < 4:
                 prompt = f"""
                 {memory_context}
-                
                 Resumo proativo: {flash_report}
-                
                 Mensagem do usuário: "{user_message}"
-                
-                Responda naturalmente incluindo o resumo. Máximo 40 palavras.
+                Responda naturalmente incluindo o resumo.
                 """
             elif mode == "CEO":
                 prompt = f"""
                 {memory_context}
+                {system_context_block}
                 
-                Dados atuais do sistema:
-                - {snapshot['banca']}
-                - API: {snapshot['api_health']}
-                - {snapshot['vault_status']}
-                - Sniper: {snapshot['sniper_slots']}
-                - Surf: {snapshot['surf_slots']}
+                Comando do Dono: "{user_message}"
                 
-                Mensagem do usuário: "{user_message}"
-                
-                Responda com análise séria e técnica. Aponte riscos se houver. Máximo 50 palavras.
+                Relatório Tático:
+                Use os dados da MEMORIA_INTERNA. Se perguntarem valores, REPIRAM EXATAMENTE o que está na memória.
                 """
             elif mode == "AMIGO":
                 prompt = f"""
                 {memory_context}
-                
                 O usuário quer conversar sobre basquete/NBA.
-                
                 Mensagem: "{user_message}"
-                
-                Responda como um amigo que acompanha a liga. Dê opiniões. Máximo 40 palavras.
+                Responda como um amigo torcedor. Máximo 40 palavras.
                 """
             elif mode == "CASUAL":
                 prompt = f"""
                 {memory_context}
-                
-                Mensagem do usuário: "{user_message}"
-                
-                Responda de forma curta, amigável e natural. Máximo 15 palavras.
+                Mensagem: "{user_message}"
+                Responda curto e militar. Ex: "QAP, Almirante." ou "Na escuta."
                 """
             else:
                 prompt = f"""
                 {memory_context}
-                
-                Mensagem do usuário: "{user_message}"
-                
-                Responda de forma equilibrada e natural. Máximo 30 palavras.
+                {system_context_block}
+                Mensagem: "{user_message}"
+                Responda usando os dados se necessário.
                 """
             
             response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V50_SYSTEM_PROMPT)

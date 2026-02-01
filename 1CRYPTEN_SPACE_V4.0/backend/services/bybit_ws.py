@@ -59,12 +59,15 @@ class BybitWS:
         try:
             data = message.get("data", {})
             topic = message.get("topic", "")
-            symbol = topic.replace("tickers.", "")
-            
             if "lastPrice" in data:
                 norm_sym = symbol.replace(".P", "").upper()
                 self.prices[norm_sym] = float(data["lastPrice"])
         except Exception: pass
+
+    def get_current_price(self, symbol: str) -> float:
+        """[V5.2.5] Returns the last known price for a symbol."""
+        norm_sym = symbol.replace(".P", "").upper()
+        return self.prices.get(norm_sym, 0.0)
 
     def get_cvd_score(self, symbol: str) -> float:
         """Returns the current cumulative delta for the stored history."""

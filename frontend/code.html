@@ -1434,7 +1434,6 @@
             // V4.5.1: Use backend price if available, fallback to WebSocket ticker
             const currentPrice = s.current_price || tickers[cleanSymbol];
             const smoothingRef = useRef(0);
-            const entryAmount = 5; // Captain's Fixed Entry
 
             // V4.5.1: Visual Status Class Mapping
             const getVisualStatusClass = () => {
@@ -1468,7 +1467,8 @@
             }, [currentPrice, s.entry_price, s.side, pnlFallback, isActive]);
 
             const pnl = displayPnl;
-            const profitUSD = (entryAmount * (pnl / 100)); // Raw value
+            const entryMargin = Number(s.entry_margin) || 5.0; // Captura a margem real ou fallback 5.0
+            const profitUSD = (entryMargin * (pnl / 100)); // Calculado sobre a margem REAL
             const isProfit = pnl >= 0;
 
             // V4.3.2: SNIPER vs SURF Target Logic
@@ -2377,22 +2377,28 @@
                                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Equity</span>
                                 </div>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-sm sm:text-base font-display font-bold text-white tracking-tighter">
+                                    <span className="text-base sm:text-lg font-display font-bold text-white tracking-tighter">
                                         ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Vault Profit Card - NEW */}
+                            {/* Vault Profit Card - NEW [V5.2.5 Aligned] */}
                             <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-primary/5 to-transparent border-primary/20 flex flex-col justify-between group hover:border-primary/50 transition-all duration-500 shadow-[0_0_10px_rgba(255,215,0,0.05)]">
                                 <div className="flex items-center gap-1 mb-0.5">
                                     <span className="material-icons-round text-primary text-[12px]">diamond</span>
-                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Vault Profit</span>
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Cycle Profit</span>
                                 </div>
                                 <div className="flex items-baseline gap-1">
-                                    <span className={`text-sm sm:text-base font-display font-bold tracking-tighter ${banca.lucro_total_acumulado >= 0 ? 'text-primary' : 'text-danger'}`}>
-                                        {banca.lucro_total_acumulado >= 0 ? '+' : '-'}${Math.abs(banca.lucro_total_acumulado || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    <span className={`text-base sm:text-lg font-display font-bold tracking-tighter ${banca.lucro_ciclo >= 0 ? 'text-primary' : 'text-danger'}`}>
+                                        {banca.lucro_ciclo >= 0 ? '+' : '-'}${Math.abs(banca.lucro_ciclo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
+                                </div>
+                                <div className="mt-0.5 border-t border-white/5 pt-0.5 opacity-60">
+                                    <div className="flex items-center justify-between text-[7px] font-black uppercase tracking-widest text-slate-500">
+                                        <span>Vault Total</span>
+                                        <span className="text-gold">${(banca.vault_total || 0).toFixed(2)}</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2403,7 +2409,7 @@
                                         <span className={`material-icons-round text-[12px] ${banca.risco_real_percent > 0.15 ? 'text-amber-500' : 'text-emerald-500'}`}>security</span>
                                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Risk</span>
                                     </div>
-                                    <span className={`text-[10px] font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    <span className={`text-xs sm:text-sm font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
                                         {(banca.risco_real_percent * 100).toFixed(1)}%
                                     </span>
                                 </div>
@@ -2514,103 +2520,7 @@
             );
         };
 
-        // 4. History Page (Spreadsheet Results)
-        const HistoryPage = () => {
-            const [history, setHistory] = useState([]);
-            const [isLoading, setIsLoading] = useState(true);
-            const { latency, status: pulseStatus } = usePulseMonitor();
 
-            useEffect(() => {
-                const fetchHistory = async () => {
-                    try {
-                        const response = await fetch(API_BASE + '/api/history');
-                        if (response.ok) {
-                            setHistory(await response.json());
-                            window.dispatchEvent(new CustomEvent('rest-pulse'));
-                        }
-                    } catch (e) {
-                        console.error("History Fetch Error:", e);
-                    } finally {
-                        setIsLoading(false);
-                    }
-                };
-                fetchHistory();
-            }, []);
-
-            return (
-                <div className="flex flex-col h-screen bg-[#0A0A0B] text-slate-100 overflow-hidden">
-                    {/* Premium Header - Gemini Style */}
-                    <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
-                        <div className="max-w-3xl mx-auto">
-                            <div className="grid grid-cols-3 items-center">
-                                <div className="flex items-center gap-2">
-                                    <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
-                                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
-                                </div>
-                                <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-wide text-center">Ledger</h1>
-                                <div className="flex justify-end">
-                                    <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center mt-3">
-                                <p className="text-xs text-slate-400 capitalize">{history.length} operações encerradas</p>
-                                <span className="text-[10px] bg-white/5 px-2 py-1 rounded border border-white/10 text-slate-400 uppercase tracking-widest">Protocol V5.2.4.8 PREMIUM</span>
-                            </div>
-                        </div>
-                    </header>
-
-                    <div className="flex-1 glass-panel rounded-2xl border border-white/5">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 bg-navy-deep/40 backdrop-blur-xl z-20">
-                                <tr>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Asset / Side</th>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10">Entry / Exit</th>
-                                    <th className="p-4 text-[10px] uppercase tracking-widest text-slate-400 font-black border-b border-white/10 text-right">PnL (Realized)</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {isLoading ? (
-                                    <tr>
-                                        <td colSpan="3" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase animate-pulse tracking-widest">Accessing archives...</td>
-                                    </tr>
-                                ) : history.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="3" className="p-12 text-center text-slate-600 font-mono text-[10px] uppercase tracking-widest">No historical data recorded.</td>
-                                    </tr>
-                                ) : history.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-white/5 transition-colors group">
-                                        <td className="p-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-white font-mono">{row.symbol}</span>
-                                                <span className={`text-[10px] font-black uppercase ${row.side === 'Buy' ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                                    {row.side === 'Buy' ? 'LONG 50x' : 'SHORT 50x'}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex flex-col font-mono text-[10px] text-slate-400">
-                                                <span><span className="opacity-50 uppercase mr-1">In:</span> {formatPrice(row.entry_price)}</span>
-                                                <span><span className="opacity-50 uppercase mr-1">Out:</span> {formatPrice(row.exit_price)}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex flex-col items-end">
-                                                <span className={`text-sm font-bold font-mono ${Number(row.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    {Number(row.pnl || 0) >= 0 ? '+' : ''}{Number(row.pnl || 0).toFixed(2)} USD
-                                                </span>
-                                                <span className="text-[9px] text-slate-600 font-mono">
-                                                    {row.closed_at ? new Date(Number(row.closed_at)).toLocaleTimeString() : (row.timestamp ? new Date(row.timestamp).toLocaleTimeString() : '---')}
-                                                </span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        };
 
         // 5. Vault Page (Iframe Integration)
         const VaultPage = () => {
@@ -2669,11 +2579,7 @@
                                 Operação & Navegação
                             </h2>
                             <div className="grid grid-cols-2 gap-2">
-                                <Link to="/history" className="flex flex-col items-center justify-center p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group">
-                                    <span className="material-icons-round text-primary mb-1 group-hover:scale-110 transition-transform" style={{ fontSize: '20px' }}>history_edu</span>
-                                    <span className="text-[8px] font-bold uppercase">Histórico</span>
-                                </Link>
-                                <button onClick={onLogout} className="flex flex-col items-center justify-center p-3 bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
+                                <button onClick={onLogout} className="flex flex-col items-center justify-center p-3 w-full bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
                                     <span className="material-icons-round text-red-500 mb-1 group-hover:scale-110 transition-transform" style={{ fontSize: '20px' }}>logout</span>
                                     <span className="text-[8px] font-bold uppercase text-red-500">Sair</span>
                                 </button>
@@ -2984,7 +2890,6 @@
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/radar" element={<JourneyPage />} />
                             <Route path="/logs" element={<LogsPage />} />
-                            <Route path="/history" element={<HistoryPage />} />
                             <Route path="/vault" element={<VaultPage />} />
                             <Route path="/settings" element={<SettingsPage onLogout={handleLogout} />} />
                         </Routes>
