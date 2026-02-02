@@ -63,10 +63,26 @@ class BybitREST:
         except Exception as e:
             logger.error(f"❌ [PAPER] Failed to save state: {e}")
 
+    def normalize_symbol(self, symbol: str) -> str:
+        """
+        [V6.0] Robust Mapping: Standardizes symbols for Bybit V5 API.
+        Strips .P suffix, ensures upper case, and prevents common mapping errors.
+        """
+        if not symbol: return ""
+        norm = symbol.strip().upper()
+        if norm.endswith(".P"):
+            norm = norm[:-2]
+        
+        # Security Guard: Ensure it ends with USDT (or USDC)
+        if not (norm.endswith("USDT") or norm.endswith("USDC")):
+            # Fallback: if it's just 'BTC', return 'BTCUSDT'
+            if norm: norm = f"{norm}USDT"
+            
+        return norm
+
     def _strip_p(self, symbol: str) -> str:
-        """Strips the .P suffix for Bybit API calls."""
-        if not symbol: return symbol
-        return symbol.replace(".P", "")
+        """Standardizes symbols for Bybit API calls."""
+        return self.normalize_symbol(symbol)
 
     async def initialize(self):
         """Asynchronously initializes the Bybit session and synchronizes time."""
@@ -244,13 +260,39 @@ class BybitREST:
             return []
 
     async def get_tickers(self, symbol: str = None):
-        """Fetches ticker data for a symbol (v5 category linear)."""
+        """
+        Fetches ticker data with [V6.0] Exact Match Protection.
+        If a symbol is provided, only that exact symbol's data is returned.
+        """
         try:
-            api_symbol = self._strip_p(symbol)
+            api_symbol = self.normalize_symbol(symbol)
             params = {"category": self.category}
             if api_symbol: params["symbol"] = api_symbol
+            
             # V5.2.4.3: Added 5s timeout
-            return await asyncio.wait_for(asyncio.to_thread(self.session.get_tickers, **params), timeout=5.0)
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_tickers, **params), timeout=5.0)
+            
+            # [V6.0] Robust Mapping verification
+            if api_symbol:
+                ticker_list = response.get("result", {}).get("list", [])
+                
+                # Check 1: Did we get anything?
+                if not ticker_list:
+                    logger.warning(f"⚠️ [BYBIT] No ticker found for exactly {api_symbol}")
+                    return response
+                
+                # Check 2: Exact Match Verification
+                # Bybit can return the whole list if symbol is slightly off or if they change API behavior
+                actual_symbol = ticker_list[0].get("symbol")
+                if actual_symbol != api_symbol:
+                    logger.error(f"🚨 [TICKER COLLISION] Requested {api_symbol} but Bybit returned {actual_symbol}!")
+                    # Invalidate list to prevent bankroll.py from using wrong price
+                    response["result"]["list"] = [] 
+                elif len(ticker_list) > 1:
+                    logger.warning(f"⚠️ [TICKER AMBIGUITY] Multiple results for {api_symbol}. Filtering for exact match.")
+                    response["result"]["list"] = [t for t in ticker_list if t.get("symbol") == api_symbol]
+            
+            return response
         except Exception as e:
             logger.error(f"Error fetching tickers for {symbol}: {e}")
             return {}
@@ -728,6 +770,9 @@ class BybitREST:
                     c_price = price_map.get(p_sym, 0)
                     if c_price > 0:
                         p_roi = execution_protocol.calculate_roi(float(p["avgPrice"]), c_price, p["side"])
+                        # V6.0: Visual Cap
+                        if p_roi > 5000: p_roi = 5000
+                        if p_roi < -5000: p_roi = -5000
                         pnl_summary.append({"symbol": p_sym, "roi": p_roi})
                 
                 if pnl_summary:

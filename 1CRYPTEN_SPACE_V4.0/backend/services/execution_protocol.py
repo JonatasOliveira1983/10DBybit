@@ -150,6 +150,12 @@ class ExecutionProtocol:
             price_diff = (entry_price - current_price) / entry_price
             
         roi = price_diff * self.leverage * 100
+        
+        # V6.0: ROI Sanity Guard - Cap extreme values to prevent UI breakage
+        # This prevents the -600,000% ROI bug from naming collisions
+        if roi > 5000: roi = 5000
+        if roi < -5000: roi = -5000
+        
         return roi
     
     async def _check_sentiment_weakness(self, symbol: str, side: str) -> bool:

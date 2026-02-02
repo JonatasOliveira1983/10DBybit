@@ -1,14 +1,20 @@
-# 1CRYPTEN SPACE - V5.4.5 (Gemini Defense & Scorched Earth) 🛡️🚀
+# 1CRYPTEN SPACE - V6.0 (Elite Armor & PnL Sync) 🛡️🚀
 
-Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V5.0**, Gerenciamento Dinâmico de Risco e Proteção Anti-Whipsaw.
+Sistema de Trading Autônomo com **Protocolo Adaptive Stop Loss V6.0**, Blindagem de Precificação e Sincronização em Tempo Real.
 
 ---
-+
-+## 🆕 Novidades V5.4.5 - Gemini Defense & Scorched Earth
-+- **Porta 8080 Standard**: Migração para a porta 8080 para evitar bloqueios de navegadores (`ERR_UNSAFE_PORT`) e garantir maior estabilidade no Windows.
-+- **Scorched Earth Reset**: Novo protocolo de reset total que limpa slots órfãos do Firebase e estado local, garantindo boot 100% limpo.
-+- **V5.4.5 SURF Fix**: Correção de bug de indentação que impedia o trailing stop de posições em COMPRA (Long) de se moverem.
-+- **Metadata Shield**: Atribuição automática de `slot_type` em recuperações do exchange, blindando a lógica contra falhas de metadados.
+
+## 🆕 Novidades V6.0 - Elite Armor & PnL Sync
+- **V6.0 Robust mapping (Phase 2)**: Blindagem total de precificação via correspondência exata (Exact Match). Previne anomalias de ROI em moedas com nomes similares (ex: KAS/KSM).
+- **PnL USD Real-Time Sync**: Sincronização forçada do lucro em dólar no Firebase, garantindo que o dashboard mostre valores sempre consistentes com a porcentagem de ROI.
+- **5% Fixed Margin Sizing**: Retorno mandatário à regra de 5% de margem fixa por trade ($5 para cada $100 de banca), priorizando previsibilidade de volume.
+- **ROI Sanity Guard**: Trava automática que limita variações extremas de ROI a ±5000%, protegendo a integridade visual do sistema.
+
+## 🆕 Novidades V5.4.5 - Gemini Defense & Scorched Earth
+- **Porta 8080 Standard**: Migração para a porta 8080 para evitar bloqueios de navegadores (`ERR_UNSAFE_PORT`) e garantir maior estabilidade no Windows.
+- **Scorched Earth Reset**: Novo protocolo de reset total que limpa slots órfãos do Firebase e estado local, garantindo boot 100% limpo.
+- **V5.4.5 SURF Fix**: Correção de bug de indentação que impedia o trailing stop de posições em COMPRA (Long) de se moverem.
+- **Metadata Shield**: Atribuição automática de `slot_type` em recuperações do exchange, blindando a lógica contra falhas de metadados.
 
  ## 🆕 Novidades V5.3.4 - Escudo de Idempotência
 - **Idempotência de Histórico**: Trava atômica que evita lançamentos duplicados no histórico de trades, mesmo com múltiplos processos de monitoramento redundante.

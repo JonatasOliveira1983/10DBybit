@@ -25,8 +25,9 @@ O sistema opera de forma assíncrona com três camadas integradas:
 - **BybitREST**: Implementa o filtro **Elite 85** (apenas pares com 50x+ leverage). Gerencia o Escudo de Idempotência e registros atômicos.
 - **BybitWS**: Monitoramento massivo de 83+ ativos em tempo real para cálculo de CVD e Latência.
 - **FirebaseService**: Persistência dupla (Firestore para histórico/logs e RTDB para pulso em tempo real e Radar).
-- **BankrollManager**: Gestor de banca. Implementa a regra de **5% de Risco Fixo** por trade e trava de risco global.
+- **BankrollManager**: Gestor de banca. Implementa a regra mandatória de **5% de Risco Fixo** por trade ($5 por slot em banca de $100) e trava de risco global.
 - **VaultService**: Gestor de Ciclo V6.0. Agora suporta registro de trades SURF e SNIPER separadamente no vault.
+- **V6.0 Blindagem Engine**: Módulo integrado ao BybitREST que executa a normalização de símbolos (`normalize_symbol`) e validação de correspondência exata para evitar precificação errônea (ex: colisão KAS/KSM).
 
 ---
 
@@ -37,7 +38,10 @@ O sistema opera de forma assíncrona com três camadas integradas:
 *   **Elite 85 Scan**: Filtro nativo na Bybit para focar apenas em ativos de alta alavancagem.
 *   **Breathing Protocol**: Novo protocolo de respiro para trades SURF (Risk Zero apenas após 30% ROI).
 *   **Command Tower UI**: Visualização em tempo real da saúde do WebSocket e latência na ponte de comando.
-*   **Total Purge**: Implementação de reset absoluto (wipe de Firebase + Engine de Papel local) para garantir integridade de dados.
+*   **Total Purge (Phase 2)**: Reset absoluto de Firebase (Signals, Slots, History) + Engine local para boot 100% limpo em novos ciclos.
+*   **PnL USD Real-Time Sync**: Sincronização forçada de PnL em dólar no loop do Guardian, garantindo paridade total entre ROI % e saldo visual.
+*   **Robust Ticker Mapping (Armor V6.0)**: Validação de precificação por correspondência exata (Exact Match) que previne anomalias de ROI em moedas com nomes similares.
+*   **ROI Sanity Guard**: Trava de segurança que limita qualquer variação de ROI a ±5000%, protegendo a UI e os logs de valores espúrios.
 
 ---
 

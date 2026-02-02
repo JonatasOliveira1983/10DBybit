@@ -2284,10 +2284,12 @@
             );
         };
 
-        const { motion, AnimatePresence, useAnimation } = window.Motion;
+        const Motion = window.Motion || {};
+        const { motion = (props) => <div {...props} />, AnimatePresence = ({ children }) => <React.Fragment>{children}</React.Fragment>, useAnimation = () => ({ start: () => { } }) } = Motion;
 
-        const ICLogoLoader = ({ progress }) => {
+        const ICLogoLoader = ({ progress, size = 320 }) => {
             const controls = useAnimation();
+            const scale = size / 320;
             React.useEffect(() => {
                 if (progress >= 98) {
                     controls.start({
@@ -2303,15 +2305,16 @@
             }, [progress, controls]);
 
             return (
-                <motion.div className="relative flex items-center justify-center" animate={controls}>
+                <motion.div className="relative flex items-center justify-center" animate={controls} style={{ width: size, height: size }}>
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <motion.div
                             animate={{ opacity: [0.06, 0.14, 0.06], scale: [0.9, 1.1, 0.9] }}
                             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                            className="w-[450px] h-[450px] bg-[#7000FF]/10 blur-[140px] rounded-full"
+                            className="bg-[#7000FF]/10 blur-[100px] rounded-full"
+                            style={{ width: size * 1.4, height: size * 1.4 }}
                         />
                     </div>
-                    <svg width="320" height="320" viewBox="0 0 280 280" fill="none" className="relative z-10">
+                    <svg width={size} height={size} viewBox="0 0 280 280" fill="none" className="relative z-10">
                         <defs>
                             <linearGradient id="logoNeonGradient" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stopColor="#FF00FF" />
@@ -2999,7 +3002,7 @@
                 const runChecks = async () => {
                     // ========== 1. BYBIT + BALANCE (from /health) ==========
                     try {
-                        console.log("V4.5.0: Checking Backend Health...");
+                        console.log("V6.0 ELITE: Checking Backend Health...");
                         const res = await fetch(API_BASE + '/health');
 
                         if (res.ok) {
@@ -3071,13 +3074,12 @@
                     </div>
 
                     <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-white/10 shadow-3xl relative z-10">
-                        <div className="flex flex-col items-center mb-10">
+                        <div className="flex flex-col items-center mb-6">
                             <div className="relative mb-6">
-                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-                                <img src="/logo10D.png" alt="Logo" className="w-20 h-20 relative z-10 opacity-90" />
+                                <ICLogoLoader progress={isReady ? 100 : 75} size={120} />
                             </div>
-                            <h2 className="text-2xl font-bold tracking-tight uppercase premium-gradient-text">Inicialização</h2>
-                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-2">v4.5.0 Protocol Check</p>
+                            <h2 className="text-xl font-bold tracking-tight uppercase premium-gradient-text">Iniciando Protocolo</h2>
+                            <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-1">V6.0 ELITE SQUAD CHECK</p>
                         </div>
 
                         <div className="space-y-2 mb-8">
@@ -3140,14 +3142,12 @@
             useEffect(() => {
                 const shield = document.getElementById('boot-shield');
                 if (shield) {
-                    const failsafe = setTimeout(() => {
-                        shield.style.opacity = '0';
-                        setTimeout(() => {
-                            shield.style.display = 'none';
-                            shield.remove();
-                        }, 800);
-                    }, 1000);
-                    return () => clearTimeout(failsafe);
+                    // Fast removal for V6.0 Elite
+                    shield.style.opacity = '0';
+                    setTimeout(() => {
+                        shield.style.display = 'none';
+                        shield.remove();
+                    }, 500);
                 }
             }, []);
 
@@ -3180,7 +3180,7 @@
                 setShowChecklist(false);
             };
 
-            if (isSplash) {
+            if (isSplash && Motion.motion) {
                 return <SplashScreen onFinish={() => setIsSplash(false)} />;
             }
 

@@ -331,7 +331,9 @@ class BankrollManager:
             if banca:
                 # V5.2.2: Calculate Cumulative Profit from All Trades
                 trades = await firebase_service.get_trade_history(limit=1000)
-                total_pnl = sum(t.get("pnl", 0) for t in trades)
+                # V6.0: PnL Summation Guard - Filter extreme outliers (e.g. from naming collisions)
+                # Cap individual trade impact on visual total to prevent dashboard breakage
+                total_pnl = sum(t.get("pnl", 0) for t in trades if abs(t.get("pnl", 0)) < 2000)
                 
                 # [V5.2.5] Fetch cycle-specific data from Vault Service
                 vault_status = await vault_service.get_cycle_status()
@@ -401,7 +403,12 @@ class BankrollManager:
         try:
             # 2. Fetch Market Data & Calculate Order
             ticker = await bybit_rest_service.get_tickers(symbol=symbol)
-            current_price = float(ticker.get("result", {}).get("list", [{}])[0].get("lastPrice", 0))
+            ticker_list = ticker.get("result", {}).get("list", [])
+            if not ticker_list:
+                logger.error(f"Could not fetch exact price for {symbol} (Match Failed)")
+                return None
+            
+            current_price = float(ticker_list[0].get("lastPrice", 0))
             
             if current_price == 0:
                 logger.error(f"Could not fetch price for {symbol}")
@@ -415,33 +422,17 @@ class BankrollManager:
                 logger.warning(f"Balance too low: ${balance}")
                 return None
                 
-            # [V5.4.5] Adaptive Stop Loss (ATR) & Risk Management
-            # 1. Fetch ATR from BybitWS
-            from services.bybit_ws import bybit_ws_service
-            atr = bybit_ws_service.atr_cache.get(symbol)
+            # [V6.0] Fixed 5% Margin Rule
+            # As requested by Commander: each slot MUST use exactly 5% of balance.
+            margin = balance * 0.05
             
-            # [V5.4.5] 5% Fixed Risk Rule
-            # Risk Amount = Balance * 0.05
-            risk_amount = balance * 0.05
+            # Calculate final SL
+            sl_percent = 0.01 if slot_type == "SNIPER" else 0.015
+            final_sl = sl_price if sl_price > 0 else (current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent))
             
-            if atr and atr > 0:
-                # Volatility-based SL Distance (2.5x ATR)
-                sl_distance = 2.5 * atr
-                logger.info(f"🛡️ [ATR DEFENSE] {symbol} | ATR: {atr:.5f} | SL Distance (2.5x): {sl_distance:.5f}")
-                
-                # Qty = Risk Amount / SL Distance
-                # This ensures that if SL is hit, we lose exactly 5% of balance
-                raw_qty = risk_amount / sl_distance
-                
-                # SL Price calculation
-                final_sl = current_price - sl_distance if side == "Buy" else current_price + sl_distance
-            else:
-                # Fallback to fixed percentages if ATR is not ready
-                logger.warning(f"⚠️ ATR for {symbol} not ready. Using fallback percentages.")
-                sl_percent = 0.01 if slot_type == "SNIPER" else 0.015
-                final_sl = sl_price if sl_price > 0 else (current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent))
-                sl_distance = abs(current_price - final_sl)
-                raw_qty = risk_amount / sl_distance if sl_distance > 0 else (margin * settings.LEVERAGE) / current_price
+            # Calculate Qty based on fixed margin and leverage
+            # Formula: margin = (qty * price) / leverage => qty = (margin * leverage) / price
+            raw_qty = (margin * settings.LEVERAGE) / current_price
 
             # [V5.4.5] Margin calculation for slot record
             margin = (raw_qty * current_price) / settings.LEVERAGE

@@ -134,37 +134,44 @@ class GuardianAgent:
                 side_norm = (side or "").lower()
                 pnl_pct = ((last_price - entry) / entry if side_norm == "buy" else (entry - last_price) / entry) * 100 * leverage
                 
+                # V6.0: ROI Sanity Guard - Cap extreme value and re-verify naming if suspicious
+                if abs(pnl_pct) > 500:
+                    # Double check if we might be using the wrong symbol's price
+                    # Example: PEPE vs 1000PEPE
+                    if "1000" in symbol and "1000" not in norm_key: # Unlikely with current logic but good to have
+                        logger.warning(f"⚠️ Possible naming collision detected for {symbol}. Re-evaluating.")
+                
+                if pnl_pct > 5000: pnl_pct = 5000
+                if pnl_pct < -5000: pnl_pct = -5000
+
+                # V6.0: PnL USD Sync - Direct calculation to avoid UI mismatches
+                # Formula: (ROI / 100) * Margin
+                qty = slot.get("qty", 0)
+                entry_margin = slot.get("entry_margin", (qty * entry / leverage) if entry > 0 else 0)
+                pnl_usd = (pnl_pct / 100) * entry_margin if entry_margin > 0 else 0
+
                 # ==========================================
                 # V4.5.1: DETAILED LOGGING
                 # ==========================================
                 logger.debug(f"📊 [{slot_id}] {symbol} | Side: {side_norm.upper()} | Type: {slot_type}")
                 logger.debug(f"   Entry: {entry:.8f} | Current: {last_price:.8f} | Stop: {current_stop:.8f}")
-                logger.debug(f"   ROI: {pnl_pct:.2f}% | Target: {execution_protocol.sniper_target_roi}%")
+                logger.debug(f"   ROI: {pnl_pct:.2f}% | PnL $: {pnl_usd:.2f} | Target: {execution_protocol.sniper_target_roi}%")
 
-                # ==========================================
-                # V5.2.4.3: THROTTLED VISUAL STATUS UPDATE
-                # ==========================================
-                slot_data = {
-                    "symbol": symbol,
-                    "side": side,
-                    "entry_price": entry,
-                    "current_stop": current_stop,
-                    "slot_type": slot_type
-                }
-                
-                visual_status = execution_protocol.get_visual_status(slot_data, pnl_pct)
-                
-                # Check if in Flash Zone
-                if visual_status == execution_protocol.STATUS_FLASH_ZONE:
-                    has_flash_zone = True
-                    logger.info(f"🟣 FLASH ZONE ACTIVE: {symbol} @ {pnl_pct:.1f}% ROI | Overclock ON")
+                # V5.0: SNIPER ADAPTIVE SL LOGIC (TP, SL & Trailing)
+                if slot_type == "SNIPER":
+                    should_close, close_reason, new_stop = await execution_protocol.process_sniper_logic(slot, last_price, pnl_pct)
+                else: # SURF
+                    should_close, close_reason, new_stop = await execution_protocol.process_surf_logic(slot, last_price, pnl_pct)
 
+                # UPDATE FIREBASE
                 # Throttling Logic: ROI change > 0.2% OR status change OR 15s passed
                 prev_data = self.last_update_data.get(slot_id, {"pnl": -999, "status": "", "time": 0})
                 roi_drift = abs(pnl_pct - prev_data["pnl"])
                 now = time.time()
                 time_passed = now - prev_data["time"]
                 
+                visual_status = execution_protocol.get_visual_status(slot, pnl_pct)
+
                 should_update_firebase = (
                     roi_drift > 0.2 or 
                     visual_status != prev_data["status"] or 
@@ -176,6 +183,7 @@ class GuardianAgent:
                     try:
                         await firebase_service.update_slot(slot_id, {
                             "pnl_percent": pnl_pct,
+                            "pnl_usd": pnl_usd,
                             "visual_status": visual_status,
                             "current_price": last_price,
                             "last_guardian_check": now
@@ -189,12 +197,9 @@ class GuardianAgent:
                         logger.warning(f"Failed to update slot {slot_id}: {ue}")
 
                 # ==========================================
-                # V5.0: SNIPER ADAPTIVE SL LOGIC (TP, SL & Trailing)
+                # EXECUTION TRIGGER (CLOSE POSITION)
                 # ==========================================
-                if slot_type == "SNIPER":
-                    should_close, close_reason, new_stop = await execution_protocol.process_sniper_logic(slot_data, last_price, pnl_pct)
-                    
-                    if should_close:
+                if should_close:
                         is_stop_loss = "SL" in close_reason or pnl_pct < 0
                         emoji = "🛑" if is_stop_loss else "🎯"
                         logger.info(f"{emoji} GUARDIAN SNIPER CLOSE: {symbol} | Reason: {close_reason} | ROI: {pnl_pct:.2f}%")
