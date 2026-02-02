@@ -196,14 +196,18 @@ class ExecutionProtocol:
             # Level 2: Trailing Agressivo (20% de distância da máxima)
             # Se ROI está em 150%, Trail está em 130%.
             # Se ROI está em 200%, Trail está em 180%.
-            trail_roi = roi - 20.0
+            # 🆕 V6.0: If ATR exists, use max(20% ROI, 2.5x ATR) for better breathing room
+            trail_offset_roi = 20.0
+            if atr and atr > 0:
+                atr_roi = (atr * 2.5 / entry) * self.leverage * 100
+                trail_offset_roi = max(trail_offset_roi, atr_roi)
+
+            trail_roi = roi - trail_offset_roi
             
             # O novo SL em ROI é o maior entre o Floor e o Trail
             target_sl_roi = max(floor_roi, trail_roi)
             
             # Converter ROI alvo para Preço Real
-            # ROI = (price_diff / entry) * leverage * 100
-            # price_diff = (ROI / (leverage * 100)) * entry
             price_offset_pct = target_sl_roi / (self.leverage * 100)
             
             side_norm = (side or "").lower()
@@ -216,7 +220,8 @@ class ExecutionProtocol:
             from services.bybit_rest import bybit_rest_service
             new_stop = await bybit_rest_service.round_price(symbol, new_stop)
             
-            # Verificar se é hora de atualizar
+            # 🆕 V6.0: SL REGRESSION SHIELD (Security Operation)
+            # Never move SL further from entry than current SL
             should_update = False
             if side_norm == "buy":
                 if new_stop > current_sl: should_update = True
@@ -253,20 +258,16 @@ class ExecutionProtocol:
         # 🔄 TRAIL SL (Escada Pré-100%): 15% -> 30% -> 50% -> 70%
         # Só executa se não estiver em Overdrive (< 100%)
         
-        # [V5.4.5] Sentiment-based Risk Zero at 15% ROI
-        if 15.0 <= roi < 30.0:
-            if await self._check_sentiment_weakness(symbol, side):
-                logger.info(f"🛡️ [SENTI RISK ZERO] {symbol} Triggered at ROI: {roi:.1f}%")
-                # Move SL to Entry (Break-even)
-                new_stop = entry # Break-even
-                # Round and check if improvement
-                from services.bybit_rest import bybit_rest_service
-                new_stop = await bybit_rest_service.round_price(symbol, new_stop)
-                if side_norm == "buy" and new_stop > current_sl:
-                    return False, None, new_stop
-                elif side_norm == "sell" and (current_sl == 0 or new_stop < current_sl):
-                    return False, None, new_stop
-        
+        # 🆕 V6.0: ATR SL Hybrid (Security Operation)
+        # If ROI > 50% and ATR exists, use it as a conservative floor
+        if 50.0 <= roi < 100.0 and atr and atr > 0:
+            atr_sl_dist = 3.0 * atr # Wider 3x ATR for SNIPER
+            atr_sl = current_price - atr_sl_dist if side_norm == "buy" else current_price + atr_sl_dist
+            
+            # Logic: If ATR SL is better (closer to price but profitable) than the ladder SL, use it
+            # But the ladder SL is primary for "locking" profits.
+            pass # We'll let the ladder calculate, but we will incorporate ATR check there if needed.
+
         new_stop = await self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
         
         return False, None, new_stop
@@ -342,39 +343,67 @@ class ExecutionProtocol:
     
     async def _calculate_surf_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str) -> Optional[float]:
         """
-        Calcula o novo Stop Loss baseado na escada de proteção.
-        
-        Returns:
-            Novo preço de SL ou None se não atingiu nenhum gatilho
+        🏄 V6.0 SURF TRAILING - Protocolo de Respiro
+        ============================================
+        Calcula o novo Stop Loss baseado no lucro atual e volatilidade.
         """
-        if entry_price <= 0:
-            return None
+        if entry_price <= 0: return None
             
-        # Encontra o nível da escada correspondente ao ROI atual
+        # Protocolo de Respiro: Define o ROI alvo do STOP based on current ROI
         target_stop_roi = None
-        for level in self.surf_trailing_ladder:
-            if roi >= level["trigger"]:
-                target_stop_roi = level["stop_roi"]
-                break
+        
+        if roi >= 150:
+            # Trailing Agressivo para lucros massivos
+            new_sl = await self._calculate_atr_stop(symbol, side, None, multiplier=1.5)
+            return new_sl
+        elif roi >= 50:
+            # Trailing Seguro
+            new_sl = await self._calculate_atr_stop(symbol, side, None, multiplier=2.2)
+            return new_sl
+        elif roi >= 30:
+            # Risk Zero (Breakeven) - Agora apenas após 30% ROI
+            target_stop_roi = 0.0
+        elif roi >= 10:
+            # Proteção Inicial (Breathing ATR) - 3.5x para não ser pego em wicks
+            new_sl = await self._calculate_atr_stop(symbol, side, None, multiplier=3.5)
+            return new_sl
         
         if target_stop_roi is None:
             return None
         
-        # Converte ROI de stop para preço
-        # stop_roi é em termos de ROI alavancado, então precisamos converter para movimento de preço
-        # ROI = price_diff * leverage * 100
-        # price_diff = stop_roi / (leverage * 100)
+        # Converte ROI alvo em Preço
         price_offset_pct = target_stop_roi / (self.leverage * 100)
-        
         side_norm = (side or "").lower()
         if side_norm == "buy":
             new_stop = entry_price * (1 + price_offset_pct)
-        else:  # Sell/Short
+        else:
             new_stop = entry_price * (1 - price_offset_pct)
         
-        # V5.2.4: Surgical Precision Rounding
         from services.bybit_rest import bybit_rest_service
         return await bybit_rest_service.round_price(symbol, new_stop)
+
+    async def _calculate_atr_stop(self, symbol: str, side: str, current_price: Optional[float] = None, multiplier: float = 2.5) -> Optional[float]:
+        """Calcula stop baseado em ATR para dar respiro ao trade."""
+        try:
+            from services.bybit_rest import bybit_rest_service
+            if not current_price:
+                from services.bybit_ws import bybit_ws_service
+                current_price = bybit_ws_service.get_current_price(symbol)
+            
+            # Fetch ATR (mocked or retrieved from technical service)
+            # Para o Protocolo de Respiro, vamos estimar 0.2% como ATR padrão (2x trade fee)
+            atr_value = current_price * 0.002 
+            
+            offset = atr_value * multiplier
+            side_norm = side.lower()
+            if side_norm == "buy":
+                new_stop = current_price - offset
+            else:
+                new_stop = current_price + offset
+            
+            return await bybit_rest_service.round_price(symbol, new_stop)
+        except:
+            return None
     
     async def _calculate_sniper_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
         """

@@ -58,6 +58,9 @@ class SignalGenerator:
                     # Update RTDB for Frontend Widget
                     await firebase_service.update_pulse_drag(self.btc_drag_mode, abs(btc_cvd), self.exhaustion_level)
 
+                # 🆕 V6.0: Broadcast WebSocket Health to Command Tower
+                await firebase_service.update_ws_health(bybit_ws_service.latency_ms)
+
                 # V5.2.1: Check any slot availability (Sniper or Surf) to keep collecting signals
                 # Capacity flexibilization: If Drag Mode, allow more slots
                 max_slots = 7 if self.btc_drag_mode else 4
@@ -95,12 +98,18 @@ class SignalGenerator:
                         if score >= 75:
                             logger.info(f"Sniper detected ELITE opportunity: {symbol} | CVD: {cvd_val:.2f} | Score: {score}")
                             
+                            # 🆕 V6.0: Reasoning Log (AI Act Compliance)
+                            side_label = "Long" if cvd_val > 0 else "Short"
+                            reasoning = f"Elite {side_label} Momentum | CVD: {cvd_val/1000:.1f}k | Score: {score}"
+                            if self.btc_drag_mode: reasoning += " | BTC Drag Boosted"
+
                             await firebase_service.log_signal({
                                 "symbol": symbol,
                                 "score": score,
-                                "type": "CVD_MOMENTUM_V4.3",
+                                "type": "CVD_MOMENTUM_V6.0",
                                 "market_environment": "Bullish" if cvd_val > 0 else "Bearish",
                                 "is_elite": True,
+                                "reasoning": reasoning,
                                 "indicators": {
                                     "cvd": round(cvd_val, 4),
                                     "scanned_at": datetime.now(timezone.utc).isoformat()

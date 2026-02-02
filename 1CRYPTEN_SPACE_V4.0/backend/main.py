@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
                     try:
                         # V5.2.4: Use wait_for for Python 3.10 compatibility
                         s = await asyncio.wait_for(
-                            asyncio.to_thread(bybit_rest_service.get_top_200_usdt_pairs),
+                            asyncio.to_thread(bybit_rest_service.get_elite_50x_pairs),
                             timeout=90
                         )
                         if s: await bybit_ws_service.start(s)
@@ -114,12 +114,10 @@ async def lifespan(app: FastAPI):
 
             logger.info("Step 3: Activating Agents...")
             try:
-                guardian = importlib.import_module("services.agents.guardian").guardian_agent
                 captain = importlib.import_module("services.agents.captain").captain_agent
                 sig_gen = importlib.import_module("services.signal_generator").signal_generator
                 
                 # Start Agent Loops
-                asyncio.create_task(guardian.monitor_loop())
                 asyncio.create_task(sig_gen.monitor_and_generate())
                 asyncio.create_task(sig_gen.track_outcomes())
                 asyncio.create_task(sig_gen.radar_loop())
@@ -290,6 +288,28 @@ async def get_vault_ui():
         return FileResponse(vault_html_path)
     return {"error": "Vault UI file not found"}
 
+@app.get("/armament/ui")
+async def get_armament_ui():
+    """🆕 Serve the detailed Armament Settings page."""
+    armament_path = os.path.join(FRONTEND_DIR, "armament_settings_v4.0", "code.html")
+    if os.path.exists(armament_path):
+        return FileResponse(armament_path)
+    return {"error": "Armament UI file not found"}
+
+@app.get("/tower")
+@app.get("/command-tower")
+async def get_tower_ui():
+    """🆕 V6.0: Serve the Command Tower UI page."""
+    # V6.0: Search in multiple locations for robustness (Direct vs Subfolder)
+    paths = [
+        os.path.join(FRONTEND_DIR, "armament_settings_v4.0", "config", "command_tower", "code.html"),
+        os.path.join(FRONTEND_DIR, "config", "command_tower", "code.html")
+    ]
+    for tower_path in paths:
+        if os.path.exists(tower_path):
+            return FileResponse(tower_path)
+    return {"error": "Command Tower UI file not found"}
+
 @app.get("/banca")
 async def get_banca():
     # Lazy import for Cloud Run compatibility
@@ -426,6 +446,18 @@ async def get_logs(limit: int = 50):
     except Exception as e:
         logger.error(f"Error fetching logs: {e}")
         return [{"agent": "System", "message": "Backend Active - Waiting for Agents...", "level": "INFO", "timestamp": "Now"}]
+
+@app.get("/api/elite-pairs")
+async def get_elite_pairs():
+    """🚀 V6.0: Retorna a lista dos ~85 pares de elite com alavancagem 50x+."""
+    from services.bybit_rest import bybit_rest_service
+    try:
+        # Tenta pegar a lista atualizada
+        symbols = await asyncio.to_thread(bybit_rest_service.get_elite_50x_pairs)
+        return {"symbols": symbols, "count": len(symbols)}
+    except Exception as e:
+        logger.error(f"Error fetching elite pairs: {e}")
+        return {"symbols": ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P"], "count": 3}
 
 
 @app.get("/api/btc/regime")

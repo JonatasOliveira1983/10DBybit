@@ -26,9 +26,20 @@ class BybitWS:
         self.last_atr_update = 0
         self.loop = None # V5.4.5: Main loop reference
 
+        # 🆕 V6.0: Command Tower Metrics
+        self.latency_ms = 0
+        self.last_message_time = 0
+        self.buffer_health = 100
+
     def handle_trade_message(self, message):
         """Processes trade messages to calculate CVD."""
         try:
+            # 🆕 V6.0: Latency Tracking
+            receive_ts = time.time() * 1000
+            msg_ts = message.get("ts", receive_ts)
+            self.latency_ms = max(0, receive_ts - msg_ts)
+            self.last_message_time = receive_ts
+
             data = message.get("data", [])
             topic = message.get("topic", "")
             # V5.2.2: Keep symbol consistent with topic (No .P suffix for Mainnet/Testnet public topics)
@@ -58,6 +69,11 @@ class BybitWS:
                 score = sum(item["delta"] for item in self.cvd_data[symbol])
                 if self.loop and self.loop.is_running():
                     asyncio.run_coroutine_threadsafe(redis_service.set_cvd(symbol, score), self.loop)
+                    
+            # 🆕 V6.0: Push health metrics to Redis
+            if self.loop and self.loop.is_running():
+                health_data = {"latency": self.latency_ms, "status": "ONLINE", "ts": self.last_message_time}
+                asyncio.run_coroutine_threadsafe(redis_service.client.set("ws_health", json.dumps(health_data)), self.loop)
         except Exception as e:
             logger.error(f"Error processing trade message: {e}")
 

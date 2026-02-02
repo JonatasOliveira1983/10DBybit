@@ -10,6 +10,8 @@ from services.agents.contrarian import contrarian_agent
 from services.agents.guardian import guardian_agent
 from services.agents.news_sensor import news_sensor
 from services.bybit_rest import bybit_rest_service
+from services.execution_protocol import execution_protocol
+from config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
@@ -158,11 +160,14 @@ class CaptainAgent:
                     # SURF = Strong trend signal (high score + high CVD)
                     slot_type = "SURF" if (score >= 82 and abs_cvd >= 30000) else "SNIPER"
                     
+                    # 🆕 V6.0: Fetch reasoning from signal (AI Act Audit)
+                    reasoning_log = signal.get("reasoning", "Standard CVD Momentum")
+
                     # atomic decision: mark handled IMMEDIATELY in Firebase
                     await firebase_service.update_signal_outcome(signal["id"], "PICKED")
                     
                     type_emoji = "🏄" if slot_type == "SURF" else "🎯"
-                    pensamento_base = f"V4.8 Elite: {type_emoji} {slot_type} Ativado. CVD: {cvd:.2f}. Score: {score}. (Missão: Risco Zero)"
+                    pensamento_base = f"V6.0 Elite: {type_emoji} {slot_type} Ativado. {reasoning_log}"
                     
                     logger.info(f"Captain PICKED Signal: {signal['symbol']} (Score: {score}) -> {slot_type}")
                     
@@ -189,41 +194,131 @@ class CaptainAgent:
 
     async def monitor_active_positions_loop(self):
         """
-        Periodically analyzes active trades and provides AI commentary (telemetry).
+        🚀 V6.0 SUPER CAPTAIN: Unified Management & Telemetry Loop.
+        Absorção total do Guardian Agent para comando centralizado e eficiente.
         """
-        logger.info("Captain Telemetry loop active.")
+        logger.info("⚓ Captain Centralized Management Loop ACTIVE.")
+        self.last_update_data = {}
+        self.overclock_active = False
+        self.normal_interval = 1.0
+        self.overclock_interval = 0.2
+        self.last_telemetry_time = 0
+        self.telemetry_interval = 300 # 5 min
+
         while self.is_running:
             try:
-                active_slots = await firebase_service.get_active_slots()
-                trading_slots = [s for s in active_slots if s.get("symbol")]
+                # 1. Management Step (Adaptive Interval)
+                await self.manage_positions()
                 
-                if not trading_slots:
-                    await asyncio.sleep(60)
-                    continue
+                # 2. Telemetry Step (Throttled)
+                now = time.time()
+                if now - self.last_telemetry_time > self.telemetry_interval:
+                    await self._provide_telemetry()
+                    self.last_telemetry_time = now
 
-                # AI Quota Saver: Pick only ONE slot per cycle to provide telemetry
-                import random
-                slot = random.choice(trading_slots)
-                
-                symbol = slot["symbol"]
-                pnl = slot.get("pnl_percent", 0)
-                side = slot.get("side", "Buy")
-                
-                # Generate short telemetry update
-                prompt = f"Como Capitão da 1CRYPTEN, forneça uma telemetria neural curtíssima (máximo 12 palavras) para {symbol} ({side}) com {pnl:.2f}% ROI. Seja técnico."
-                telemetry = await ai_service.generate_content(prompt, system_instruction="Você é o Capitão Soberano. Sua fala é telemetria neural de elite.")
-                
-                if not telemetry:
-                    # Technical Fallback if AI is offline/unbalanced
-                    telemetry = f"Vetor {symbol} em {pnl:.2f}% ROI. Sincronia {side} ativa."
-                
-                # Ensure symbol is in the message for frontend filtering
-                await firebase_service.log_event("TECH", f"[{symbol}] TELEMETRIA: {telemetry}", "INFO")
-
-                await asyncio.sleep(300) # Full sweep every 5 minutes to save quota
             except Exception as e:
-                logger.error(f"Error in telemetry loop: {e}")
-                await asyncio.sleep(60)
+                logger.error(f"Captain Loop Error: {e}")
+            
+            interval = self.overclock_interval if self.overclock_active else self.normal_interval
+            await asyncio.sleep(interval)
+
+    async def manage_positions(self):
+        """
+        Unified Position & SL Management.
+        """
+        try:
+            slots = await firebase_service.get_active_slots()
+            active_slots = [s for s in slots if s.get("symbol")]
+            
+            if not active_slots:
+                self.overclock_active = False
+                return
+
+            # Batch Ticker Update
+            tickers_resp = await bybit_rest_service.get_tickers()
+            price_map = {t["symbol"].replace(".P", "").replace("USDT", "").upper(): float(t.get("lastPrice", 0)) for t in tickers_resp.get("result", {}).get("list", [])}
+
+            has_flash_zone = False
+            for slot in active_slots:
+                symbol = slot["symbol"]
+                entry = slot.get("entry_price", 0)
+                current_stop = slot.get("current_stop", 0)
+                side = slot["side"]
+                slot_id = slot["id"]
+                slot_type = slot.get("slot_type", "SNIPER")
+                
+                if entry == 0: continue
+                norm_key = symbol.replace(".P", "").replace("USDT", "").upper()
+                last_price = price_map.get(norm_key, 0)
+                if last_price == 0: continue
+
+                leverage = getattr(settings, 'LEVERAGE', 50)
+                pnl_pct = ((last_price - entry) / entry if side.lower() == "buy" else (entry - last_price) / entry) * 100 * leverage
+                
+                visual_status = execution_protocol.get_visual_status(slot, pnl_pct)
+                if visual_status == "FLASH_ZONE": has_flash_zone = True
+
+                # Firebase Sync
+                prev = self.last_update_data.get(slot_id, {"pnl": -999, "status": "", "time": 0})
+                if abs(pnl_pct - prev["pnl"]) > 0.3 or visual_status != prev["status"] or (time.time() - prev["time"]) > 15:
+                    await firebase_service.update_slot(slot_id, {"pnl_percent": pnl_pct, "visual_status": visual_status, "current_price": last_price, "last_guardian_check": time.time()})
+                    self.last_update_data[slot_id] = {"pnl": pnl_pct, "status": visual_status, "time": time.time()}
+
+                # Logic Branch
+                if slot_type == "SNIPER":
+                    should_close, reason, new_sl = await execution_protocol.process_sniper_logic(slot, last_price, pnl_pct)
+                else:
+                    should_close, reason, new_sl = await execution_protocol.process_surf_logic(slot, last_price, pnl_pct)
+
+                if should_close:
+                    await self._execute_closure(slot, last_price, pnl_pct, reason)
+                elif new_sl:
+                    await self._update_sl(symbol, side, new_sl, slot_id, pnl_pct)
+
+            self.overclock_active = has_flash_zone
+        except Exception as e:
+            logger.error(f"Captain management error: {e}")
+
+    async def _execute_closure(self, slot, last_price, pnl_pct, reason):
+        symbol = slot["symbol"]
+        slot_id = slot["id"]
+        logger.info(f"⚓ CAPTAIN CLOSURE: {symbol} | Reason: {reason} | ROI: {pnl_pct:.2f}%")
+        if "SL" in reason or pnl_pct < 0: await self.register_sl_cooldown(symbol)
+        
+        try:
+            qty = slot.get("qty", 0)
+            pnl_usd = execution_protocol.calculate_pnl(slot["entry_price"], last_price, qty, slot["side"])
+            if bybit_rest_service.execution_mode == "PAPER":
+                paper_pos = next((p for p in bybit_rest_service.paper_positions if normalize_symbol(p["symbol"]) == normalize_symbol(symbol)), None)
+                size = float(paper_pos["size"]) if paper_pos else float(qty)
+                if await bybit_rest_service.close_position(symbol, slot["side"], size):
+                    await firebase_service.hard_reset_slot(slot_id, reason, pnl_usd, trade_data={"symbol": symbol, "side": slot["side"], "entry_price": slot["entry_price"], "exit_price": last_price, "qty": size, "slot_id": slot_id, "slot_type": slot.get("slot_type")})
+            else:
+                positions = await bybit_rest_service.get_active_positions(symbol=symbol)
+                for pos in positions:
+                    if float(pos["size"]) > 0:
+                        await bybit_rest_service.close_position(symbol, pos["side"], float(pos["size"]))
+                        await firebase_service.hard_reset_slot(slot_id, reason, pnl_usd)
+        except Exception as e: logger.error(f"Failed to close {symbol}: {e}")
+
+    async def _update_sl(self, symbol, side, new_sl, slot_id, pnl_pct):
+        try:
+            new_sl = await bybit_rest_service.round_price(symbol, new_sl)
+            if bybit_rest_service.execution_mode == "REAL": await bybit_rest_service.set_trading_stop(symbol=symbol, category="linear", stopLoss=str(new_sl))
+            await firebase_service.update_slot(slot_id, {"current_stop": new_sl, "pensamento": f"⚓ Capitão: SL posicionado em {new_sl:.5f} (ROI: {pnl_pct:.1f}%)"})
+        except Exception as e: logger.error(f"Failed update SL {symbol}: {e}")
+
+    async def _provide_telemetry(self):
+        try:
+            active_slots = await firebase_service.get_active_slots()
+            slots = [s for s in active_slots if s.get("symbol")]
+            if not slots: return
+            import random
+            slot = random.choice(slots)
+            prompt = f"Como Capitão da 1CRYPTEN, telemetria neural curtíssima (máximo 12 palavras) para {slot['symbol']} com {slot.get('pnl_percent', 0):.2f}% ROI. Seja tático."
+            telemetry = await ai_service.generate_content(prompt, system_instruction="Você é o Comandante Supremo. Telemetria tática apenas.")
+            if telemetry: await firebase_service.log_event("TECH", f"[{slot['symbol']}] TELEMETRIA: {telemetry}", "INFO")
+        except: pass
 
     async def _get_system_snapshot(self, mentioned_symbol: str = None):
         """

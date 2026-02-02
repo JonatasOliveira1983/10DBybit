@@ -126,14 +126,16 @@ class BybitREST:
                 recv_window=30000,
             )
         return self._session
-    def get_top_200_usdt_pairs(self):
-        """Optimized: Fetches top USDT pairs by 24h turnover and filters by leverage >= 50x (USDT.P Focused)."""
+    def get_elite_50x_pairs(self):
+        """
+        🚀 REFINAMENTO ESTRATÉGICO V6.0: Escaneia apenas pares com alavancagem >= 50x.
+        Foca nos ~85 pares de elite da Bybit para maximizar precisão e liquidez.
+        """
         try:
-            # 1. Fetch ALL instruments info in one batch (HIGH SPEED)
-            logger.info("BybitREST: Fetching all linear instruments for 50x+ Sniper territory...")
+            # 1. Fetch ALL instruments info
+            logger.info("BybitREST: Fetching Elite 50x+ Instruments (Sniper Strategy)...")
             instr_resp = self.session.get_instruments_info(category="linear")
             instr_list = instr_resp.get("result", {}).get("list", [])
-            logger.info(f"BybitREST: Received {len(instr_list)} instruments from Bybit.")
             
             # 2. Filter by USDT suffix AND leverage >= 50x
             candidates = {}
@@ -143,17 +145,16 @@ class BybitREST:
                     continue
                 
                 max_lev = float(info.get("leverageFilter", {}).get("maxLeverage", 0))
+                # Filtro rigoroso: Apenas cavalos de corrida (50x+)
                 if max_lev >= 50:
                     candidates[symbol] = info
             
-            logger.info(f"BybitREST: Found {len(candidates)} candidates with 50x+ leverage.")
+            logger.info(f"BybitREST: Identified {len(candidates)} Elite pairs with 50x+ leverage.")
             
-            # 3. Get tickers to sort by turnover
-            logger.info("BybitREST: Fetching tickers for turnover sorting...")
+            # 3. Sort by Turnover to ensure we track the most liquid targets
             tickers_resp = self.session.get_tickers(category="linear")
             ticker_list = tickers_resp.get("result", {}).get("list", [])
             
-            # 4. Join and sort
             final_candidates = []
             for t in ticker_list:
                 sym = t.get("symbol")
@@ -166,15 +167,18 @@ class BybitREST:
             # Sort by turnover
             final_candidates.sort(key=lambda x: x["turnover"], reverse=True)
             
-            # Take top candidates (Usually around 75-80 meet 50x criteria)
-            # Add .P suffix to identify as Perpetuals
+            # Return all elite pairs (usually ~85)
             final_symbols = [f"{x['symbol']}.P" for x in final_candidates]
             
-            logger.info(f"BybitREST: Operation Sniper successful. Monitored: {len(final_symbols)} Elite 50x+ USDT.P Symbols.")
+            logger.info(f"BybitREST: Elite Scan Successful. Monitoring {len(final_symbols)} high-leverage assets.")
             return final_symbols
         except Exception as e:
-            logger.error(f"Error in Operation Sniper scan: {e}")
+            logger.error(f"Error in Elite 50x scan: {e}")
             return ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P"]
+
+    def get_top_200_usdt_pairs(self):
+        """Deprecated: Use get_elite_50x_pairs for Sniper Protocol."""
+        return self.get_elite_50x_pairs()
 
     async def get_wallet_balance(self):
         """Fetches the total equity from the Bybit account (UNIFIED or CONTRACT)."""

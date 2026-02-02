@@ -367,6 +367,18 @@ class FirebaseService:
             await asyncio.wait_for(asyncio.to_thread(self.rtdb.update, {"btc_command_center": data}), timeout=3.0)
         except Exception: pass
 
+    async def update_ws_health(self, latency: float, status: str = "ONLINE"):
+        """🆕 V6.0: Updates WebSocket Health (Command Tower) in RTDB."""
+        if not self.is_active or not self.rtdb: return
+        try:
+            data = {
+                "latency_ms": latency,
+                "status": status,
+                "timestamp": time.time() * 1000
+            }
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.update, {"ws_command_tower": data}), timeout=2.0)
+        except Exception: pass
+
     async def update_rtdb_slots(self, slots: list):
         """Duplicate slot data to RTDB for high-speed UI refreshes."""
         if not self.is_active or not self.rtdb: return
@@ -482,6 +494,19 @@ class FirebaseService:
         if trade_data:
             trade_data["close_reason"] = reason
             trade_data["pnl"] = pnl
+            
+            # 🆕 V6.0: Generate Auditable Reasoning Report (AI Act 2026)
+            initial_reasoning = current_state.get("pensamento", "N/A")
+            report = f"--- AUDIT REPORT V6.0 ---\n"
+            report += f"SYMBOL: {trade_data.get('symbol')}\n"
+            report += f"STRATEGY: {trade_data.get('slot_type')}\n"
+            report += f"REASONING: {initial_reasoning}\n"
+            report += f"OUTCOME: {'WIN 🚀' if pnl >= 0 else 'LOSS 🛡️'}\n"
+            report += f"CLOSE REASON: {reason}\n"
+            report += f"PNL USD: ${pnl:.2f}\n"
+            report += f"-------------------------"
+            
+            trade_data["reasoning_report"] = report
             await self.log_trade(trade_data)
         
         # 3. Log event for monitoring

@@ -2102,8 +2102,10 @@
         // 2. Journey Radar Page
         const JourneyPage = () => {
             const [signals, setSignals] = useState([]);
+            const [elitePairs, setElitePairs] = useState([]);
+            const [activeTab, setActiveTab] = useState('signals'); // 'signals' or 'elite'
             const [isHuntActive, setIsHuntActive] = useState(false);
-            const [showBtc, setShowBtc] = useState(false); // Option to show/hide BTC signals
+            const [showBtc, setShowBtc] = useState(false);
             const { latency, status: pulseStatus } = usePulseMonitor();
 
             // Fetch Signals via API
@@ -2115,26 +2117,37 @@
                             const data = await response.json();
                             setSignals(data);
                             window.dispatchEvent(new CustomEvent('rest-pulse'));
-                            // Detect if any elite signal is present (Hunt Mode)
                             const elite = data.some(s => s.score >= 85 && !s.symbol.includes("BTC"));
                             setIsHuntActive(elite);
                         }
-                    } catch (e) {
-                        console.error("Radar Fetch Error:", e);
-                    }
+                    } catch (e) { console.error("Radar Fetch Error:", e); }
                 };
-                fetchSignals();
-                const interval = setInterval(fetchSignals, 5000);
-                return () => clearInterval(interval);
-            }, []);
 
-            // Filter out BTC signals unless toggle is on
+                const fetchElitePairs = async () => {
+                    try {
+                        const response = await fetch(API_BASE + '/api/elite-pairs');
+                        if (response.ok) {
+                            const data = await response.json();
+                            setElitePairs(data.symbols || []);
+                        }
+                    } catch (e) { console.error("Elite Fetch Error:", e); }
+                };
+
+                fetchSignals();
+                fetchElitePairs();
+                const interval = setInterval(() => {
+                    fetchSignals();
+                    if (activeTab === 'elite') fetchElitePairs();
+                }, 5000);
+                return () => clearInterval(interval);
+            }, [activeTab]);
+
+            // Filter out BTC signals
             const filteredSignals = showBtc ? signals : signals.filter(s => !s.symbol.includes("BTC"));
             const btcSignalsCount = signals.filter(s => s.symbol.includes("BTC")).length;
 
             return (
                 <div className={`flex flex-col h-screen transition-colors duration-1000 ${isHuntActive ? 'bg-red-950/10' : 'v5-bg-deep'} text-white pb-28 sm:pb-24`}>
-                    {/* Premium Header - Gemini Style */}
                     <header className="flex-shrink-0 px-4 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
                         <div className="max-w-3xl mx-auto">
                             <div className="grid grid-cols-3 items-center">
@@ -2142,7 +2155,7 @@
                                     <span className={`w-2 h-2 rounded-full ${pulseStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></span>
                                     <span className="text-[10px] text-slate-500 font-mono uppercase">{pulseStatus === 'OFFLINE' ? 'OFF' : `${latency}ms`}</span>
                                     <div className="w-[1px] h-3 bg-white/10 mx-1"></div>
-                                    <span className="text-[9px] text-primary font-mono uppercase font-bold tracking-widest">STREAM</span>
+                                    <span className="text-[9px] text-primary font-mono uppercase font-bold tracking-widest">STREAM V6.0</span>
                                 </div>
                                 <h1 className="text-base sm:text-lg font-display font-bold v5-text-main text-center uppercase">
                                     Radar
@@ -2152,87 +2165,80 @@
                                     <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
                                 </div>
                             </div>
-                            <div className="flex justify-between items-center mt-2">
-                                <p className="text-xs text-slate-400">{filteredSignals.length} sinais ativos • 84 pares 50x</p>
+
+                            {/* Tab Switcher */}
+                            <div className="flex gap-4 mt-4 border-b border-white/5">
+                                <button onClick={() => setActiveTab('signals')}
+                                    className={`pb-2 text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'signals' ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-300'}`}>
+                                    Sinais Recentes
+                                </button>
+                                <button onClick={() => setActiveTab('elite')}
+                                    className={`pb-2 text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'elite' ? 'text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-300'}`}>
+                                    Elite 85 (50x+)
+                                </button>
+                            </div>
+
+                            <div className="flex justify-between items-center mt-3">
+                                <p className="text-[10px] text-slate-400 capitalize">
+                                    {activeTab === 'signals' ? `${filteredSignals.length} Gatilhos Detectados` : `${elitePairs.length} Ativos Monitorados`}
+                                </p>
                                 <div className="flex items-center gap-2">
-                                    <span className={`px-3 py-1 text-[10px] rounded-full border font-medium ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'}`}>
-                                        {isHuntActive ? 'Lock On' : 'Scanning'}
-                                    </span>
-                                    {btcSignalsCount > 0 && (
-                                        <button
-                                            onClick={() => setShowBtc(!showBtc)}
-                                            className={`text-[10px] px-3 py-1 rounded-full border transition-colors ${showBtc ? 'border-primary/50 text-primary bg-primary/10' : 'border-white/10 text-slate-500'}`}
-                                        >
-                                            {showBtc ? `BTC (${btcSignalsCount})` : `+${btcSignalsCount} BTC`}
-                                        </button>
+                                    {activeTab === 'signals' && (
+                                        <React.Fragment>
+                                            <span className={`px-3 py-1 text-[10px] rounded-full border font-medium ${isHuntActive ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-primary/30 text-primary bg-primary/10'}`}>
+                                                {isHuntActive ? 'LOCK ON' : 'SCANNING'}
+                                            </span>
+                                            {btcSignalsCount > 0 && (
+                                                <button onClick={() => setShowBtc(!showBtc)} className={`text-[10px] px-3 py-1 rounded-full border transition-colors ${showBtc ? 'border-primary/50 text-primary bg-primary/10' : 'border-white/10 text-slate-500'}`}>
+                                                    {showBtc ? `BTC (${btcSignalsCount})` : `+${btcSignalsCount} BTC`}
+                                                </button>
+                                            )}
+                                        </React.Fragment>
                                     )}
                                 </div>
                             </div>
                         </div>
                     </header>
 
-                    {/* Signals Grid */}
                     <main className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 custom-scrollbar">
-                        {filteredSignals.length === 0 ? (
-                            <div className="h-64 flex flex-col items-center justify-center text-slate-600">
-                                <span className="material-icons-round text-3xl mb-2 animate-spin opacity-20">radar</span>
-                                <p className="text-[10px] uppercase tracking-widest font-mono">Aguardando sinais...</p>
-                            </div>
+                        {activeTab === 'signals' ? (
+                            filteredSignals.length === 0 ? (
+                                <div className="h-64 flex flex-col items-center justify-center text-slate-600">
+                                    <span className="material-icons-round text-3xl mb-2 animate-spin opacity-20">radar</span>
+                                    <p className="text-[10px] uppercase tracking-widest font-mono">Processando Camada Elite...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                                    {filteredSignals.map(signal => {
+                                        const isBTC = signal.symbol.includes("BTC");
+                                        const isElite = signal.score >= 85 && !isBTC;
+                                        return (
+                                            <div key={signal.id || Math.random()} className={`p-3 rounded-xl border transition-all ${isElite ? 'bg-red-500/10 border-red-500/30' : 'v5-bg-card border-none opacity-60'}`}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-bold uppercase ${isElite ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-500'}`}>{isElite ? 'Elite' : 'Track'}</span>
+                                                        <h2 className="text-sm sm:text-base font-bold mt-1 text-white">{signal.symbol.replace('.P', '')}</h2>
+                                                    </div>
+                                                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-[10px] font-bold text-slate-400">{signal.score}</div>
+                                                </div>
+                                                <div className="flex justify-between text-[8px] opacity-50">
+                                                    <span className={signal.market_environment === 'Bullish' ? 'text-emerald-400' : 'text-red-400'}>{signal.market_environment}</span>
+                                                    <span>{new Date(signal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-                                {filteredSignals.map(signal => {
-                                    const isBTC = signal.symbol.includes("BTC");
-                                    const isElite = signal.score >= 85 && !isBTC;
-
-                                    return (
-                                        <div key={signal.id || Math.random()}
-                                            className={`p-2.5 sm:p-3 rounded-xl border transition-all ${isElite ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]' :
-                                                isBTC ? 'bg-primary/5 border-primary/20 opacity-70' :
-                                                    'v5-bg-card border-none opacity-60'
-                                                }`}>
-
-                                            {/* Header row */}
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase ${isElite ? 'bg-red-500 text-white' :
-                                                        isBTC ? 'bg-primary/20 text-primary' :
-                                                            'bg-slate-800 text-slate-500'
-                                                        }`}>
-                                                        {isElite ? 'Elite' : isBTC ? 'Compass' : 'Track'}
-                                                    </span>
-                                                    <h2 className={`text-sm sm:text-base font-bold mt-1 ${isElite ? 'text-white' : 'text-slate-400'}`}>
-                                                        {signal.symbol.replace('.P', '')}
-                                                    </h2>
-                                                </div>
-                                                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border flex items-center justify-center ${isElite ? 'border-red-500/50 text-red-400 bg-red-500/10' : 'border-white/10 text-slate-500'
-                                                    }`}>
-                                                    <span className="font-bold text-xs sm:text-sm">{signal.score}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Info row */}
-                                            <div className="flex justify-between text-[8px] sm:text-[9px]">
-                                                <span className="text-slate-500">
-                                                    {(() => {
-                                                        if (!signal.timestamp) return '--:--';
-                                                        try {
-                                                            let date;
-                                                            if (signal.timestamp.seconds) {
-                                                                date = new Date(signal.timestamp.seconds * 1000);
-                                                            } else {
-                                                                date = new Date(signal.timestamp);
-                                                            }
-                                                            return isNaN(date.getTime()) ? '--:--' : date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                                                        } catch (e) { return '--:--'; }
-                                                    })()}
-                                                </span>
-                                                <span className={`font-bold ${signal.market_environment === 'Bullish' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    {signal.market_environment === 'Bullish' ? '↑' : '↓'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                            /* Elite Monitor Grid */
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                                {elitePairs.map(symbol => (
+                                    <div key={symbol} className="p-3 bg-white/[0.03] border border-white/5 rounded-lg flex flex-col items-center justify-center hover:bg-primary/5 hover:border-primary/20 transition-all group">
+                                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 group-hover:text-primary transition-colors">{symbol.replace('.P', '').replace('USDT', '')}</span>
+                                        <span className="text-[7px] text-slate-600 mt-1 uppercase font-bold tracking-tighter">50X ELITE</span>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </main>
@@ -2658,6 +2664,34 @@
                     </header>
 
                     <div className="grid grid-cols-1 gap-4">
+                        {/* 🆕 V6.0: Elite Access Hub */}
+                        <div className="glass-card p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 shadow-[0_0_20px_rgba(255,215,0,0.05)]">
+                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-primary uppercase tracking-[0.2em]">
+                                <span className="material-icons-round text-sm">rocket_launch</span>
+                                Central de Comando Elite
+                            </h2>
+                            <div className="grid grid-cols-2 gap-3">
+                                <a href="/tower" className="flex flex-col items-center gap-3 p-4 v5-bg-card border v5-border-subtle rounded-xl hover:v5-border-primary hover:bg-primary/5 transition-all group">
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform">
+                                        <span className="material-icons-round text-primary">speed</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <span className="text-[9px] font-black text-white block uppercase tracking-tighter">Command Tower</span>
+                                        <span className="text-[7px] text-slate-500 uppercase font-mono">Real-time Stats</span>
+                                    </div>
+                                </a>
+                                <a href="/armament/ui" className="flex flex-col items-center gap-3 p-4 v5-bg-card border v5-border-subtle rounded-xl hover:v5-border-primary hover:bg-primary/5 transition-all group">
+                                    <div className="w-10 h-10 rounded-full bg-accent-blue/10 flex items-center justify-center border border-accent-blue/20 group-hover:scale-110 transition-transform">
+                                        <span className="material-icons-round text-accent-blue">architecture</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <span className="text-[9px] font-black text-white block uppercase tracking-tighter">Detailed Config</span>
+                                        <span className="text-[7px] text-slate-500 uppercase font-mono">Armament Elite</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+
                         {/* Control Section */}
                         <div className="glass-card p-4 rounded-xl border border-white/5 v5-bg-card v5-border-subtle">
                             <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest v5-text-dim">
