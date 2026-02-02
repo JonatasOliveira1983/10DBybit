@@ -181,6 +181,7 @@ class BankrollManager:
                     "entry_margin": float(pos.get("positionIM", 0)),
                     "current_stop": float(pos.get("stopLoss", 0)),
                     "status_risco": "RECOVERED",
+                    "slot_type": get_slot_type(empty_slot["id"]), # V5.4.5: Ensure correct logic type
                     "pnl_percent": float(pos.get("unrealisedPnl", 0)) / float(pos.get("positionIM", 1)) * 100 if float(pos.get("positionIM", 0)) > 0 else 0,
                     "qty": float(pos.get("size", 0)),
                     "timestamp_last_update": time.time()
@@ -414,20 +415,41 @@ class BankrollManager:
                 logger.warning(f"Balance too low: ${balance}")
                 return None
                 
-            # [V5.2.5] Margem Dinâmica: Obrigatória 5% do saldo total acumulado
-            margin = await vault_service.get_dynamic_margin()
-            raw_qty = (margin * settings.LEVERAGE) / current_price
+            # [V5.4.5] Adaptive Stop Loss (ATR) & Risk Management
+            # 1. Fetch ATR from BybitWS
+            from services.bybit_ws import bybit_ws_service
+            atr = bybit_ws_service.atr_cache.get(symbol)
             
+            # [V5.4.5] 5% Fixed Risk Rule
+            # Risk Amount = Balance * 0.05
+            risk_amount = balance * 0.05
+            
+            if atr and atr > 0:
+                # Volatility-based SL Distance (2.5x ATR)
+                sl_distance = 2.5 * atr
+                logger.info(f"🛡️ [ATR DEFENSE] {symbol} | ATR: {atr:.5f} | SL Distance (2.5x): {sl_distance:.5f}")
+                
+                # Qty = Risk Amount / SL Distance
+                # This ensures that if SL is hit, we lose exactly 5% of balance
+                raw_qty = risk_amount / sl_distance
+                
+                # SL Price calculation
+                final_sl = current_price - sl_distance if side == "Buy" else current_price + sl_distance
+            else:
+                # Fallback to fixed percentages if ATR is not ready
+                logger.warning(f"⚠️ ATR for {symbol} not ready. Using fallback percentages.")
+                sl_percent = 0.01 if slot_type == "SNIPER" else 0.015
+                final_sl = sl_price if sl_price > 0 else (current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent))
+                sl_distance = abs(current_price - final_sl)
+                raw_qty = risk_amount / sl_distance if sl_distance > 0 else (margin * settings.LEVERAGE) / current_price
+
+            # [V5.4.5] Margin calculation for slot record
+            margin = (raw_qty * current_price) / settings.LEVERAGE
+
             import math
             precision = max(0, int(-math.log10(qty_step))) if qty_step > 0 else 3
             qty = round(raw_qty, precision)
             if qty <= 0: qty = qty_step
-
-            # 3. Stop Loss Logic (Protocol Elite)
-            sl_percent = 0.01 if slot_type == "SNIPER" else 0.015
-            final_sl = sl_price
-            if final_sl <= 0:
-                final_sl = current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent)
             
             # Validation
             if side == "Buy" and final_sl >= current_price: final_sl = current_price * (1 - sl_percent)

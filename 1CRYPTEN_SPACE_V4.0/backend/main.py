@@ -21,8 +21,8 @@ asyncio.get_event_loop().set_default_executor(executor)
 
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
-VERSION = "V5.4.1"
-DEPLOYMENT_ID = "V541_STABILITY_FIX"
+VERSION = "V5.4.5"
+DEPLOYMENT_ID = "V545_GEMINI_DEFENSE"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,6 +37,7 @@ firebase_service = None
 bybit_rest_service = None
 bybit_ws_service = None
 bankroll_manager = None
+redis_service = None
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -50,7 +51,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"🚀 Initializing 1CRYPTEN SPACE {VERSION}...")
     
     async def start_services():
-        global firebase_service, bybit_rest_service, bybit_ws_service, bankroll_manager
+        global firebase_service, bybit_rest_service, bybit_ws_service, bankroll_manager, redis_service
         
         logger.info("Step 0: Loading services (slow-walk mode)...")
         try:
@@ -58,6 +59,10 @@ async def lifespan(app: FastAPI):
             # Load services with 1s delay each to keep event loop breathing
             logger.info("Step 0.1: Loading Firebase Service...")
             firebase_service = importlib.import_module("services.firebase_service").firebase_service
+            
+            logger.info("Step 0.1.1: Connecting Redis Service...")
+            redis_service = importlib.import_module("services.redis_service").redis_service
+            await redis_service.connect()
             await asyncio.sleep(1)
             
             logger.info("Step 0.2: Loading Bybit REST Service...")
@@ -203,7 +208,11 @@ async def favicon():
         return FileResponse(fav_path)
     return {"error": "favicon not found"}
 
-@app.get("/dashboard")
+@app.get("/test")
+async def test_connectivity():
+    return {"status": "ok", "timestamp": datetime.datetime.now().isoformat()}
+
+@app.get("/api/dashboard")
 async def get_dashboard():
     # Return the code.html from the frontend folder
     index_path = os.path.join(FRONTEND_DIR, "code.html")
@@ -700,6 +709,7 @@ else:
         return {"status": "online", "message": "Dashboard directory missing."}
 
 if __name__ == "__main__":
-    # Ensure port is taken from env if available
-    target_port = int(os.environ.get("PORT", settings.PORT))
-    uvicorn.run("main:app", host="0.0.0.0", port=target_port, reload=False)
+    target_port = 8080
+    target_host = "127.0.0.1"
+    logger.info(f"🌐 Server starting on http://{target_host}:{target_port}")
+    uvicorn.run(app, host=target_host, port=target_port, reload=False)

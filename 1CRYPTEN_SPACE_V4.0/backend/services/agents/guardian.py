@@ -356,25 +356,22 @@ class GuardianAgent:
                     
                     # Update trailing stop if needed
                     if new_stop is not None:
-                        logger.info(f"🏄 SURF TRAILING UPDATE: {symbol} | New SL: {new_stop:.8f}")
-                        
                         try:
-                            resp = await bybit_rest_service.set_trading_stop(
-                                category="linear",
-                                symbol=symbol,
-                                stopLoss=str(new_stop),
-                                slTriggerBy="LastPrice",
-                                tpslMode="Full",
-                                positionIdx=0
-                            )
+                            # V5.4.5: Precision Engine
+                            new_stop = await bybit_rest_service.round_price(symbol, new_stop)
+                            
+                            logger.info(f"🏄 SURF TRAILING UPDATE: {symbol} | New SL: {new_stop:.8f}")
+                            
+                            if bybit_rest_service.execution_mode == "REAL":
+                                await bybit_rest_service.set_trading_stop(symbol=symbol, side=side, sl=new_stop)
                             
                             await firebase_service.update_slot(slot_id, {
                                 "current_stop": new_stop,
                                 "status_risco": visual_status,
-                                "pensamento": f"🛡️ Guardian: Stop atualizado para {new_stop:.5f}"
+                                "pensamento": f"🛡️ [V5.4.5] Surf Shield: Stop em {new_stop:.5f}"
                             })
                         except Exception as se:
-                            logger.error(f"Failed to update SL for {symbol}: {se}")
+                            logger.error(f"Failed to update SURF SL for {symbol}: {se}")
 
             # Update Overclock state
             self.overclock_active = has_flash_zone

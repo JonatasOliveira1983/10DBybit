@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     INITIAL_SLOTS: int = 4
     BREAKEVEN_TRIGGER_PERCENT: float = 5.0 # Increased to 5% ROI to avoid premature exits
     
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
     # Fast API context
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -5,6 +5,7 @@ import time
 from collections import deque
 from pybit.unified_trading import WebSocket
 from config import settings
+from services.redis_service import redis_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BybitWS")
@@ -23,6 +24,7 @@ class BybitWS:
         self.btc_variation_1h = 0.0
         self.atr_cache = {} # {symbol: atr_value}
         self.last_atr_update = 0
+        self.loop = None # V5.4.5: Main loop reference
 
     def handle_trade_message(self, message):
         """Processes trade messages to calculate CVD."""
@@ -51,6 +53,11 @@ class BybitWS:
                     "timestamp": trade.get("T"),
                     "delta": delta
                 })
+                
+                # V5.4.0: Persist to Redis Cache for low-latency ROIs
+                score = sum(item["delta"] for item in self.cvd_data[symbol])
+                if self.loop and self.loop.is_running():
+                    asyncio.run_coroutine_threadsafe(redis_service.set_cvd(symbol, score), self.loop)
         except Exception as e:
             logger.error(f"Error processing trade message: {e}")
 
@@ -61,7 +68,11 @@ class BybitWS:
             topic = message.get("topic", "")
             if "lastPrice" in data:
                 norm_sym = symbol.replace(".P", "").upper()
-                self.prices[norm_sym] = float(data["lastPrice"])
+                price = float(data["lastPrice"])
+                self.prices[norm_sym] = price
+                # V5.4.0: Cache ticker in Redis
+                if self.loop and self.loop.is_running():
+                    asyncio.run_coroutine_threadsafe(redis_service.set_ticker(norm_sym, price), self.loop)
         except Exception: pass
 
     def get_current_price(self, symbol: str) -> float:
@@ -99,17 +110,27 @@ class BybitWS:
             if now - self.last_atr_update > 600: # Every 10 mins
                 for symbol in self.active_symbols:
                     klines = await bybit_rest_service.get_klines(symbol=symbol, interval="60", limit=15)
-                    if len(klines) >= 14:
-                        # Simple ATR calculation: average of (High - Low)
-                        total_tr = 0
-                        for k in klines[:14]:
-                            h = float(k[2])
-                            l = float(k[3])
-                            total_tr += (h - l)
-                        self.atr_cache[symbol] = total_tr / 14
+                    if len(klines) >= 15:
+                        # V5.4.5: Robust ATR Calculation (True Range based)
+                        tr_list = []
+                        for i in range(1, len(klines)):
+                            high = float(klines[i][2])
+                            low = float(klines[i][3])
+                            prev_close = float(klines[i-1][4])
+                            
+                            tr = max(
+                                high - low,
+                                abs(high - prev_close),
+                                abs(low - prev_close)
+                            )
+                            tr_list.append(tr)
+                        
+                        # Store Simple ATR (average of TR)
+                        self.atr_cache[symbol] = sum(tr_list[-14:]) / 14
+                        logger.debug(f"💎 [ATR] {symbol} = {self.atr_cache[symbol]:.8f}")
                 
                 self.last_atr_update = now
-                logger.debug(f"V5.1.0: ATR Cache updated for {len(self.atr_cache)} symbols.")
+                logger.info(f"V5.4.5: ATR Cache updated for {len(self.atr_cache)} symbols.")
 
         except Exception as e:
             logger.error(f"Error updating market context in BybitWS: {e}")
@@ -117,6 +138,7 @@ class BybitWS:
     async def start(self, symbols: list):
         """Starts the WebSocket connection for a list of symbols (V4.3 Expansion)."""
         self.active_symbols = symbols
+        self.loop = asyncio.get_running_loop() # V5.4.5: Capture main loop
         
         self.ws = WebSocket(
             testnet=settings.BYBIT_TESTNET,

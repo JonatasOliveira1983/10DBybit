@@ -57,8 +57,10 @@ class ExecutionProtocol:
             {"trigger": 150.0, "stop_roi": 120.0},  # Big Surf: protege 120%
             {"trigger": 100.0, "stop_roi": 80.0},   # ROI 100% -> SL em +80%
             {"trigger": 75.0,  "stop_roi": 55.0},   # 🆕 ROI 75%  -> SL em +55%
+            {"trigger": 60.0,  "stop_roi": 35.0},   # 🆕 V5.4.5: ROI 60% -> SL 35%
             {"trigger": 50.0,  "stop_roi": 30.0},   # Risco Zero: 50% -> SL em +30%
             {"trigger": 35.0,  "stop_roi": 15.0},   # 🆕 ROI 35%  -> SL em +15%
+            {"trigger": 30.0,  "stop_roi": 10.0},   # 🆕 V5.4.5: ROI 30% -> SL 10%
             {"trigger": 20.0,  "stop_roi": 5.0},    # 🆕 ROI 20%  -> SL em +5%
             {"trigger": 10.0,  "stop_roi": 0.0},    # Breakeven mais cedo (era 5%)
         ]
@@ -150,7 +152,26 @@ class ExecutionProtocol:
         roi = price_diff * self.leverage * 100
         return roi
     
-    async def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float) -> Tuple[bool, Optional[str], Optional[float]]:
+    async def _check_sentiment_weakness(self, symbol: str, side: str) -> bool:
+        """
+        V5.4.5: Checks if sentiment (CVD) is contradicting the trade.
+        Returns True if 'weakness' is detected.
+        """
+        from services.redis_service import redis_service
+        cvd = await redis_service.get_cvd(symbol)
+        side_norm = side.lower()
+        
+        # Weakness threshold: 10k USD delta in opposite direction
+        if side_norm == "buy" and cvd < -10000:
+            logger.info(f"🛡️ [SENTI WEAKNESS] {symbol} | Long trade with Negative CVD: {cvd:.2f}")
+            return True
+        elif side_norm == "sell" and cvd > 10000:
+            logger.info(f"🛡️ [SENTI WEAKNESS] {symbol} | Short trade with Positive CVD: {cvd:.2f}")
+            return True
+            
+        return False
+
+    async def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float, atr: Optional[float] = None) -> Tuple[bool, Optional[str], Optional[float]]:
         """
         🆕 V5.0: Lógica SNIPER com Adaptive Stop Loss.
         
@@ -231,6 +252,21 @@ class ExecutionProtocol:
         
         # 🔄 TRAIL SL (Escada Pré-100%): 15% -> 30% -> 50% -> 70%
         # Só executa se não estiver em Overdrive (< 100%)
+        
+        # [V5.4.5] Sentiment-based Risk Zero at 15% ROI
+        if 15.0 <= roi < 30.0:
+            if await self._check_sentiment_weakness(symbol, side):
+                logger.info(f"🛡️ [SENTI RISK ZERO] {symbol} Triggered at ROI: {roi:.1f}%")
+                # Move SL to Entry (Break-even)
+                new_stop = entry # Break-even
+                # Round and check if improvement
+                from services.bybit_rest import bybit_rest_service
+                new_stop = await bybit_rest_service.round_price(symbol, new_stop)
+                if side_norm == "buy" and new_stop > current_sl:
+                    return False, None, new_stop
+                elif side_norm == "sell" and (current_sl == 0 or new_stop < current_sl):
+                    return False, None, new_stop
+        
         new_stop = await self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
         
         return False, None, new_stop
@@ -280,6 +316,12 @@ class ExecutionProtocol:
                 # ROI > 200%: Flash Zone (Trailing ultra curto de 0.8x ATR ou manual)
                 new_stop_price = current_price - (0.8 * atr) if side_norm == "buy" else current_price + (0.8 * atr)
         
+        # [V5.4.5] Sentiment-based Risk Zero at 15% ROI for SURF
+        if 15.0 <= roi < 20.0:
+            if await self._check_sentiment_weakness(symbol, side):
+                logger.info(f"🛡️ [SENTI RISK ZERO] SURF {symbol} Triggered at ROI: {roi:.1f}%")
+                new_stop_price = entry # Break-even
+        
         # Fallback para escada fixa se ATR não trouxe resultado ou ROI for menor/maior que faixas ATR
         if new_stop_price is None:
             new_stop_price = await self._calculate_surf_trailing_stop(symbol, entry, roi, side)
@@ -291,7 +333,8 @@ class ExecutionProtocol:
                 is_improvement = True
             elif side_norm == "sell" and (current_sl == 0 or new_stop_price < current_sl):
                 is_improvement = True
-                
+            
+            if is_improvement:
                 logger.debug(f"🏄 SURF TRAILING UPDATE: {symbol} ROI={roi:.1f}% -> New SL={new_stop_price:.5f}")
                 return False, None, new_stop_price
         
@@ -408,16 +451,16 @@ class ExecutionProtocol:
         # 1. Calcular ROI Real (Alavancagem 50x)
         roi = self.calculate_roi(entry, current_price, side)
         
-        # 2. Executar lógica específica do tipo
+        # 2. Get ATR for volatility-based decisions
+        from services.bybit_ws import bybit_ws_service
+        atr = bybit_ws_service.atr_cache.get(symbol)
+
+        # 3. Executar lógica específica do tipo
         if slot_type == "SNIPER":
-            # 🆕 V5.0: SNIPER agora retorna 3-tuple com new_stop_price
-            return await self.process_sniper_logic(slot_data, current_price, roi)
+            return await self.process_sniper_logic(slot_data, current_price, roi, atr=atr)
             
         elif slot_type == "SURF":
-            # V5.1.0: Get ATR from BybitWS if possible
-            from services.bybit_ws import bybit_ws_service
-            atr = bybit_ws_service.atr_cache.get(symbol)
-            return await self.process_surf_logic(slot_data, current_price, roi, atr)
+            return await self.process_surf_logic(slot_data, current_price, roi, atr=atr)
         
         # Tipo desconhecido - usa lógica SNIPER por padrão
         logger.warning(f"Unknown slot_type '{slot_type}' for {symbol}, using SNIPER logic")

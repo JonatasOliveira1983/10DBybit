@@ -28,7 +28,9 @@ class BybitREST:
         
         # V5.3.4: Closure Idempotency Shield
         self.pending_closures = set()
-        self.closure_lock = asyncio.Lock()
+        # V5.4.0: Distributed Lock via RedisService
+        from services.redis_service import redis_service
+        self.redis = redis_service
 
     def _load_paper_state(self):
         """Loads paper positions and balance from disk."""
@@ -176,7 +178,7 @@ class BybitREST:
 
     async def get_wallet_balance(self):
         """Fetches the total equity from the Bybit account (UNIFIED or CONTRACT)."""
-        logger.info(f"[DEBUG] get_wallet_balance called. Mode: {self.execution_mode}")
+        # logger.info(f"[DEBUG] get_wallet_balance called. Mode: {self.execution_mode}")
         if self.execution_mode == "PAPER":
              # Calculate unrealized PNL from active paper positions to show dynamic equity
              unrealized_pnl = 0.0
@@ -385,9 +387,15 @@ class BybitREST:
         """
         norm_symbol = self._strip_p(symbol).upper()
         
-        async with self.closure_lock:
+        # V5.4.0: Gemini Lock - Global Atomicity
+        lock_acquired = await self.redis.acquire_lock(f"close:{norm_symbol}", lock_timeout=15)
+        if not lock_acquired:
+            logger.info(f"🛡️ [REDIS LOCK] {norm_symbol} closure already in progress. Skipping.")
+            return False
+
+        try:
             if norm_symbol in self.pending_closures:
-                logger.info(f"🛡️ [BYBIT] {norm_symbol} already has a pending closure. Skipping redundant call.")
+                logger.info(f"🛡️ [BYBIT] {norm_symbol} already has a local pending closure. Skipping.")
                 return False
             
             if self.execution_mode == "PAPER":
@@ -425,6 +433,15 @@ class BybitREST:
                         
                         if pos in self.paper_positions:
                             self.paper_positions.remove(pos)
+                        
+                        # V5.4.0: UI Pub/Sub - Push closure to frontend
+                        await self.redis.publish_update("trade_updates", {
+                            "type": "POSITION_CLOSED",
+                            "symbol": symbol,
+                            "pnl": final_pnl,
+                            "reason": "PAPER_CLOSE"
+                        })
+                        
                         logger.info(f"[PAPER] Closed {symbol}. PNL: ${final_pnl:.2f}. New Balance: ${self.paper_balance:.2f}")
                         self._save_paper_state()
                         
@@ -459,6 +476,9 @@ class BybitREST:
                 logger.error(f"Error closing position for {symbol}: {e}")
                 self.pending_closures.discard(norm_symbol)
                 return False
+        finally:
+            # Release Redis Lock
+            await self.redis.release_lock(f"close:{norm_symbol}")
 
     async def _cleanup_pending_closure(self, symbol: str, delay: int = 15):
         """V5.3.4: Helper to clear pending closure flag after a delay."""
@@ -695,6 +715,20 @@ class BybitREST:
                 logger.error(f"Error in Paper Execution Engine V4.3.1: {e}", exc_info=True)
             
             # V4.3.1: Fast loop interval for SNIPER 100% ROI capture
+            
+            # V5.4.0: UI Pub/Sub - High frequency PnL push (Throttle to once per loop)
+            if self.paper_positions:
+                pnl_summary = []
+                for p in self.paper_positions:
+                    p_sym = p["symbol"]
+                    c_price = price_map.get(p_sym, 0)
+                    if c_price > 0:
+                        p_roi = execution_protocol.calculate_roi(float(p["avgPrice"]), c_price, p["side"])
+                        pnl_summary.append({"symbol": p_sym, "roi": p_roi})
+                
+                if pnl_summary:
+                    await self.redis.publish_update("ui_updates", {"type": "PNL_PULSE", "data": pnl_summary})
+
             await asyncio.sleep(1)
 
 bybit_rest_service = BybitREST()

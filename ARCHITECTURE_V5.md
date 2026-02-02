@@ -1,4 +1,4 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.4.0) 🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V5.4.5) 🛰️
 
 Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE. Utilize este contexto para planejar melhorias em lógica de IA, otimização de execução e interface.
 
@@ -8,7 +8,7 @@ Este documento descreve o funcionamento interno, fluxos de dados e protocolos do
 
 O sistema opera de forma assíncrona com três camadas integradas:
 
-- **Frontend (UI)**: React/Tailwind em arquivo único (`code.html`), com suporte a múltiplos temas (Modo Gemini).
+- **Frontend (UI)**: React/Tailwind em arquivo único (`code.html`), com suporte a múltiplos temas (Modo Gemini). Acessível via porta **8080**.
 - **Backend (API)**: FastAPI (`main.py`) orquestrando sessões Bybit, IAs e persistência.
 - **Agents (Background)**: Loops `asyncio` que executam monitoramento e decisões em tempo real.
 
@@ -32,6 +32,12 @@ O sistema opera de forma assíncrona com três camadas integradas:
 ---
 
 ## 3. Visual Engine & Temas 🎨
+
+### [V5.4.5] - 2026-02-02 (Gemini Defense - Scorched Earth) 🚀
+*   **Infrastructure**: Porta padronizada para **8080** para compatibilidade universal com navegadores (solução do erro `ERR_UNSAFE_PORT` e `ERR_CONNECTION_REFUSED`).
+*   **Engine Fix**: Correção crítica no `ExecutionProtocol` (SURF Mode). Posições em LONG agora movem o Stop Loss corretamente junto com o preço.
+*   **Metadata Shield**: No `BankrollManager`, a recuperação de posições órfãs agora reconstrói o `slot_type` dinamicamente, garantindo que a lógica correta (Sniper/Surf) seja aplicada.
+*   **Reset Protocol**: Nova ferramenta `reset_system_v545.py` para limpeza total ("Scorched Earth") de Firestore e state local.
 
 ### [V5.4.1] - 2026-02-01 (Stability Patch)
 *   **Fix**: Desestruturação correta de `theme` e `setTheme` no componente `SettingsPage`.
@@ -74,4 +80,4 @@ O sistema agora utiliza um motor de temas baseado em variáveis CSS (`:root`), p
 - Bloqueio de símbolos em nível de Firebase para garantir que a pausa técnica persista mesmo após reinicializações do servidor.
 
 ---
-*Versão do Documento: 5.4.0 | Contexto para Gemini AI*
+*Versão do Documento: 5.4.5 | Contexto para Gemini AI*
