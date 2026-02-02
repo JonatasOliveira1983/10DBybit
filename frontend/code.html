@@ -1523,9 +1523,9 @@
             const profitUSD = (entryMargin * (pnl / 100)); // Calculado sobre a margem REAL
             const isProfit = pnl >= 0;
 
-            // V4.3.2: SNIPER vs SURF Target Logic
+            // V4.3.2: SNIPER vs SURF Target Logic (V6.0 ALIGNMENT: 1-5 = SURF, 6-10 = SNIPER)
             const entryPrice = Number(s.entry_price) || 0;
-            const isSniper = s.id <= 5 || s.slot_type === 'SNIPER';
+            const isSniper = s.id >= 6 || s.slot_type === 'SNIPER';
             const targetPrice = isSniper ? (s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98) : null;
             const squadronEmoji = isSniper ? '🎯' : '🏄';
             const squadronName = isSniper ? 'Esquadrão Sniper' : 'Esquadrão Surf';

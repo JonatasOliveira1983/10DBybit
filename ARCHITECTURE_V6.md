@@ -33,15 +33,16 @@ O sistema opera de forma assíncrona com três camadas integradas:
 
 ## 3. Visual Engine & Temas 🎨
 
-### [V6.0 Elite] - 2026-02-02 (Centralized Command) 🚀
+### [V6.0.1 Elite] - 2026-02-02 (SURF-FIRST Alignment) 🏄🎯
+*   **SURF-First Protocol (Strict)**: Alocação fixa de slots: **Slots 1-5 = SURF** (Base de Segurança), **Slots 6-10 = SNIPER** (Alta Rotatividade).
+*   **Strict Foundation Enforcement**: O sistema bloqueia trades SNIPER até que a base de 5 slots SURF esteja preenchida, ou que os trades SURF ativos estejam em **Risco Zero** (Breakeven).
+*   **Visual Parity Sync**: Emojis (🏄 para SURF, 🎯 para SNIPER) e rótulos da interface sincronizados 1:1 com a lógica do backend.
 *   **Agent Merger**: Guardian Agent removido; lógica de gestão consolidada no Capitão para evitar conflitos de sincronização.
 *   **Elite 85 Scan**: Filtro nativo na Bybit para focar apenas em ativos de alta alavancagem.
 *   **Breathing Protocol**: Novo protocolo de respiro para trades SURF (Risk Zero apenas após 30% ROI).
 *   **Command Tower UI**: Visualização em tempo real da saúde do WebSocket e latência na ponte de comando.
 *   **Total Purge (Phase 2)**: Reset absoluto de Firebase (Signals, Slots, History) + Engine local para boot 100% limpo em novos ciclos.
-*   **PnL USD Real-Time Sync**: Sincronização forçada de PnL em dólar no loop do Guardian, garantindo paridade total entre ROI % e saldo visual.
 *   **Robust Ticker Mapping (Armor V6.0)**: Validação de precificação por correspondência exata (Exact Match) que previne anomalias de ROI em moedas com nomes similares.
-*   **ROI Sanity Guard**: Trava de segurança que limita qualquer variação de ROI a ±5000%, protegendo a UI e os logs de valores espúrios.
 
 ---
 
@@ -51,13 +52,19 @@ O sistema opera de forma assíncrona com três camadas integradas:
 `BybitWS` (Fluxo Ordens) ➡️ `SignalGenerator` (Cálculo CVD) ➡️ `RTDB` (market_radar) ➡️ `Firestore` (journey_signals)
 
 ### B. Gestão Centralizada (V6.0)
-1. `Captain` detecta sinal ➡️ `Bankroll` valida slots e risco ➡️ Executa Ordem.
-2. `Captain` monitora ROI em tempo real ➡️ Aplica `ExecutionProtocol` (Adaptive SL).
-3. Registro único no Histórico via `Bankroll.sync_slots_with_exchange`.
+1. `Captain` detecta sinal ➡️ `Bankroll` valida slots e risco (**Regra SURF-First**).
+2. Se Slots 1-5 < 5 e Risco > 0 em Surf: Bloqueia SNIPER.
+3. Se permitido: Executa Ordem Atômica.
+4. `Captain` monitora ROI em tempo real ➡️ Aplica `ExecutionProtocol` (Adaptive SL).
+5. Registro único no Histórico via `Bankroll.sync_slots_with_exchange`.
 
 ---
 
 ## 5. Protocolos Estratégicos (V6.0) 📜
+
+### 🌊 PROTOCOLO SURF-FIRST
+- **Fundação (Slots 1-5)**: Destinados a operações de tendência longa (SURF). Primeiro objetivo do sistema é estabelecer esta base.
+- **Transição SNIPER (Slots 6-10)**: Ativada apenas após fundação sólida ou proteção total do capital em risco.
 
 ### 🎯 SNIPER OVERDRIVE 2.0
 - **Adaptive Trailing**: SL move-se dinamicamente antes de 100% ROI para proteger ganhos parciais.
@@ -66,8 +73,5 @@ O sistema opera de forma assíncrona com três camadas integradas:
 ### 🏄 SURF SHIELD (Breathing)
 - **Breathing Zone**: Entre 10-30% ROI, o trade usa um SL largo (3.5x ATR) em vez de travar no breakeven, evitando expulsão prematura por wicks.
 
-### ☢️ TOTAL PURGE SHIELD
-- Reset total que elimina arquivos JSON locais e documentos Firebase, prevenindo "Zombie Positions" em novos ciclos.
-
 ---
-*Versão do Documento: 6.0.0 | Contexto para Almirante & Gemini AI*
+*Versão do Documento: 6.0.1 | Contexto para Almirante & Gemini AI*

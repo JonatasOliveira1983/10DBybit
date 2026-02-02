@@ -12,7 +12,7 @@ logger = logging.getLogger("BankrollManager")
 def get_slot_type(slot_id: int) -> str:
     """
     V6.0 SURF-FIRST: Dedicated slots 1-5 to SURF and 6-10 to SNIPER.
-    Modified as per Commander's request for safety-first strategy.
+    Modified as per Commander's request for safety-foundation strategy.
     """
     return "SURF" if slot_id <= 5 else "SNIPER"
 
@@ -238,11 +238,11 @@ class BankrollManager:
 
     async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER"):
         """
-        V6.0 SURF-FIRST PROTOCOL:
+        V6.0 SURF-FIRST PROTOCOL (STRICT ALIGNMENT):
         1. Duplicate Guard (absolute - no symbol in any slot)
         2. Slot Type Separation (SURF=1-5, SNIPER=6-10)
-        3. SURF-First Priority: We must fill SURF slots before SNIPER.
-        4. SNIPER Safety dependency: SNIPER trades only allowed IF SURF trades are Risk Zero.
+        3. STRICT SURF-First Priority: 5 SURF slots BEFORE any SNIPER.
+        4. SNIPER Safety dependency: SNIPER allowed IF (5 SURF active) OR (Active SURF = Risk Zero).
         5. 30% Hard Risk Cap.
         """
         slots = await firebase_service.get_active_slots()
@@ -269,31 +269,31 @@ class BankrollManager:
 
         # 3. Protocol: SURF-FIRST & SNIPER-SAFETY
         active_surf = [s for s in slots if s["id"] <= 5 and s.get("symbol")]
-        active_sniper = [s for s in slots if s["id"] >= 6 and s.get("symbol")]
-
+        
         if slot_type == "SNIPER":
-            # Rule 1: Must have at least ONE SURF trade active before starting SNIPER, 
-            # OR we allow SNIPER if the Commander explicitly wants, but default is SURF-First.
-            # However, the user said "preencher primeiro os 5 slots de SURF". 
-            # Let's be strict: SNIPER only if SURF has slots filled OR all active SURF are Risk Zero.
-            
-            if len(active_surf) < 1:
-                logger.info("V6.0 Protocol: SURF-First active. Cannot open SNIPER without at least 1 SURF trade.")
-                return None
-            
-            # Rule 2: SNIPER Safety Dependency
-            # "SNIPER only if all active SURF are RISK ZERO"
-            for s in active_surf:
-                entry = s.get("entry_price", 0)
-                stop = s.get("current_stop", 0)
-                side_norm = (s.get("side") or "").lower()
+            # Rule 1: STRICT SURF DEPTH
+            if len(active_surf) < 5:
+                # Exception: Allow SNIPER if ALL active SURF are Risk Zero (even if < 5)
+                # This respects the "fill foundation" vs "safety first" balance.
+                all_surf_safe = True
+                if not active_surf:
+                    all_surf_safe = False # Cannot be safe if empty foundation
                 
-                is_risk_zero = False
-                if side_norm == "buy" and stop >= entry: is_risk_zero = True
-                elif side_norm == "sell" and stop <= entry: is_risk_zero = True
+                for s in active_surf:
+                    entry = s.get("entry_price", 0)
+                    stop = s.get("current_stop", 0)
+                    side_norm = (s.get("side") or "").lower()
+                    
+                    is_risk_zero = False
+                    if side_norm == "buy" and stop >= entry: is_risk_zero = True
+                    elif side_norm == "sell" and stop <= entry: is_risk_zero = True
+                    
+                    if not is_risk_zero:
+                        all_surf_safe = False
+                        break
                 
-                if not is_risk_zero:
-                    logger.info(f"V6.0 SNIPER BLOCKED: SURF trade {s['symbol']} in Slot {s['id']} is NOT Risk Zero yet.")
+                if not all_surf_safe:
+                    logger.info(f"V6.0 Protocol: Foundation not full ({len(active_surf)}/5) and SURF not Risk Zero. SNIPER BLOCKED.")
                     return None
 
             slot_range = range(6, 11)
