@@ -7,7 +7,7 @@ async def force_update():
         "id": "status",
         "saldo_total": 100.0,
         "risco_real_percent": 0.0,
-        "slots_disponiveis": 4
+        "slots_disponiveis": 10
     })
     print("Force update complete: $100.0")
 

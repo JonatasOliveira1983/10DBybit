@@ -154,11 +154,17 @@ class CaptainAgent:
                     cvd = signal.get("indicators", {}).get("cvd", 0)
                     side = "Buy" if cvd >= 0 else "Sell"
                     
-                    # V4.3: Detect SURF vs SNIPER based on signal strength
+                    # V6.0 SURF-FIRST: Forces early signals to be SURF to fill slots 1-5
                     score = signal.get("score", 0)
                     abs_cvd = abs(cvd)
-                    # SURF = Strong trend signal (high score + high CVD)
-                    slot_type = "SURF" if (score >= 82 and abs_cvd >= 30000) else "SNIPER"
+                    
+                    # If we have less than 5 SURF trades, we treat new high-quality signals as SURF 
+                    # to fill the safety foundation first.
+                    active_surf_count = len([s for s in active_slots if s["id"] <= 5 and s.get("symbol")])
+                    if active_surf_count < 5:
+                         slot_type = "SURF"
+                    else:
+                         slot_type = "SURF" if (score >= 82 and abs_cvd >= 30000) else "SNIPER"
                     
                     # 🆕 V6.0: Fetch reasoning from signal (AI Act Audit)
                     reasoning_log = signal.get("reasoning", "Standard CVD Momentum")
@@ -343,7 +349,7 @@ class CaptainAgent:
             surf_slots = ""
             for s in active_slots:
                 if s.get("symbol"):
-                    slot_type = s.get("slot_type", "SNIPER" if s["id"] <= 5 else "SURF")
+                    slot_type = s.get("slot_type", "SURF" if s["id"] <= 5 else "SNIPER")
                     slot_info = f"- Slot {s['id']} ({slot_type}): {s['symbol']} {s.get('side')}, ROI: {s.get('pnl_percent', 0):.2f}%\n"
                     if slot_type == "SNIPER":
                         sniper_slots += slot_info

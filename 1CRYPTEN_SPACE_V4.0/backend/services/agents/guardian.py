@@ -267,28 +267,28 @@ class GuardianAgent:
                             logger.error(f"❌ Failed to close position {symbol}: {close_err}")
                         continue
                     
-                    # 🆕 V5.0: Move SNIPER SL if needed (Adaptive Trailing)
-                    if new_stop is not None:
-                        logger.info(f"🎯 SNIPER TRAIL: {symbol} ROI={pnl_pct:.1f}% | New SL: {new_stop:.8f}")
+                # 🆕 V5.0: Move SNIPER SL if needed (Adaptive Trailing)
+                if new_stop is not None:
+                    logger.info(f"🎯 SNIPER TRAIL: {symbol} ROI={pnl_pct:.1f}% | New SL: {new_stop:.8f}")
+                    
+                    try:
+                        # Update on exchange (REAL mode) or in paper memory
+                        if bybit_rest_service.execution_mode != "PAPER":
+                            resp = await bybit_rest_service.set_trading_stop(
+                                category="linear",
+                                symbol=symbol,
+                                stopLoss=str(new_stop),
+                                slTriggerBy="LastPrice",
+                                tpslMode="Full",
+                                positionIdx=0
+                            )
                         
-                        try:
-                            # Update on exchange (REAL mode) or in paper memory
-                            if bybit_rest_service.execution_mode != "PAPER":
-                                resp = await bybit_rest_service.set_trading_stop(
-                                    category="linear",
-                                    symbol=symbol,
-                                    stopLoss=str(new_stop),
-                                    slTriggerBy="LastPrice",
-                                    tpslMode="Full",
-                                    positionIdx=0
-                                )
-                            
-                            await firebase_service.update_slot(slot_id, {
-                                "current_stop": new_stop,
-                                "pensamento": f"🛡️ Guardian: SL movido para {new_stop:.5f} (ROI: {pnl_pct:.1f}%)"
-                            })
-                        except Exception as se:
-                            logger.error(f"Failed to update SNIPER SL for {symbol}: {se}")
+                        await firebase_service.update_slot(slot_id, {
+                            "current_stop": new_stop,
+                            "pensamento": f"🛡️ Guardian: SL movido para {new_stop:.5f} (ROI: {pnl_pct:.1f}%)"
+                        })
+                    except Exception as se:
+                        logger.error(f"Failed to update SNIPER SL for {symbol}: {se}")
 
                 # ==========================================
                 # V4.5.1: SURF SHIELD LOGIC (Trailing SL)

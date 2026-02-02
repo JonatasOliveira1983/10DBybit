@@ -177,13 +177,14 @@ class VaultService:
             
             # Filtro opcional: apenas trades após a data de início do ciclo
             started_at = current.get("started_at")
+            trades = all_trades  # Default for loop
             if started_at:
                 try:
                     start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-                    trades = [t for t in trades if datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00")) >= start_dt]
+                    trades = [t for t in all_trades if datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00")) >= start_dt]
                 except: pass
 
-            logger.info(f"Encontrados {len(all_trades)} trades para o Ciclo #{cycle_num}")
+            logger.info(f"Encontrados {len(trades)} trades para o Ciclo #{cycle_num}")
             
             # 2. Recalculate
             new_wins = 0
@@ -193,7 +194,7 @@ class VaultService:
             
             from services.execution_protocol import execution_protocol
             
-            for t in all_trades:
+            for t in trades:
                 pnl = t.get("pnl", 0)
                 roi = t.get("pnl_percent", 0)
                 slot_type = t.get("slot_type", "SNIPER")
@@ -224,7 +225,7 @@ class VaultService:
                 "cycle_profit": new_profit,
                 "cycle_losses": new_losses,
                 "surf_profit": new_surf_profit,
-                "total_trades_cycle": len([t for t in all_trades if t.get('slot_type') == 'SNIPER']) # Sniper count for Meta 100
+                "total_trades_cycle": len([t for t in trades if t.get('slot_type') == 'SNIPER']) # Sniper count for Meta 100
             }
             
             def _push():
@@ -359,7 +360,9 @@ class VaultService:
                 "rest_until": current.get("rest_until"),
                 "vault_total": current.get("vault_total", 0),
                 "cautious_mode": False,
-                "min_score_threshold": 75
+                "min_score_threshold": 75,
+                "total_trades_cycle": 0,
+                "accumulated_vault": current.get("accumulated_vault", 0.0)
             }
             
             def _update():

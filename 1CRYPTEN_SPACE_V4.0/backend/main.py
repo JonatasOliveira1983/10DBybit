@@ -742,7 +742,7 @@ else:
         return {"status": "online", "message": "Dashboard directory missing."}
 
 if __name__ == "__main__":
-    target_port = 8080
+    target_port = 8081
     target_host = "127.0.0.1"
     logger.info(f"🌐 Server starting on http://{target_host}:{target_port}")
     uvicorn.run(app, host=target_host, port=target_port, reload=False)

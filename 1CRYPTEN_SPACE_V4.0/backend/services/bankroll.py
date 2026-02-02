@@ -10,8 +10,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BankrollManager")
 
 def get_slot_type(slot_id: int) -> str:
-    """Returns SNIPER for slots 1-5, SURF for slots 6-10."""
-    return "SNIPER" if slot_id <= 5 else "SURF"
+    """
+    V6.0 SURF-FIRST: Dedicated slots 1-5 to SURF and 6-10 to SNIPER.
+    Modified as per Commander's request for safety-first strategy.
+    """
+    return "SURF" if slot_id <= 5 else "SNIPER"
 
 class BankrollManager:
     def __init__(self):
@@ -235,81 +238,69 @@ class BankrollManager:
 
     async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER"):
         """
-        V4.3: Checks if a new slot can be opened based on:
+        V6.0 SURF-FIRST PROTOCOL:
         1. Duplicate Guard (absolute - no symbol in any slot)
-        2. Slot Type Separation (SNIPER=1-5, SURF=6-10)
-        3. 20% risk cap (Hard Limit)
-        4. Progressive Expansion per slot type
+        2. Slot Type Separation (SURF=1-5, SNIPER=6-10)
+        3. SURF-First Priority: We must fill SURF slots before SNIPER.
+        4. SNIPER Safety dependency: SNIPER trades only allowed IF SURF trades are Risk Zero.
+        5. 30% Hard Risk Cap.
         """
         slots = await firebase_service.get_active_slots()
         
-        # 1. ABSOLUTE Duplicate Guard (normalize symbol for comparison)
+        # 1. ABSOLUTE Duplicate Guard
         if symbol:
             norm_symbol = symbol.replace(".P", "").upper()
             for s in slots:
                 existing_sym = (s.get("symbol") or "").replace(".P", "").upper()
                 if existing_sym == norm_symbol:
-                    logger.warning(f"V4.3 Duplicate Guard: {symbol} already in Slot {s['id']}. BLOCKED.")
+                    logger.warning(f"Duplicate Guard: {symbol} already in Slot {s['id']}. BLOCKED.")
                     return None
             
-            # Check local pending lock as well
+            # Check local pending lock
             if any(p_sym == norm_symbol for p_sym, p_id in self.pending_slots):
-                 logger.warning(f"V4.9.4.2 Atomic Lock: {symbol} already pending for execution. BLOCKED.")
+                 logger.warning(f"Atomic Lock: {symbol} already pending. BLOCKED.")
                  return None
         
-        # 2. Slot Type Separation
-        if slot_type == "SNIPER":
-            type_slots = [s for s in slots if s["id"] <= 5]
-            slot_range = range(1, 6)
-        else:  # SURF
-            type_slots = [s for s in slots if s["id"] >= 6]
-            slot_range = range(6, 11)
-        
-        active_type_slots = [s for s in type_slots if s.get("symbol")]
-        active_count = len(active_type_slots)
-        if active_count > 0:
-            active_list = [f"Slot({s['id']}):{s['symbol']}" for s in active_type_slots]
-            logger.info(f"V4.9.4.2 Debug: Active {slot_type} slots: {', '.join(active_list)}")
-        
-        # 3. Hard Risk Cap Check (global)
+        # 2. Hard Risk Cap Check (global)
         real_risk = await self.calculate_real_risk()
         if (real_risk + self.margin_per_slot) > self.risk_cap:
             logger.warning(f"Risk Cap Reached: {real_risk*100:.1f}% + {self.margin_per_slot*100}% > {self.risk_cap*100}%")
             return None
-        
-        # 4. Progressive Expansion Logic (per slot type)
-        # V5.1.0: Protocol Drag Expansion
-        from services.signal_generator import signal_generator
-        if signal_generator.btc_drag_mode:
-            max_initial = 7 if slot_type == "SNIPER" else 6
-        else:
-            max_initial = 4 if slot_type == "SNIPER" else 3
-        
-        if active_count >= max_initial:
-            # Check for Risk Free in this slot type
-            risk_free_count = 0
-            for s in active_type_slots:
+
+        # 3. Protocol: SURF-FIRST & SNIPER-SAFETY
+        active_surf = [s for s in slots if s["id"] <= 5 and s.get("symbol")]
+        active_sniper = [s for s in slots if s["id"] >= 6 and s.get("symbol")]
+
+        if slot_type == "SNIPER":
+            # Rule 1: Must have at least ONE SURF trade active before starting SNIPER, 
+            # OR we allow SNIPER if the Commander explicitly wants, but default is SURF-First.
+            # However, the user said "preencher primeiro os 5 slots de SURF". 
+            # Let's be strict: SNIPER only if SURF has slots filled OR all active SURF are Risk Zero.
+            
+            if len(active_surf) < 1:
+                logger.info("V6.0 Protocol: SURF-First active. Cannot open SNIPER without at least 1 SURF trade.")
+                return None
+            
+            # Rule 2: SNIPER Safety Dependency
+            # "SNIPER only if all active SURF are RISK ZERO"
+            for s in active_surf:
                 entry = s.get("entry_price", 0)
                 stop = s.get("current_stop", 0)
                 side_norm = (s.get("side") or "").lower()
-                if entry > 0:
-                    if side_norm == "buy" and stop >= entry:
-                        risk_free_count += 1
-                    elif side_norm == "sell" and stop <= entry:
-                        risk_free_count += 1
-            
-            allowed = max_initial + risk_free_count
-            if active_count >= allowed:
-                import time
-                now = time.time()
-                log_key = f"progression_cap_{slot_type}"
-                last = self.last_log_times.get(log_key, 0)
-                if now - last > 60:
-                    logger.info(f"V4.3 {slot_type} Cap: Active({active_count}) >= Allowed({allowed}) [Initial {max_initial} + RiskFree {risk_free_count}]")
-                    self.last_log_times[log_key] = now
-                return None
-        
-        # 5. Find available slot in the correct range
+                
+                is_risk_zero = False
+                if side_norm == "buy" and stop >= entry: is_risk_zero = True
+                elif side_norm == "sell" and stop <= entry: is_risk_zero = True
+                
+                if not is_risk_zero:
+                    logger.info(f"V6.0 SNIPER BLOCKED: SURF trade {s['symbol']} in Slot {s['id']} is NOT Risk Zero yet.")
+                    return None
+
+            slot_range = range(6, 11)
+        else:  # SURF
+            slot_range = range(1, 6)
+
+        # 4. Find available slot
         pending_ids = [p_id for p_sym, p_id in self.pending_slots]
         for s in slots:
             if s["id"] in slot_range and not s.get("symbol") and s["id"] not in pending_ids:
