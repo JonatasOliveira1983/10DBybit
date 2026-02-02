@@ -101,43 +101,6 @@
             color: var(--v5-text-main) !important;
         }
 
-        /* Splash Screen - Animação 1C Integration */
-        #splash-root {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: #020202;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.8s ease-in-out, visibility 0.8s;
-        }
-
-        .splash-hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        @keyframes pulse-slow {
-
-            0%,
-            100% {
-                transform: scale(1);
-                opacity: 0.07;
-            }
-
-            50% {
-                transform: scale(1.1);
-                opacity: 0.15;
-            }
-        }
-
-        .bg-noise {
-            background-image: url("https://grainy-gradients.vercel.app/noise.svg");
-            mix-blend-mode: overlay;
-        }
-
         .v5-text-dim {
             color: var(--v5-text-dim) !important;
         }
@@ -2287,122 +2250,6 @@
         const Motion = window.Motion || {};
         const { motion = (props) => <div {...props} />, AnimatePresence = ({ children }) => <React.Fragment>{children}</React.Fragment>, useAnimation = () => ({ start: () => { } }) } = Motion;
 
-        const ICLogoLoader = ({ progress, size = 320 }) => {
-            const controls = useAnimation();
-            const scale = size / 320;
-            React.useEffect(() => {
-                if (progress >= 98) {
-                    controls.start({
-                        scale: [1, 1.03, 1],
-                        filter: [
-                            'drop-shadow(0 0 12px rgba(0,255,255,0.3))',
-                            'drop-shadow(0 0 35px rgba(112,0,255,0.6))',
-                            'drop-shadow(0 0 12px rgba(0,255,255,0.3))'
-                        ],
-                        transition: { duration: 0.8, ease: "easeInOut" }
-                    });
-                }
-            }, [progress, controls]);
-
-            return (
-                <motion.div className="relative flex items-center justify-center" animate={controls} style={{ width: size, height: size }}>
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <motion.div
-                            animate={{ opacity: [0.06, 0.14, 0.06], scale: [0.9, 1.1, 0.9] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                            className="bg-[#7000FF]/10 blur-[100px] rounded-full"
-                            style={{ width: size * 1.4, height: size * 1.4 }}
-                        />
-                    </div>
-                    <svg width={size} height={size} viewBox="0 0 280 280" fill="none" className="relative z-10">
-                        <defs>
-                            <linearGradient id="logoNeonGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF00FF" />
-                                <stop offset="50%" stopColor="#7000FF" />
-                                <stop offset="100%" stopColor="#00FFFF" />
-                            </linearGradient>
-                            <filter id="bloomFilter" x="-100%" y="-100%" width="300%" height="300%">
-                                <feGaussianBlur stdDeviation="5" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                            <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur stdDeviation="2.5" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                        </defs>
-                        <g transform="translate(65, 140)">
-                            <motion.rect x="0" y="-75" width="6" height="150" rx="1.2" fill="url(#logoNeonGradient)"
-                                initial={{ scaleY: 0, opacity: 0, y: 25 }} animate={{ scaleY: 1, opacity: 1, y: 0 }}
-                                transition={{ duration: 1.2, ease: [0.19, 1, 0.22, 1], delay: 0.1 }}
-                                style={{ originY: 1, filter: 'url(#bloomFilter)' }} />
-                            <motion.rect x="18" y="-52" width="6" height="130" rx="1.2" fill="url(#logoNeonGradient)"
-                                initial={{ scaleY: 0, opacity: 0, y: 25 }} animate={{ scaleY: 1, opacity: 1, y: 0 }}
-                                transition={{ duration: 1, ease: [0.19, 1, 0.22, 1], delay: 0.25 }}
-                                style={{ originY: 1, filter: 'url(#bloomFilter)' }} />
-                        </g>
-                        <g transform="translate(180, 140)">
-                            <motion.path d="M 40 -68 A 78 78 0 1 0 40 68" stroke="url(#logoNeonGradient)" strokeWidth="5" fill="transparent"
-                                initial={{ pathLength: 0, opacity: 0 }}
-                                animate={{
-                                    pathLength: progress > 15 ? (progress - 15) / 85 : 0,
-                                    opacity: progress > 10 ? [0.4, 0.7, 0.4] : 0
-                                }}
-                                transition={{ pathLength: { duration: 0.8, ease: "easeOut" }, opacity: { duration: 3, repeat: Infinity, ease: "easeInOut" } }}
-                                style={{ filter: 'url(#softGlow)' }} />
-                            <motion.path d="M 32 -54 A 62 62 0 1 0 32 54" stroke="url(#logoNeonGradient)" strokeWidth="26" strokeLinecap="round" fill="transparent"
-                                initial={{ pathLength: 0, opacity: 0 }}
-                                animate={{ pathLength: progress / 100, opacity: progress > 5 ? 1 : 0 }}
-                                transition={{ duration: 0.6, ease: "linear" }}
-                                style={{ filter: 'url(#bloomFilter)' }} />
-                        </g>
-                    </svg>
-                </motion.div>
-            );
-        };
-
-        const SplashScreen = ({ onFinish }) => {
-            const [progress, setProgress] = useState(0);
-
-            useEffect(() => {
-                const interval = setInterval(() => {
-                    setProgress(prev => {
-                        if (prev >= 100) {
-                            clearInterval(interval);
-                            setTimeout(onFinish, 800);
-                            return 100;
-                        }
-                        return prev + 1.5;
-                    });
-                }, 30);
-                return () => clearInterval(interval);
-            }, []);
-
-            return (
-                <div id="splash-root">
-                    <div className="absolute inset-0 z-0 bg-noise">
-                        <motion.div animate={{ x: [-20, 20, -20], y: [-20, 30, -20], scale: [1, 1.1, 1], opacity: [0.07, 0.12, 0.07] }}
-                            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -top-1/4 -left-1/4 w-[80%] h-[80%] bg-[#7000FF] rounded-full blur-[180px]" />
-                        <motion.div animate={{ x: [30, -30, 30], y: [20, -40, 20], scale: [1.1, 0.9, 1.1], opacity: [0.08, 0.15, 0.08] }}
-                            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -bottom-1/4 -right-1/4 w-[80%] h-[80%] bg-[#00FFFF] rounded-full blur-[180px]" />
-                    </div>
-                    <div className="relative z-10 flex flex-col items-center">
-                        <ICLogoLoader progress={progress} />
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-16 flex flex-col items-center">
-                            <div className="w-64 h-[1px] bg-white/10 rounded-full overflow-hidden mb-6 relative">
-                                <motion.div className="h-full bg-gradient-to-r from-[#FF00FF] via-[#7000FF] to-[#00FFFF]" style={{ width: `${progress}%` }} />
-                            </div>
-                            <div className="flex flex-col items-center gap-2">
-                                <p className="text-[10px] font-medium tracking-[0.6em] text-white uppercase opacity-40">1CRYPTEN ELITE</p>
-                                <p className="text-[14px] font-mono text-cyan-400 font-bold">{Math.floor(progress)}%</p>
-                            </div>
-                        </motion.div>
-                    </div>
-                </div>
-            );
-        };
-
         const LandingPage = ({ onEnter }) => {
             return (
                 <div className="landing-bg fixed inset-0 flex flex-col items-center justify-center z-[100] p-6 overflow-hidden">
@@ -3076,7 +2923,7 @@
                     <div className="max-w-md w-full glass-panel rounded-3xl p-8 border border-white/10 shadow-3xl relative z-10">
                         <div className="flex flex-col items-center mb-6">
                             <div className="relative mb-6">
-                                <ICLogoLoader progress={isReady ? 100 : 75} size={120} />
+                                <img src="/logo10D.png" className="w-24 h-24 object-contain opacity-90 animate-pulse" alt="Logo" />
                             </div>
                             <h2 className="text-xl font-bold tracking-tight uppercase premium-gradient-text">Iniciando Protocolo</h2>
                             <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-1">V6.0 ELITE SQUAD CHECK</p>
@@ -3123,7 +2970,6 @@
         };
 
         const App = () => {
-            const [isSplash, setIsSplash] = useState(true);
             const [isLanding, setIsLanding] = useState(() => {
                 try {
                     return sessionStorage.getItem('1crypten_entered') !== 'true';
@@ -3179,10 +3025,6 @@
             const handleChecklistComplete = () => {
                 setShowChecklist(false);
             };
-
-            if (isSplash && Motion.motion) {
-                return <SplashScreen onFinish={() => setIsSplash(false)} />;
-            }
 
             if (isLanding) {
                 return <LandingPage onEnter={handleEnter} />;

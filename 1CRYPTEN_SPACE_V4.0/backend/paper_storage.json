@@ -29,107 +29,139 @@
       "stopLoss": "0.17754357142857144",
       "takeProfit": "0.19154580000000002",
       "createdTime": "123456789"
-    },
+    }
+  ],
+  "balance": 30.42291742811846,
+  "history": [
     {
       "symbol": "SEIUSDT",
       "side": "Buy",
-      "avgPrice": 0.08916,
-      "stopLoss": 0.08934,
-      "size": 999.0,
-      "positionValue": 89.07084,
-      "unrealisedPnl": 0
-    },
-    {
-      "symbol": "1000FLOKIUSDT",
-      "side": "Buy",
-      "avgPrice": 0.03586,
-      "stopLoss": 0.03574,
-      "size": 2110.0,
-      "positionValue": 75.66460000000001,
-      "unrealisedPnl": 0
-    }
-  ],
-  "balance": 47.319488764118724,
-  "history": [
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5664",
-      "closedPnl": "-0.07147232000000328",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054197983"
-    },
-    {
-      "symbol": "SEIUSDT.P",
-      "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08892",
-      "closedPnl": "-0.3463572960000041",
+      "avgExitPrice": "0.08869",
+      "closedPnl": "-0.5758515719999983",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054199944"
+      "updatedTime": "1770054724490"
     },
     {
       "symbol": "1000FLOKIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03559",
-      "closedPnl": "-0.6598138800000134",
+      "avgExitPrice": "0.03551",
+      "closedPnl": "-0.8284113200000065",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054201761"
+      "updatedTime": "1770054725049"
     },
     {
       "symbol": "ASTERUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5672",
-      "closedPnl": "0.047584640000000136",
+      "avgExitPrice": "0.5648",
+      "closedPnl": "-0.3095862400000101",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054234846"
-    },
-    {
-      "symbol": "SEIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08896",
-      "closedPnl": "-0.3064452480000057",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054235420"
-    },
-    {
-      "symbol": "1000FLOKIUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03563",
-      "closedPnl": "-0.5755151600000021",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054235787"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.567",
-      "closedPnl": "0.0178203999999869",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054267933"
+      "updatedTime": "1770054755634"
     },
     {
       "symbol": "SEIUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08891",
-      "closedPnl": "-0.35633530800000024",
+      "avgExitPrice": "0.08873",
+      "closedPnl": "-0.5359395239999998",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054268406"
+      "updatedTime": "1770054756927"
+    },
+    {
+      "symbol": "1000FLOKIUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03551",
+      "closedPnl": "-0.8284113200000065",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770054758234"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5647",
+      "closedPnl": "-0.32446836000000845",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770054800817"
+    },
+    {
+      "symbol": "SEIUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.0888",
+      "closedPnl": "-0.4660934399999992",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770054801202"
+    },
+    {
+      "symbol": "1000FLOKIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03553",
+      "closedPnl": "-0.7862619600000083",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770054802025"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.565",
+      "closedPnl": "-0.27982200000001334",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770054833262"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08888",
+      "closedPnl": "-0.38626934400000246",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770054833996"
+    },
+    {
+      "symbol": "1000FLOKIUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03553",
+      "closedPnl": "-0.7862619600000083",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770054834517"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5659",
+      "closedPnl": "-0.1458829200000116",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770054865471"
+    },
+    {
+      "symbol": "SEIUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08898",
+      "closedPnl": "-0.2864892239999996",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770054865828"
     },
     {
       "symbol": "1000FLOKIUSDT.P",
@@ -139,97 +171,7 @@
       "closedPnl": "-0.638739200000007",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054268778"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5671",
-      "closedPnl": "0.032702520000001775",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054300680"
-    },
-    {
-      "symbol": "SEIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08891",
-      "closedPnl": "-0.35633530800000024",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054301413"
-    },
-    {
-      "symbol": "1000FLOKIUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03563",
-      "closedPnl": "-0.5755151600000021",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054302090"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5667",
-      "closedPnl": "-0.026825960000008198",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054333362"
-    },
-    {
-      "symbol": "SEIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08889",
-      "closedPnl": "-0.3762913320000063",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054334164"
-    },
-    {
-      "symbol": "1000FLOKIUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03561",
-      "closedPnl": "-0.6176645200000005",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054334658"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5676",
-      "closedPnl": "0.10711311999999358",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054365738"
-    },
-    {
-      "symbol": "SEIUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.089",
-      "closedPnl": "-0.26653320000000735",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054366120"
-    },
-    {
-      "symbol": "1000FLOKIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03563",
-      "closedPnl": "-0.5755151600000021",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054366681"
+      "updatedTime": "1770054866381"
     },
     {
       "symbol": "ASTERUSDT",
@@ -239,77 +181,17 @@
       "closedPnl": "0.0178203999999869",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054397710"
+      "updatedTime": "1770054896549"
     },
     {
       "symbol": "SEIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08897",
-      "closedPnl": "-0.29646723600000957",
+      "avgExitPrice": "0.08909",
+      "closedPnl": "-0.17673109200000062",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054398604"
-    },
-    {
-      "symbol": "1000FLOKIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03561",
-      "closedPnl": "-0.6176645200000005",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054399121"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.568",
-      "closedPnl": "0.166641599999987",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054430289"
-    },
-    {
-      "symbol": "SEIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08904",
-      "closedPnl": "-0.22662115200000896",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054431239"
-    },
-    {
-      "symbol": "1000FLOKIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03567",
-      "closedPnl": "-0.49121644000000564",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054431957"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.568",
-      "closedPnl": "0.166641599999987",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054463959"
-    },
-    {
-      "symbol": "SEIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08903",
-      "closedPnl": "-0.23659916400000508",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054464468"
+      "updatedTime": "1770054897627"
     },
     {
       "symbol": "1000FLOKIUSDT",
@@ -319,77 +201,17 @@
       "closedPnl": "-0.49121644000000564",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054464846"
+      "updatedTime": "1770054898029"
     },
     {
       "symbol": "ASTERUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5685",
-      "closedPnl": "0.24105219999999533",
+      "avgExitPrice": "0.5664",
+      "closedPnl": "-0.07147232000000328",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054496258"
-    },
-    {
-      "symbol": "SEIUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08903",
-      "closedPnl": "-0.23659916400000508",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054497573"
-    },
-    {
-      "symbol": "1000FLOKIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03568",
-      "closedPnl": "-0.47014175999999913",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054497949"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5685",
-      "closedPnl": "0.24105219999999533",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054528086"
-    },
-    {
-      "symbol": "SEIUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.0891",
-      "closedPnl": "-0.16675308000000447",
-      "leverage": "50.0",
-      "qty": "999.0",
-      "updatedTime": "1770054529334"
-    },
-    {
-      "symbol": "1000FLOKIUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.0357",
-      "closedPnl": "-0.42799240000000094",
-      "leverage": "50.0",
-      "qty": "2110.0",
-      "updatedTime": "1770054529936"
-    },
-    {
-      "symbol": "ASTERUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5685",
-      "closedPnl": "0.24105219999999533",
-      "leverage": "50.0",
-      "qty": "149.0",
-      "updatedTime": "1770054561527"
+      "updatedTime": "1770054929710"
     },
     {
       "symbol": "SEIUSDT",
@@ -399,7 +221,97 @@
       "closedPnl": "-0.24657717600000123",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054562780"
+      "updatedTime": "1770054930945"
+    },
+    {
+      "symbol": "1000FLOKIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03567",
+      "closedPnl": "-0.49121644000000564",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770054931386"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5665",
+      "closedPnl": "-0.05659020000000492",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770054961360"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08902",
+      "closedPnl": "-0.24657717600000123",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770054961993"
+    },
+    {
+      "symbol": "1000FLOKIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03573",
+      "closedPnl": "-0.3647683600000107",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770054962517"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5661",
+      "closedPnl": "-0.11611867999999835",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770054993006"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08905",
+      "closedPnl": "-0.216643139999999",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770054993525"
+    },
+    {
+      "symbol": "1000FLOKIUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03572",
+      "closedPnl": "-0.3858430400000026",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770054993874"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5661",
+      "closedPnl": "-0.11611867999999835",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770055026664"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08902",
+      "closedPnl": "-0.24657717600000123",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770055027028"
     },
     {
       "symbol": "1000FLOKIUSDT.P",
@@ -409,130 +321,217 @@
       "closedPnl": "-0.44906708000000733",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054563150"
+      "updatedTime": "1770055027550"
     },
     {
       "symbol": "ASTERUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5683",
-      "closedPnl": "0.2112879599999986",
+      "avgExitPrice": "0.5661",
+      "closedPnl": "-0.11611867999999835",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054594799"
+      "updatedTime": "1770055058763"
     },
     {
-      "symbol": "SEIUSDT.P",
+      "symbol": "SEIUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08901",
-      "closedPnl": "-0.2565551879999974",
+      "avgExitPrice": "0.08903",
+      "closedPnl": "-0.23659916400000508",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054595947"
+      "updatedTime": "1770055059140"
     },
     {
-      "symbol": "1000FLOKIUSDT",
+      "symbol": "1000FLOKIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.03586",
       "avgExitPrice": "0.03567",
       "closedPnl": "-0.49121644000000564",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054596335"
+      "updatedTime": "1770055059656"
     },
     {
       "symbol": "ASTERUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5678",
-      "closedPnl": "0.1368773599999903",
+      "avgExitPrice": "0.5659",
+      "closedPnl": "-0.1458829200000116",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054625631"
+      "updatedTime": "1770055090756"
     },
     {
       "symbol": "SEIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08896",
-      "closedPnl": "-0.3064452480000057",
+      "avgExitPrice": "0.08899",
+      "closedPnl": "-0.27651121200000345",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054626146"
+      "updatedTime": "1770055091102"
     },
     {
-      "symbol": "1000FLOKIUSDT",
+      "symbol": "1000FLOKIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03567",
+      "closedPnl": "-0.49121644000000564",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770055091849"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5659",
+      "closedPnl": "-0.1458829200000116",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770055122220"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08899",
+      "closedPnl": "-0.27651121200000345",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770055122579"
+    },
+    {
+      "symbol": "1000FLOKIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03564",
+      "closedPnl": "-0.5544404800000103",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770055123124"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08902",
+      "closedPnl": "-0.24657717600000123",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770055154358"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5663",
+      "closedPnl": "-0.08635444000000164",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770055154677"
+    },
+    {
+      "symbol": "1000FLOKIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.03586",
+      "avgExitPrice": "0.03564",
+      "closedPnl": "-0.5544404800000103",
+      "leverage": "50.0",
+      "qty": "2110.0",
+      "updatedTime": "1770055154881"
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "0.5662",
+      "avgExitPrice": "0.5666",
+      "closedPnl": "-0.04170808000000656",
+      "leverage": "50.0",
+      "qty": "149.0",
+      "updatedTime": "1770055186557"
+    },
+    {
+      "symbol": "SEIUSDT.P",
+      "side": "Buy",
+      "avgEntryPrice": "0.08916",
+      "avgExitPrice": "0.08905",
+      "closedPnl": "-0.216643139999999",
+      "leverage": "50.0",
+      "qty": "999.0",
+      "updatedTime": "1770055186937"
+    },
+    {
+      "symbol": "1000FLOKIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.03586",
       "avgExitPrice": "0.03566",
       "closedPnl": "-0.5122911200000121",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054626537"
+      "updatedTime": "1770055187650"
     },
     {
       "symbol": "ASTERUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5667",
-      "closedPnl": "-0.026825960000008198",
+      "avgExitPrice": "0.5665",
+      "closedPnl": "-0.05659020000000492",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054659178"
+      "updatedTime": "1770055220219"
     },
     {
       "symbol": "SEIUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08888",
-      "closedPnl": "-0.38626934400000246",
+      "avgExitPrice": "0.08904",
+      "closedPnl": "-0.22662115200000896",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054659625"
+      "updatedTime": "1770055220605"
     },
     {
       "symbol": "1000FLOKIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.0356",
-      "closedPnl": "-0.638739200000007",
+      "avgExitPrice": "0.03565",
+      "closedPnl": "-0.5333658000000039",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054660390"
+      "updatedTime": "1770055220979"
     },
     {
       "symbol": "ASTERUSDT",
       "side": "Buy",
       "avgEntryPrice": "0.5662",
-      "avgExitPrice": "0.5649",
-      "closedPnl": "-0.2947041200000117",
+      "avgExitPrice": "0.5664",
+      "closedPnl": "-0.07147232000000328",
       "leverage": "50.0",
       "qty": "149.0",
-      "updatedTime": "1770054690650"
+      "updatedTime": "1770055251598"
     },
     {
       "symbol": "SEIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.08916",
-      "avgExitPrice": "0.08868",
-      "closedPnl": "-0.5858295840000082",
+      "avgExitPrice": "0.08902",
+      "closedPnl": "-0.24657717600000123",
       "leverage": "50.0",
       "qty": "999.0",
-      "updatedTime": "1770054692872"
+      "updatedTime": "1770055252266"
     },
     {
-      "symbol": "1000FLOKIUSDT",
+      "symbol": "1000FLOKIUSDT.P",
       "side": "Buy",
       "avgEntryPrice": "0.03586",
-      "avgExitPrice": "0.03548",
-      "closedPnl": "-0.8916353600000113",
+      "avgExitPrice": "0.03565",
+      "closedPnl": "-0.5333658000000039",
       "leverage": "50.0",
       "qty": "2110.0",
-      "updatedTime": "1770054693506"
-    },
-    {
-      "symbol": "OMUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.05162",
-      "avgExitPrice": "0.05081
+      "updatedTime": "1770055252781"
+    }
+  ]
+}
