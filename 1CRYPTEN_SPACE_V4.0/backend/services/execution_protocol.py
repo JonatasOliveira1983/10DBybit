@@ -73,6 +73,7 @@ class ExecutionProtocol:
         self.STATUS_BIG_SURF = "BIG_SURF"       # Verde Esmeralda - ROI > 150%
         self.STATUS_FLASH_ZONE = "FLASH_ZONE"   # Roxo Neon - alvo iminente
         self.STATUS_TRAILING = "TRAILING"       # 🆕 Amarelo Ouro - SL foi movido mas ainda negativo
+        self.STATUS_MEGA_PULSE = "MEGA_PULSE"   # 💎 V7.2: Sniper Trailing Profit (ROI > 100%)
         
     def get_visual_status(self, slot_data: Dict[str, Any], roi: float) -> str:
         """
@@ -90,21 +91,22 @@ class ExecutionProtocol:
         if not symbol or entry_price <= 0:
             return self.STATUS_SCANNING
         
-        # SNIPER: Flash Zone (80%+ do target), Risk Zero, ou Trailing
+        # SNIPER: Mega Pulse (ROI >= 100%), Flash Zone (80%+), Risk Zero, ou In Trade
         if slot_type == "SNIPER":
-            side = slot_data.get("side", "Buy")
-            side_norm = (side or "").lower()
+            if roi >= 100.0:
+                return self.STATUS_MEGA_PULSE
             
             if roi >= self.flash_zone_threshold:
-                logger.info(f"🟣 FLASH ZONE: {symbol} ROI={roi:.1f}% >= {self.flash_zone_threshold}%")
                 return self.STATUS_FLASH_ZONE
-            
-            # 🆕 V5.0: Detecta se SL foi movido para lucro (Risk Zero) ou apenas reduzido (Trailing)
+
+            # V5.0: Detecta se SL foi movido para lucro (Risk Zero) ou apenas reduzido (Trailing)
+            side = slot_data.get("side", "Buy")
+            side_norm = (side or "").lower()
             if current_stop > 0 and entry_price > 0:
                 if side_norm == "buy":
                     if current_stop >= entry_price:
-                        return self.STATUS_RISK_ZERO  # SL no lucro
-                    elif current_stop > entry_price * 0.99:  # SL movido mas ainda negativo
+                        return self.STATUS_RISK_ZERO
+                    elif current_stop > entry_price * 0.99:
                         return self.STATUS_TRAILING
                 elif side_norm == "sell":
                     if current_stop <= entry_price:
@@ -189,10 +191,32 @@ class ExecutionProtocol:
         entry = slot_data.get("entry_price", 0)
         current_sl = slot_data.get("current_stop", 0)
         
-        # 🎯 FIXED TAKE PROFIT (100% ROI)
+        # 🎯 V7.2 SNIPER TRAILING TARGET (MEGA_PULSE)
         if roi >= 100.0:
-            logger.info(f"🎯 SNIPER TARGET HIT (100%): {symbol} ROI={roi:.1f}%")
-            return True, f"SNIPER_TP_FIXED ({roi:.1f}%)", None
+            # Trailing Profit Mode: Lock 80% and follow with 20% gap
+            target_stop_roi = max(80.0, roi - 20.0) 
+            
+            # Convert target_stop_roi to price
+            price_offset_pct = target_stop_roi / (self.leverage * 100)
+            side_norm = side.lower()
+            new_stop = entry * (1 + price_offset_pct) if side_norm == "buy" else entry * (1 - price_offset_pct)
+            
+            from services.bybit_rest import bybit_rest_service
+            new_stop = await bybit_rest_service.round_price(symbol, new_stop)
+            
+            # Only update if it's an improvement to avoid SL regressions
+            if (side_norm == "buy" and new_stop > current_sl) or (side_norm == "sell" and (current_sl == 0 or new_stop < current_sl)):
+                logger.info(f"💎 SNIPER MEGA_PULSE: {symbol} ROI={roi:.1f}% | New trailing SL: {new_stop:.6f}")
+                return False, None, new_stop
+            
+            # If current price hits this trailing stop, CaptainAgent will handle closure via manage_positions calling this again
+            # Wait, process_sniper_logic is called in manage_positions. 
+            # If the trailing stop is ALREADY set in current_sl, we need to check if it's hit.
+            if (side_norm == "buy" and current_price <= current_sl) or (side_norm == "sell" and current_price >= current_sl):
+                logger.info(f"🎯 MEGA_PULSE TRAILING HIT: {symbol} ROI={roi:.1f}%")
+                return True, f"SNIPER_MEGA_PULSE_HIT ({roi:.1f}%)", None
+
+            return False, None, None # Continue trailing
 
         # 🛑 HARD STOP LOSS (50%)
         if roi <= -50.0:

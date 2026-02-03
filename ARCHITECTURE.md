@@ -1,4 +1,4 @@
-# 🦅 1CRYPTEN V7.1: Sniper Pulse Architecture
+# 🦅 1CRYPTEN V7.2: Sniper Pulse Elite Architecture
 
 Esta arquitetura define o protocolo de **Alta Precisão e Execução Sequencial** para o 1CRYPTEN Sniper. O sistema foi projetado para operar como um "Atirador de Elite", focando em um único alvo por vez com máxima letalidade.
 
@@ -22,25 +22,29 @@ graph TD
     H -->|Cycle Reset / History| I[Firebase / UI]
 ```
 
-### 1. **BTC Pulse & Market Context**
-- **Sincronização**: Atualização a cada 60 segundos (V7.1 Sniper Pulse).
+### 1. **BTC Pulse & Market Context (V7.2)**
+- **Sincronização**: Atualização a cada 60 segundos (Sniper Pulse Sync).
 - **Drag Mode**: Ativado quando a variação do BTC em 1h ultrapassa 1.2% ou o CVD extrapola $2.5M.
-- **Dynamic Exhaustion**: Nível de exaustão calculado progressivamente baseado no fluxo de ordens (BTC CVD) e volatilidade. $5M CVD = 100% Exaustão.
+- **Dynamic Exhaustion**: Nível de exaustão calculado progressivamente.
 
-### 2. **Signal Generator (The Radar)**
-- **Scanning**: Monitoramento constante de 200 pares a cada 5 segundos.
-- **Elite Filter**: Apenas sinais com Score real (baseado em CVD, Momentum e ATR) acima de 90 são encaminhados ao Capitão.
-- **Single Slot Logic**: Se já existe uma operação aberta, o gerador entra em modo "Standby" para economizar latência.
+### 2. **Signal Generator V7.2 (Multi-Indicator Radar)**
+- **Event-Driven**: Monitoramento "Zero Latency" com fila de eventos.
+- **Elite Filter**: 
+    - **CVD Weight (70%)**: Fluxo financeiro real.
+    - **RSI Alignment (30%)**: Filtro de reversão/exaustão local.
+- **RSI Block**: Bloqueio de sinais Long se RSI > 80 e Short se RSI < 20.
 
 ### 3. **Captain Agent (The Sniper)**
+- **Event-Driven Execution**: O Capitão não faz polling. Ele reage a eventos da fila `signal_queue`, eliminando atrasos de ~3s.
 - **One Shot, One Opportunity**: O sistema gerencia apenas um slot ativo por vez.
-- **Sequential Execution**: Assim que uma ordem é fechada (TP/SL), o Capitão reavalia o "Best of the Best" no radar em menos de 3 segundos para reentrada imediata.
-- **Decision Engine**: Cruzamento de dados macro (BTC Pulse) com sinais locais para evitar entradas durante exaustão extrema de mercado.
+- **Sequential Execution**: Reentrada imediata (<1s) após fechamento de ordem.
 
-### 4. **Execution Protocol**
-- **Single Slot Sniper**: Alocação de 20% da banca por trade.
-- **Targets**: Foco em ROI de 100% (Sniper Hit).
-- **Risk Control**: Stop Loss dinâmico gerenciado pelo protocolo de proteção Guardian.
+### 4. **Execution Protocol (Mega Pulse)**
+- **Single Slot Sniper**: Alocação de 20% da banca.
+- **Sniper Trailing Target (Profit Maximizer)**: 
+    - Ao atingir 100% ROI, a ordem **NÃO** fecha.
+    - Ativa modo **MEGA PULSE**: Trava 80% e busca alvos maiores (150%, 200%...).
+    - Stop Loss Adaptativo segue o preço com gap de 20% ROI.
 
 ---
 
@@ -63,4 +67,4 @@ graph TD
 - **AI Engine**: Gemini 2.0 Flash (Command & Reasoning)
 
 ---
-*V7.1 Architecture - Developed for JonatasOliveira1983/10DBybit*
+*V7.2 Architecture - Optimized for JonatasOliveira1983/10DBybit*

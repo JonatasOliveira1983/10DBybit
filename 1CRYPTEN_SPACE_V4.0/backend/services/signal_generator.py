@@ -23,10 +23,10 @@ class SignalGenerator:
         self.last_standby_log = 0
         self.radar_interval = 3.0 # Update RTDB every 3s for 200 symbols
         self.scan_interval = 5.0 # Reduced from 15s to 5s for V7.0 High-Precision Reactivity
-        
-        # V5.1.0: Protocol Drag State
-        self.btc_drag_mode = False
-        self.exhaustion_level = 0.0 # 0-100
+        self.radar_interval = 10.0 # V5.4.5: Slower radar for stability
+        self.signal_queue = asyncio.Queue() # ⚡ V7.2 Event-Driven Queue
+        self.exhaustion_level = 0.0
+ # 0-100
         self.last_context_update = 0
 
     async def monitor_and_generate(self):
@@ -98,31 +98,59 @@ class SignalGenerator:
                     threshold = 5000 if self.btc_drag_mode else 10000
                     
                     if abs_cvd > threshold: 
-                        # Calibrated: $75k USD delta = ~85 score, $200k+ = 99 score
-                        score = min(99, int(75 + (abs_cvd / 7500)))
+                        # --- V7.2 Multi-Indicator Scoring ---
+                        # Base CVD Score (0-70 points)
+                        cvd_score = min(70.0, (abs_cvd / 200000) * 70.0) if abs_cvd > 50000 else 0
                         
-                        if score >= 75:
-                            logger.info(f"Sniper detected ELITE opportunity: {symbol} | CVD: {cvd_val:.2f} | Score: {score}")
+                        # RSI Score & Filter (0-30 points)
+                        rsi = bybit_ws_service.rsi_cache.get(symbol, 50)
+                        rsi_score = 0.0
+                        side_label = "Long" if cvd_val > 0 else "Short"
+                        
+                        # RSI Alignment logic
+                        if side_label == "Long":
+                            if rsi > 80: # Overbought - Block Long
+                                logger.info(f"🚫 [RSI BLOCK] {symbol} Long blocked (RSI: {rsi:.1f})")
+                                continue
+                            rsi_score = min(30.0, (rsi / 50.0) * 15.0) if rsi > 50 else 0
+                        else: # Short
+                            if rsi < 20: # Oversold - Block Short
+                                logger.info(f"🚫 [RSI BLOCK] {symbol} Short blocked (RSI: {rsi:.1f})")
+                                continue
+                            rsi_score = min(30.0, ((100 - rsi) / 50.0) * 15.0) if rsi < 50 else 0
+                        
+                        final_score = int(cvd_score + rsi_score + 20) # Base 20 for meeting threshold
+                        final_score = min(99, final_score)
+
+                        if final_score >= 90:
+                            logger.info(f"Sniper detected ELITE opportunity: {symbol} | CVD: {cvd_val:.2f} | RSI: {rsi:.1f} | Score: {final_score}")
                             
-                            # 🆕 V6.0: Reasoning Log (AI Act Compliance)
-                            side_label = "Long" if cvd_val > 0 else "Short"
-                            reasoning = f"Elite {side_label} Momentum | CVD: {cvd_val/1000:.1f}k | Score: {score}"
+                            reasoning = f"Elite {side_label} Momentum | CVD: {cvd_val/1000:.1f}k | RSI: {rsi:.1f} | Score: {final_score}"
                             if self.btc_drag_mode: reasoning += " | BTC Drag Boosted"
 
-                            await firebase_service.log_signal({
+                            signal_data = {
+                                "id": f"sig_{int(time.time())}_{symbol}", # Ensure ID is available for queue
                                 "symbol": symbol,
-                                "score": score,
-                                "type": "CVD_MOMENTUM_V6.0",
+                                "score": final_score,
+                                "type": "MULTI_PULSE_V7.2",
                                 "market_environment": "Bullish" if cvd_val > 0 else "Bearish",
                                 "is_elite": True,
                                 "reasoning": reasoning,
                                 "indicators": {
                                     "cvd": round(cvd_val, 4),
+                                    "rsi": round(rsi, 2),
                                     "scanned_at": datetime.now(timezone.utc).isoformat()
                                 },
                                 "timestamp": datetime.now(timezone.utc).isoformat()
-                            })
-                            await asyncio.sleep(0.5) 
+                            }
+                            
+                            # 1. Log to Firebase (Primary Record)
+                            await firebase_service.log_signal(signal_data)
+                            
+                            # 2. ⚡ Push to Event Queue for Zero-Latency Execution
+                            await self.signal_queue.put(signal_data)
+                            
+                            await asyncio.sleep(0.5)
 
                 await asyncio.sleep(self.scan_interval) 
                 

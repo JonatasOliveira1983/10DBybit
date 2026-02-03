@@ -23,6 +23,7 @@ class BybitWS:
         # V5.1.0: Protocol Drag
         self.btc_variation_1h = 0.0
         self.atr_cache = {} # {symbol: atr_value}
+        self.rsi_cache = {} # {symbol: rsi_value}
         self.last_atr_update = 0
         self.loop = None # V5.4.5: Main loop reference
 
@@ -121,32 +122,43 @@ class BybitWS:
                 self.btc_variation_1h = ((curr_close - prev_close) / prev_close) * 100
                 logger.info(f"V5.1.0: BTC 1h Variation updated: {self.btc_variation_1h:.2f}%")
 
-            # 2. Update ATR for active symbols
+            # 2. Update ATR & RSI for active symbols
             now = time.time()
-            if now - self.last_atr_update > 600: # Every 10 mins
+            # V7.2: Sync with Sniper Pulse (Every 1 min if symbols > 0)
+            if now - self.last_atr_update > 60: 
                 for symbol in self.active_symbols:
-                    klines = await bybit_rest_service.get_klines(symbol=symbol, interval="60", limit=15)
+                    klines = await bybit_rest_service.get_klines(symbol=symbol, interval="60", limit=16)
                     if len(klines) >= 15:
-                        # V5.4.5: Robust ATR Calculation (True Range based)
+                        # --- ATR Calculation ---
                         tr_list = []
                         for i in range(1, len(klines)):
-                            high = float(klines[i][2])
-                            low = float(klines[i][3])
-                            prev_close = float(klines[i-1][4])
-                            
-                            tr = max(
-                                high - low,
-                                abs(high - prev_close),
-                                abs(low - prev_close)
-                            )
+                            high, low, prev_close = float(klines[i][2]), float(klines[i][3]), float(klines[i-1][4])
+                            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
                             tr_list.append(tr)
-                        
-                        # Store Simple ATR (average of TR)
                         self.atr_cache[symbol] = sum(tr_list[-14:]) / 14
-                        logger.debug(f"💎 [ATR] {symbol} = {self.atr_cache[symbol]:.8f}")
+
+                        # --- RSI Calculation (14 periods) ---
+                        changes = []
+                        for i in range(1, len(klines)):
+                            changes.append(float(klines[i][4]) - float(klines[i-1][4]))
+                        
+                        gains = [c if c > 0 else 0 for c in changes[-14:]]
+                        losses = [abs(c) if c < 0 else 0 for c in changes[-14:]]
+                        
+                        avg_gain = sum(gains) / 14
+                        avg_loss = sum(losses) / 14
+                        
+                        if avg_loss == 0:
+                            rsi = 100
+                        else:
+                            rs = avg_gain / avg_loss
+                            rsi = 100 - (100 / (1 + rs))
+                        
+                        self.rsi_cache[symbol] = rsi
+                        logger.debug(f"💎 [PULSE] {symbol} | ATR: {self.atr_cache[symbol]:.6f} | RSI: {rsi:.1f}")
                 
                 self.last_atr_update = now
-                logger.info(f"V5.4.5: ATR Cache updated for {len(self.atr_cache)} symbols.")
+                logger.info(f"V7.2: Sniper Pulse Metrics (ATR/RSI) updated for {len(self.active_symbols)} symbols.")
 
         except Exception as e:
             logger.error(f"Error updating market context in BybitWS: {e}")

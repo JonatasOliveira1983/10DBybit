@@ -79,25 +79,30 @@ class CaptainAgent:
                 slot_id = await bankroll_manager.can_open_new_slot()
                 if not slot_id:
                     # System is full (active position exists), skip signal processing
-                    await asyncio.sleep(3) # Very fast check for slot availability
+                    await asyncio.sleep(1) # Fast check for slot availability
                     continue
 
-                # 2. Fetch recent signals
-                signals = await firebase_service.get_recent_signals(limit=20)
+                # 2. Fetch signal from Zero-Latency Queue
+                from services.signal_generator import signal_generator
+                best_signal = await signal_generator.signal_queue.get()
                 
                 # Filter signals: Elite only (Score > 90) and no BTC
-                elite_signals = [s for s in signals if s.get("score", 0) >= 90 and "BTCUSDT" not in s["symbol"] and s.get("outcome") is None]
-                
-                if not elite_signals:
-                    await asyncio.sleep(3)
-                    continue
-                
-                # 3. Pick the BEST signal (Highest Score)
-                elite_signals.sort(key=lambda x: x.get("score", 0), reverse=True)
-                best_signal = elite_signals[0]
-                
                 symbol = best_signal["symbol"]
                 score = best_signal["score"]
+                
+                # Stale Signal Protection: Skip if signal is older than 30s
+                ts_str = best_signal.get("timestamp", "")
+                if ts_str:
+                    try:
+                        sig_time = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        if (datetime.now(timezone.utc) - sig_time).total_seconds() > 30:
+                            logger.info(f"⏭️ Skipping stale signal for {symbol} ({score})")
+                            continue
+                    except: pass
+
+                # 3. Validation & Context
+                if "BTCUSDT" in symbol or score < 90:
+                    continue
                 cvd = best_signal.get("indicators", {}).get("cvd", 0)
                 side = "Buy" if cvd >= 0 else "Sell"
                 
