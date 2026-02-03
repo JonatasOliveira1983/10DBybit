@@ -84,6 +84,11 @@ class CaptainAgent:
 
                 # 2. Fetch signal from Zero-Latency Queue
                 from services.signal_generator import signal_generator
+                
+                # Wait for queue initialization
+                while not hasattr(signal_generator, "signal_queue") or signal_generator.signal_queue is None:
+                    await asyncio.sleep(1)
+                    
                 best_signal = await signal_generator.signal_queue.get()
                 
                 # Filter signals: Elite only (Score > 90) and no BTC

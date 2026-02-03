@@ -102,38 +102,8 @@
             font-size: 20px !important;
         }
 
-        /* Fontes xs → 17px */
-        .text-xs {
-            font-size: 17px !important;
-            line-height: 1.4 !important;
-        }
+        /* V6.0: Reset Overrides - Keeping Micro Scale */
 
-        /* Fontes sm → 18px */
-        .text-sm {
-            font-size: 18px !important;
-            line-height: 1.5 !important;
-        }
-
-        /* Fontes base → 19px */
-        .text-base {
-            font-size: 19px !important;
-            line-height: 1.5 !important;
-        }
-
-        /* Fontes lg → 22px */
-        .text-lg {
-            font-size: 22px !important;
-        }
-
-        /* Fontes xl → 26px */
-        .text-xl {
-            font-size: 26px !important;
-        }
-
-        /* Fontes 2xl → 24px */
-        .text-2xl {
-            font-size: 24px !important;
-        }
 
         button,
         .cursor-pointer {
@@ -201,7 +171,8 @@
     <!-- Main Content -->
     <main class="pt-28 pb-8 px-4 max-w-7xl mx-auto">
         <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
-        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+        <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
             <!-- Active Balance Card -->
             <div class="glass rounded-xl p-4 border border-gray-800">
                 <div class="flex items-center gap-3 mb-3">
@@ -217,7 +188,8 @@
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                         <span class="material-icons-round text-primary">target</span>
-                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest">Alvo de Precisão</span>
+                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest truncate">Alvo
+                            Precisão</span>
                     </div>
                     <p id="cycle-number" class="text-xs font-mono text-primary/60">#1</p>
                 </div>
@@ -236,8 +208,8 @@
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                         <span class="material-icons-round text-gold">timer</span>
-                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest">Ciclo de 10
-                            Tiros</span>
+                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest truncate">Ciclo
+                            10</span>
                     </div>
                     <span id="trades-count" class="text-xs font-mono text-gold/60">0/10</span>
                 </div>

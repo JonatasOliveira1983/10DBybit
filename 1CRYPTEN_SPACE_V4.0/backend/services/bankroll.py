@@ -14,10 +14,10 @@ logger = logging.getLogger("BankrollManager")
 
 def get_slot_type(slot_id: int) -> str:
     """
-    V6.0 SURF-FIRST: Dedicated slots 1-5 to SURF and 6-10 to SNIPER.
-    Modified as per Commander's request for safety-foundation strategy.
+    [V7.0] SINGLE ORDER SNIPER: Strictly one order at a time.
+    Only SNIPER strategy is active as per Commander's orders.
     """
-    return "SURF" if slot_id <= 5 else "SNIPER"
+    return "SNIPER"
 
 class BankrollManager:
     def __init__(self):

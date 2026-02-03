@@ -24,7 +24,7 @@ class SignalGenerator:
         self.radar_interval = 3.0 # Update RTDB every 3s for 200 symbols
         self.scan_interval = 5.0 # Reduced from 15s to 5s for V7.0 High-Precision Reactivity
         self.radar_interval = 10.0 # V5.4.5: Slower radar for stability
-        self.signal_queue = asyncio.Queue() # ⚡ V7.2 Event-Driven Queue
+        self.signal_queue = None # ⚡ V7.2 Event-Driven Queue (Lazy Init)
         self.exhaustion_level = 0.0
  # 0-100
         self.last_context_update = 0
@@ -34,6 +34,8 @@ class SignalGenerator:
         Monitors high CVD scores via WebSocket and generates elite signals.
         """
         self.is_running = True
+        if self.signal_queue is None:
+            self.signal_queue = asyncio.Queue()
         # logger.info("Signal Generator loop started.")
 
         while self.is_running:

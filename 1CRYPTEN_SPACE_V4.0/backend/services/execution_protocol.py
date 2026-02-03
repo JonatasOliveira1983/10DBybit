@@ -183,14 +183,23 @@ class ExecutionProtocol:
         """
         [V7.0] SINGLE TRADE SNIPER LOGIC:
         Strictly adhering to:
-        1. Fixed 100% ROI Take Profit.
+        1. Fixed 100% ROI Take Profit / MEGA_PULSE Trailing.
         2. Maximum 50% Loss Stop Loss.
+        3. Trailed SL Hit Detection.
         """
         symbol = slot_data.get("symbol", "UNKNOWN")
         side = slot_data.get("side", "Buy")
         entry = slot_data.get("entry_price", 0)
         current_sl = slot_data.get("current_stop", 0)
         
+        # 🛡️ 1. Universal Stop Loss Check
+        side_norm = side.lower()
+        if current_sl > 0:
+            if (side_norm == "buy" and current_price <= current_sl) or \
+               (side_norm == "sell" and current_price >= current_sl):
+                logger.info(f"🛑 SNIPER SL HIT: {symbol} Price={current_price} | SL={current_sl}")
+                return True, f"SNIPER_STOP_LOSS_HIT ({roi:.1f}%)", None
+
         # 🎯 V7.2 SNIPER TRAILING TARGET (MEGA_PULSE)
         if roi >= 100.0:
             # Trailing Profit Mode: Lock 80% and follow with 20% gap
@@ -209,13 +218,6 @@ class ExecutionProtocol:
                 logger.info(f"💎 SNIPER MEGA_PULSE: {symbol} ROI={roi:.1f}% | New trailing SL: {new_stop:.6f}")
                 return False, None, new_stop
             
-            # If current price hits this trailing stop, CaptainAgent will handle closure via manage_positions calling this again
-            # Wait, process_sniper_logic is called in manage_positions. 
-            # If the trailing stop is ALREADY set in current_sl, we need to check if it's hit.
-            if (side_norm == "buy" and current_price <= current_sl) or (side_norm == "sell" and current_price >= current_sl):
-                logger.info(f"🎯 MEGA_PULSE TRAILING HIT: {symbol} ROI={roi:.1f}%")
-                return True, f"SNIPER_MEGA_PULSE_HIT ({roi:.1f}%)", None
-
             return False, None, None # Continue trailing
 
         # 🛑 HARD STOP LOSS (50%)
