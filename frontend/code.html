@@ -757,9 +757,11 @@
 
         /* Chart container - 38% da tela para dar espaço aos slots */
         .chart-container-mobile {
-            height: 38vh !important;
+            height: 34vh !important;
+            /* Reduced 10% from 38vh */
             min-height: 160px !important;
-            max-height: 40vh !important;
+            max-height: 36vh !important;
+            /* Reduced 10% from 40vh */
             flex-shrink: 0 !important;
             transition: all 0.3s ease-in-out !important;
         }
@@ -782,8 +784,9 @@
         /* Em telas maiores */
         @media (min-width: 640px) {
             .chart-container-mobile {
-                height: 50vh !important;
-                max-height: 50vh !important;
+                height: 45vh !important;
+                /* Reduced 10% from 50vh */
+                max-height: 45vh !important;
             }
         }
 
@@ -1476,131 +1479,129 @@
 
             return tickers;
         };
-        // --- Sub-Component: Slot Card (v4.5.1 - Protocol Elite Visual Status) ---
-        const SlotCard = ({ s, selectedId, setSelectedSlotId, tickers, getDynamicPnL }) => {
+        // --- Sub-Component: Sniper Focus Card (V7.1) ---
+        const SniperFocusCard = ({ s, tickers, getDynamicPnL, bestSignal }) => {
             const [displayPnl, setDisplayPnl] = useState(0);
-            const isActive = s.symbol;
-            const pnlFallback = s.pnl_percent || 0;
-            // Strip .P suffix to match Bybit ticker format
-            const cleanSymbol = s.symbol ? s.symbol.replace('.P', '').replace('.p', '') : null;
-            // V4.5.1: Use backend price if available, fallback to WebSocket ticker
-            const currentPrice = s.current_price || tickers[cleanSymbol];
+            const isActive = s && s.symbol;
+            const cleanSymbol = isActive ? s.symbol.replace('.P', '').replace('.p', '') : null;
+            const currentPrice = isActive ? (tickers[cleanSymbol] || s.current_price) : null;
             const smoothingRef = useRef(0);
-
-            // V4.5.1: Visual Status Class Mapping
-            const getVisualStatusClass = () => {
-                const status = s.visual_status || 'SCANNING';
-                const classMap = {
-                    'SCANNING': 'slot-scanning',
-                    'IN_TRADE': 'slot-in-trade',
-                    'RISK_ZERO': 'slot-risk-zero',
-                    'BIG_SURF': 'slot-big-surf',
-                    'FLASH_ZONE': 'slot-flash-zone'
-                };
-                return classMap[status] || 'slot-in-trade';
-            };
 
             useEffect(() => {
                 if (!isActive) { setDisplayPnl(0); smoothingRef.current = 0; return; }
-
                 let livePnl = 0;
                 if (currentPrice && Number(s.entry_price) > 0) {
                     const ne = Number(s.entry_price);
                     livePnl = s.side === 'Buy' ? ((currentPrice - ne) / ne * 100 * 50) : ((ne - currentPrice) / ne * 100 * 50);
                 }
-
-                const targetPnl = livePnl !== 0 ? livePnl : (pnlFallback || 0);
-                // Stabilizer: Higher alpha for responsiveness but kept smooth
+                const targetPnl = livePnl !== 0 ? livePnl : (s.pnl_percent || 0);
                 const alpha = 0.15;
                 const nextVal = (targetPnl * alpha) + (smoothingRef.current * (1 - alpha));
-
                 smoothingRef.current = nextVal;
                 setDisplayPnl(nextVal);
-            }, [currentPrice, s.entry_price, s.side, pnlFallback, isActive]);
+            }, [currentPrice, s && s.entry_price, s && s.side, s && s.pnl_percent, isActive]);
+
+            if (!isActive) {
+                return (
+                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/20 rounded-3xl bg-black/40 h-[240px]">
+                        <div className="relative mb-4">
+                            <span className="material-icons-round text-5xl text-primary/20 animate-pulse">radar</span>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="material-icons-round text-primary text-2xl animate-spin-slow">searching</span>
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-widest">Caçando Sinais Elite</h3>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] max-w-[200px] text-center">
+                            Aguardando sinal com score superior a 90 para execução cirúrgica.
+                        </p>
+
+                        {bestSignal && (
+                            <div className="mt-8 p-4 rounded-2xl bg-primary/5 border border-primary/20 w-full max-w-sm animate-in fade-in slide-in-from-bottom duration-500">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">Melhor Oportunidade</span>
+                                    <span className="text-[10px] font-mono font-bold text-white px-2 py-0.5 bg-primary/20 rounded">SCORE {bestSignal.score}</span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                    <h4 className="text-lg font-bold text-white">{bestSignal.symbol.replace('.P', '')}</h4>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[9px] text-slate-500 uppercase">Tendência</span>
+                                        <span className={`text-[10px] font-bold ${(bestSignal.indicators && bestSignal.indicators.cvd >= 0) ? 'text-emerald-400' : 'text-orange-400'}`}>
+                                            {(bestSignal.indicators && bestSignal.indicators.cvd >= 0) ? 'ALTA MOMENTUM' : 'BAIXA MOMENTUM'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
 
             const pnl = displayPnl;
-            const entryMargin = Number(s.entry_margin) || 5.0; // Captura a margem real ou fallback 5.0
-            const profitUSD = (entryMargin * (pnl / 100)); // Calculado sobre a margem REAL
+            const entryMargin = Number(s.entry_margin) || 0;
+            const profitUSD = (entryMargin * (pnl / 100));
             const isProfit = pnl >= 0;
-
-            // V4.3.2: SNIPER vs SURF Target Logic (V6.0 ALIGNMENT: 1-5 = SURF, 6-10 = SNIPER)
             const entryPrice = Number(s.entry_price) || 0;
-            const isSniper = s.id >= 6 || s.slot_type === 'SNIPER';
-            const targetPrice = isSniper ? (s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98) : null;
-            const squadronEmoji = isSniper ? '🎯' : '🏄';
-            const squadronName = isSniper ? 'Esquadrão Sniper' : 'Esquadrão Surf';
-
-            // V4.5.1: Visual Status for display
-            const visualStatus = s.visual_status || (isActive ? 'IN_TRADE' : 'SCANNING');
-            const visualStatusClass = isActive ? getVisualStatusClass() : 'slot-scanning';
+            const targetPrice = s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98;
 
             return (
-                <div onClick={() => setSelectedSlotId(s.id)}
-                    className={`relative overflow-hidden rounded-xl border transition-all duration-300 group slot-card-compact ${visualStatusClass} ${isActive ? 'cursor-pointer hover:shadow-2xl' : 'cursor-default opacity-40'} ${selectedId === s.id ? 'ring-2 ring-primary/50' : ''}`}>
+                <div className="relative overflow-hidden rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-transparent p-6 h-[240px] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                    {/* Animated Pulse Background */}
+                    <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] opacity-30 ${isProfit ? 'bg-emerald-500' : 'bg-red-600'}`}></div>
 
-                    {isActive ? (
-                        <div className="h-full w-full">
-                            {/* Premium Glow Background */}
-                            <div className={`absolute inset-0 opacity-20 transition-colors duration-500 ${isProfit ? 'bg-gradient-to-br from-emerald-500/20 via-transparent to-transparent' : 'bg-gradient-to-br from-red-500/20 via-transparent to-transparent'}`}></div>
-
-                            {/* Stable Fuel Bar */}
-                            <div className="absolute bottom-0 left-0 w-full h-1.5 bg-black/50 overflow-hidden">
-                                <div className={`h-full transition-all duration-1000 ease-out ${isProfit ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-red-600 to-red-400'}`}
-                                    style={{ width: `${Math.min(100, Math.abs(pnl))}%`, boxShadow: `0 0 10px ${isProfit ? '#10B981' : '#EF4444'}` }}></div>
-                            </div>
-
-                            <div className="p-3 relative z-10 flex flex-col h-full justify-between">
-                                {/* Header */}
-                                <div className="flex justify-between items-start">
-                                    <div className="flex flex-col">
-                                        <span className="font-display font-bold text-xs text-white/90 tracking-wider">
-                                            {s.symbol.replace('USDT.P', '').replace('USDT', '')}
-                                        </span>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${s.side === 'Buy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                                                {s.side === 'Buy' ? 'LONG' : 'SHORT'}
-                                            </span>
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isSniper ? 'bg-yellow-500/20 text-yellow-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
-                                                {squadronEmoji}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {/* Small PnL % */}
-                                    <span className={`font-mono text-[10px] font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {isProfit ? '+' : ''}{pnl.toFixed(1)}%
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="material-icons-round text-primary text-lg">target</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Operação Sniper Ativa</span>
+                                </div>
+                                <h3 className="text-3xl font-display font-bold text-white tracking-tight">
+                                    {s.symbol.replace('.P', '').replace('USDT', '')}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s.side === 'Buy' ? 'bg-emerald-500 text-black' : 'bg-orange-500 text-black'}`}>
+                                        {s.side === 'Buy' ? 'LONG 50X' : 'SHORT 50X'}
+                                    </span>
+                                    <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300">
+                                        ALVO 100% ROI
                                     </span>
                                 </div>
-
-                                {/* Hero Profit USD */}
-                                <div className="flex flex-col items-center justify-center my-2">
-                                    <span className={`text-2xl font-mono font-bold tracking-tighter drop-shadow-lg ${isProfit ? 'text-emerald-400' : 'text-red-500'}`}>
+                            </div>
+                            <div className="text-right">
+                                <span className={`text-4xl font-mono font-bold tracking-tighter ${isProfit ? 'text-emerald-400' : 'text-red-500'} drop-shadow-[0_0_10px_rgba(0,0,0,1)]`}>
+                                    {isProfit ? '+' : ''}{pnl.toFixed(1)}%
+                                </span>
+                                <div className="mt-1">
+                                    <span className={`text-lg font-mono font-medium ${isProfit ? 'text-emerald-500' : 'text-red-400'}`}>
                                         {isProfit ? '+' : '-'}${Math.abs(profitUSD).toFixed(2)}
                                     </span>
                                 </div>
-
-                                {/* Market Data Grid */}
-                                <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-2">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] text-slate-500 uppercase font-bold">Entrada</span>
-                                        <span className="text-[10px] font-mono text-slate-300">{formatPrice(entryPrice)}</span>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-[8px] text-slate-500 uppercase font-bold">{isSniper ? 'Alvo 100%' : 'Modo SURF'}</span>
-                                        <span className={`text-[10px] font-mono ${isSniper ? 'text-primary/80' : 'text-cyan-400/80'}`}>
-                                            {isSniper
-                                                ? formatPrice(targetPrice)
-                                                : (s.status_risco || 'Trailing ativo')}
-                                        </span>
-                                    </div>
-                                </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center p-4 text-center space-y-2 cursor-pointer hover:bg-white/5 transition-colors">
-                            <span className="text-xl font-display font-bold text-slate-600">{`SLOT ${String(s.id).padStart(2, '0')}`}</span>
-                            <span className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Vazio</span>
+
+                        <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/10">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Entrada</p>
+                                <p className="text-sm font-mono text-white">{formatPrice(entryPrice)}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Preço Alvo</p>
+                                <p className="text-sm font-mono text-primary">{formatPrice(targetPrice)}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stop Loss (50%)</p>
+                                <p className="text-sm font-mono text-red-500">{formatPrice(s.current_stop)}</p>
+                            </div>
                         </div>
-                    )}
+
+                        {/* Progress Bar (Visual only to 100%) */}
+                        <div className="w-full h-2 bg-black/40 rounded-full mt-4 overflow-hidden border border-white/5">
+                            <div
+                                className={`h-full transition-all duration-1000 ${isProfit ? 'bg-primary' : 'bg-red-600'}`}
+                                style={{ width: `${Math.min(100, Math.max(0, (pnl + 50) / 1.5))}%`, boxShadow: '0 0 15px currentColor' }}
+                            ></div>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -2403,10 +2404,26 @@
                 return slot.pnl_percent || 0;
             };
 
-            // Derived Selection Logic (BTC Compass)
-            const activeSlot = slots.find(s => s.id === selectedSlotId && s.symbol) || slots.find(s => s.symbol);
+            // V7.1 Single Trade Sniper: Get the single active slot (Slot 1)
+            const activeSlot = slots.find(s => s.symbol) || null;
             const displaySlot = activeSlot || { symbol: 'BTCUSDT.P', entry_price: 0, current_stop: 0, side: 'Buy', id: 'BTC' };
             const isCompassMode = !activeSlot;
+
+            // Fetch Radar Signals to show "Best Signal" when idle
+            const [radarSignals, setRadarSignals] = useState([]);
+            useEffect(() => {
+                const fetchRadar = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/api/signals?limit=10');
+                        if (res.ok) setRadarSignals(await res.json());
+                    } catch (e) { }
+                };
+                fetchRadar();
+                const itv = setInterval(fetchRadar, 10000);
+                return () => clearInterval(itv);
+            }, []);
+
+            const bestSignal = radarSignals.filter(s => s.score >= 80).sort((a, b) => b.score - a.score)[0];
 
 
 
@@ -2456,7 +2473,7 @@
                                 </div>
                                 <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-[0.2em] text-center ml-4">Deep Space</h1>
                                 <div className="flex justify-end gap-3 items-center">
-                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V6.0 ELITE</span>
+                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V7.1 SNIPER</span>
                                     <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-90" />
                                 </div>
                             </div>
@@ -2498,21 +2515,21 @@
                                 </div>
                             </div>
 
-                            {/* Risk Exposure Card */}
+                            {/* Risk Exposure Card (V7.1 Sniper 20% Rule) */}
                             <div className="p-2 rounded-xl border-2 bg-gradient-to-br from-white/5 to-transparent v5-border-subtle flex flex-col justify-between group hover:border-emerald-500/30 transition-all duration-500">
                                 <div className="flex justify-between items-center mb-0.5">
                                     <div className="flex items-center gap-1">
-                                        <span className={`material-icons-round text-[12px] ${banca.risco_real_percent > 0.15 ? 'text-amber-500' : 'text-emerald-500'}`}>security</span>
-                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Risk</span>
+                                        <span className={`material-icons-round text-[12px] ${banca.risco_real_percent > 0.21 ? 'text-red-500' : (banca.risco_real_percent > 0.18 ? 'text-emerald-500' : 'text-slate-500')}`}>security</span>
+                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Exposure</span>
                                     </div>
-                                    <span className={`text-xs sm:text-sm font-mono font-bold ${banca.risco_real_percent > 0.15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    <span className={`text-xs sm:text-sm font-mono font-bold ${banca.risco_real_percent > 0.21 ? 'text-red-400' : (banca.risco_real_percent > 0.18 ? 'text-emerald-400' : 'text-slate-400')}`}>
                                         {(banca.risco_real_percent * 100).toFixed(1)}%
                                     </span>
                                 </div>
                                 <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden">
                                     <div
-                                        className={`h-full transition-all duration-1000 ease-out ${banca.risco_real_percent > 0.15 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                        style={{ width: `${Math.min(100, banca.risco_real_percent * 100 * 5)}%`, boxShadow: `0 0 5px ${banca.risco_real_percent > 0.15 ? '#F59E0B' : '#10B981'}` }}
+                                        className={`h-full transition-all duration-1000 ease-out ${banca.risco_real_percent > 0.21 ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                        style={{ width: `${Math.min(100, (banca.risco_real_percent / 0.20) * 100)}%`, boxShadow: `0 0 5px ${banca.risco_real_percent > 0.21 ? '#EF4444' : '#10B981'}` }}
                                     ></div>
                                 </div>
                             </div>
@@ -2582,32 +2599,29 @@
                             </div>
                         </section>
 
-                        {/* 2. SLOTS SECTION - Scrollável e ocupa espaço restante */}
-                        <section className="slots-container-mobile rounded-2xl bg-gradient-to-b from-white/[0.03] to-black/40 border-2 v5-border-subtle p-3 custom-scrollbar">
-                            {/* Sniper Squadron */}
-                            <div className="mb-4 flex flex-col items-start">
-                                <h3 className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2 self-start">
-                                    <span className="material-icons-round text-xs">target</span>
-                                    Esquadrão Sniper (Slots 1-5)
-                                </h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                                    {slots.filter(s => s.id <= 5).map(s => (
-                                        <SlotCard key={s.id} s={s} selectedId={selectedSlotId} setSelectedSlotId={setSelectedSlotId} tickers={tickers} getDynamicPnL={getDynamicPnL} />
-                                    ))}
-                                </div>
-                            </div>
+                        {/* 2. SNIPER FOCUS SECTION - Fixed Single Slot Layout (V7.1) */}
+                        <section className="flex-shrink-0 animate-in fade-in zoom-in duration-700">
+                            <SniperFocusCard
+                                s={activeSlot}
+                                tickers={tickers}
+                                getDynamicPnL={getDynamicPnL}
+                                bestSignal={bestSignal}
+                            />
+                        </section>
 
-                            {/* Surf Squadron */}
-                            <div className="mt-2 flex flex-col items-start">
-                                <h3 className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest mb-2 flex items-center gap-2 self-start">
-                                    <span className="material-icons-round text-xs">waves</span>
-                                    Esquadrão Surf (Slots 6-10)
-                                </h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                                    {slots.filter(s => s.id > 5).map(s => (
-                                        <SlotCard key={s.id} s={s} selectedId={selectedSlotId} setSelectedSlotId={setSelectedSlotId} tickers={tickers} getDynamicPnL={getDynamicPnL} />
-                                    ))}
+                        {/* 3. VAULT MISSION PROGRESS - Replacing vertical slots */}
+                        <section className="p-4 rounded-3xl bg-white/[0.03] border border-white/10 mt-1">
+                            <div className="flex justify-between items-center mb-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="material-icons-round text-primary text-sm">flag</span>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Missão do Ciclo (10 Trades)</span>
                                 </div>
+                                <span className="text-[10px] font-mono font-bold text-primary">{banca.total_trades_cycle || 0}/10 COMPLETE</span>
+                            </div>
+                            <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden flex gap-1">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                    <div key={i} className={`h-full flex-1 transition-all duration-500 rounded-sm ${i < (banca.total_trades_cycle || 0) ? 'bg-primary shadow-[0_0_8px_rgba(255,215,0,0.5)]' : 'bg-white/5'}`}></div>
+                                ))}
                             </div>
                         </section>
 
@@ -2658,7 +2672,7 @@
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
                                 <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
-                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V6.0 ELITE Protocol</p>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V7.1 SNIPER Protocol</p>
                             </div>
                             <div className="w-full"></div> {/* Placeholder for centering */}
                             <div className="flex justify-end">
@@ -2777,7 +2791,7 @@
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <span className="text-[11px] text-slate-300">Versão Atual</span>
-                                    <span className="text-base font-bold text-primary font-mono">V6.0 ELITE</span>
+                                    <span className="text-base font-bold text-primary font-mono">V7.1 SNIPER</span>
                                 </div>
                                 <div className="flex justify-between items-center border-t v5-border-subtle pt-2">
                                     <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Protocolo Elite</span>

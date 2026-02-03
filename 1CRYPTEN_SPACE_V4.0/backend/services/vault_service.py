@@ -85,9 +85,9 @@ class VaultService:
     
     async def register_sniper_trade(self, trade_data: dict) -> dict:
         """
-        V5.2.2: Registra um trade Sniper no ciclo.
-        - Sniper Wins (ROI >= 80%): Sobe o contador de 20x.
-        - Sniper Loss ou ROI < 80%: Não conta como win, mas acumula lucro/perda.
+        [V7.0] SINGLE TRADE SNIPER: Registra um trade no ciclo de 10.
+        - Sniper Wins (ROI >= 100%): Sobe o contador de 10x.
+        - Sniper Loss ou ROI < 100%: Não conta como win, mas acumula lucro/perda.
         """
         try:
             if not firebase_service.is_active or not firebase_service.db:
@@ -96,8 +96,7 @@ class VaultService:
             current = await self.get_cycle_status()
             pnl = trade_data.get("pnl", 0)
             
-            # ROI Check: Only count as win if ROI >= 80% or was a Flash Zone exit
-            # We use entry_price and exit_price to verify ROI if pnl_percent is missing
+            # ROI Check: Only count as win if ROI >= 100%
             roi = trade_data.get("pnl_percent", 0)
             if roi == 0 and trade_data.get("entry_price") and trade_data.get("exit_price"):
                 from services.execution_protocol import execution_protocol
@@ -110,16 +109,16 @@ class VaultService:
             new_wins = current.get("sniper_wins", 0)
             new_losses = current.get("cycle_losses", 0)
             
-            is_elite_win = roi >= 80.0
+            is_elite_win = roi >= 100.0
             
             if is_elite_win:
                 new_wins += 1
-                result_label = "ELITE WIN 💎"
+                result_label = "SNIPER HIT 🎯"
             elif pnl > 0:
                 result_label = "SOFT PROFIT 🟢"
             else:
                 new_losses += abs(pnl)
-                result_label = "LOSS ❌"
+                result_label = "SNIPER LOSS ❌"
                 
             new_profit = current.get("cycle_profit", 0) + pnl
             new_total_trades = current.get("total_trades_cycle", 0) + 1
@@ -136,20 +135,24 @@ class VaultService:
             
             await asyncio.to_thread(_update)
             
-            # [V5.2.5] Meta 100 Trigger
-            if new_total_trades >= 100:
-                await firebase_service.log_event("VAULT", "🚨 META 100 ATINGIDA! Sistema bloqueado para extração de 50% do lucro.", "SUCCESS")
-                # Trigger voice alert (placeholder for TTS implementation)
+            # [V7.0] 10-Trade Cycle Trigger
+            if new_total_trades >= 10:
+                await firebase_service.log_event("VAULT", "🚨 CICLO DE 10 TRADES COMPLETO! Bankroll recalculation required.", "SUCCESS")
+                # In a real implementation, this would trigger a bankroll reset or profit withdrawal
                 
             event_type = "SUCCESS" if pnl > 0 else "WARNING"
-            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/20 | Trade #{new_total_trades}/100 | PnL: ${pnl:.2f}"
+            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/10 | Trade #{new_total_trades}/10 | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
             
-            if new_wins >= 20:
-                await firebase_service.log_event("VAULT", f"🏆 CICLO {current.get('cycle_number', 1)} COMPLETO! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
+            if new_wins >= 10:
+                await firebase_service.log_event("VAULT", f"🏆 CICLO PERFEITO {current.get('cycle_number', 1)}! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
             
             current.update(update_data)
             return current
+            
+        except Exception as e:
+            logger.error(f"Error registering sniper trade: {e}")
+            return self._default_cycle()
             
         except Exception as e:
             logger.error(f"Error registering sniper trade: {e}")

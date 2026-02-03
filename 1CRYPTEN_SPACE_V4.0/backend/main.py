@@ -21,9 +21,9 @@ asyncio.get_event_loop().set_default_executor(executor)
 
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
-# V6.0: Elite Armor & PnL Sync - Protocolo de Blindagem e Alta Performance
-VERSION = "V6.0"
-DEPLOYMENT_ID = "V60_ELITE_ARMOR"
+# V7.0: Single Trade Sniper - Sniper Evolution Protocol
+VERSION = "V7.0"
+DEPLOYMENT_ID = "V70_SNIPER_EVOLUTION"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

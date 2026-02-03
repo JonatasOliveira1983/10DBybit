@@ -179,92 +179,25 @@ class ExecutionProtocol:
 
     async def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float, atr: Optional[float] = None) -> Tuple[bool, Optional[str], Optional[float]]:
         """
-        🆕 V5.0: Lógica SNIPER com Adaptive Stop Loss.
-        
-        SNIPER = Alvo fixo de 100% ROI (2% movimento de preço @ 50x)
-        Stop Loss = Adaptativo conforme ROI sobe (de -50% até +30%)
-        
-        Returns:
-            (should_close, reason, new_stop_price) - True se deve fechar, novo SL se deve atualizar
+        [V7.0] SINGLE TRADE SNIPER LOGIC:
+        Strictly adhering to:
+        1. Fixed 100% ROI Take Profit.
+        2. Maximum 50% Loss Stop Loss.
         """
         symbol = slot_data.get("symbol", "UNKNOWN")
         side = slot_data.get("side", "Buy")
         entry = slot_data.get("entry_price", 0)
         current_sl = slot_data.get("current_stop", 0)
         
-        # ✅ SNIPER OVERDRIVE (V5.3): Trava 100% e Persegue o Preço
-        # Substitui o antigo TP fixo de 100%
+        # 🎯 FIXED TAKE PROFIT (100% ROI)
         if roi >= 100.0:
-            # Calcular níveis de Overdrive
-            # Level 1: Floor Garantido (100% de lucro)
-            floor_roi = 100.0
-            
-            # Level 2: Trailing Agressivo (20% de distância da máxima)
-            # Se ROI está em 150%, Trail está em 130%.
-            # Se ROI está em 200%, Trail está em 180%.
-            # 🆕 V6.0: If ATR exists, use max(20% ROI, 2.5x ATR) for better breathing room
-            trail_offset_roi = 20.0
-            if atr and atr > 0:
-                atr_roi = (atr * 2.5 / entry) * self.leverage * 100
-                trail_offset_roi = max(trail_offset_roi, atr_roi)
+            logger.info(f"🎯 SNIPER TARGET HIT (100%): {symbol} ROI={roi:.1f}%")
+            return True, f"SNIPER_TP_FIXED ({roi:.1f}%)", None
 
-            trail_roi = roi - trail_offset_roi
-            
-            # O novo SL em ROI é o maior entre o Floor e o Trail
-            target_sl_roi = max(floor_roi, trail_roi)
-            
-            # Converter ROI alvo para Preço Real
-            price_offset_pct = target_sl_roi / (self.leverage * 100)
-            
-            side_norm = (side or "").lower()
-            if side_norm == "buy":
-                new_stop = entry * (1 + price_offset_pct)
-            else:
-                new_stop = entry * (1 - price_offset_pct)
-                
-            # Arredondamento Cirúrgico
-            from services.bybit_rest import bybit_rest_service
-            new_stop = await bybit_rest_service.round_price(symbol, new_stop)
-            
-            # 🆕 V6.0: SL REGRESSION SHIELD (Security Operation)
-            # Never move SL further from entry than current SL
-            should_update = False
-            if side_norm == "buy":
-                if new_stop > current_sl: should_update = True
-            else:
-                if (current_sl == 0) or (new_stop < current_sl): should_update = True
-            
-            if should_update:
-                logger.info(f"🚀 SNIPER OVERDRIVE: {symbol} ROI={roi:.1f}% | New SL={new_stop} (Locked {target_sl_roi:.1f}%)")
-                return False, None, new_stop
-            else:
-                return False, None, None
-
-        # ❌ STOP LOSS CHECK (Normal & Adaptive abaixo de 100%)
-        # ... Mantém lógica original para ROI < 100% ...
-        side_norm = (side or "").lower()
-        if current_sl > 0:
-            if side_norm == "buy" and current_price <= current_sl:
-                # Verificar se foi um SL de Overdrive (Lucro) ou Loss
-                is_profit = current_price > entry
-                msg = "SNIPER_OVERDRIVE_PROFIT" if is_profit else "SNIPER_ADAPTIVE_SL"
-                logger.info(f"🛑 {msg} HIT: {symbol} Price={current_price} | ROI={roi:.1f}%")
-                return True, f"{msg} ({roi:.1f}%)", None
-            elif side_norm == "sell" and current_price >= current_sl:
-                is_profit = current_price < entry
-                msg = "SNIPER_OVERDRIVE_PROFIT" if is_profit else "SNIPER_ADAPTIVE_SL"
-                logger.info(f"🛑 {msg} HIT: {symbol} Price={current_price} | ROI={roi:.1f}%")
-                return True, f"{msg} ({roi:.1f}%)", None
-
-        # 🔥 Hard Stop Loss fallback
-        if roi <= self.sniper_stop_roi:
-            logger.warning(f"🛑 SNIPER HARD SL: {symbol} ROI={roi:.2f}% <= {self.sniper_stop_roi}%")
+        # 🛑 HARD STOP LOSS (50%)
+        if roi <= -50.0:
+            logger.warning(f"🛑 SNIPER HARD SL (50%): {symbol} ROI={roi:.1f}%")
             return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)", None
-        
-        # 🔄 TRAIL SL (Escada Pré-100%): 15% -> 30% -> 50% -> 70%
-        # Só executa se não estiver em Overdrive (< 100%)
-        
-        # 🆕 V6.0: ATR SL Hybrid (Security Operation)
         # If ROI > 50% and ATR exists, use it as a conservative floor
         if 50.0 <= roi < 100.0 and atr and atr > 0:
             atr_sl_dist = 3.0 * atr # Wider 3x ATR for SNIPER

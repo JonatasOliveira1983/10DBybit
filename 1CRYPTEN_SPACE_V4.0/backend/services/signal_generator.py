@@ -22,7 +22,7 @@ class SignalGenerator:
         self.is_running = False
         self.last_standby_log = 0
         self.radar_interval = 3.0 # Update RTDB every 3s for 200 symbols
-        self.scan_interval = 15.0 # Scan for signals every 15s
+        self.scan_interval = 5.0 # Reduced from 15s to 5s for V7.0 High-Precision Reactivity
         
         # V5.1.0: Protocol Drag State
         self.btc_drag_mode = False
@@ -40,7 +40,7 @@ class SignalGenerator:
             try:
                 # 0. V5.1.0: Update Market Context (BTC Variation, ATR, etc.)
                 now = time.time()
-                if now - self.last_context_update > 300: # Every 5 mins
+                if now - self.last_context_update > 60: # Reduced to 1 min for real-time BTC Pulse
                     await bybit_ws_service.update_market_context()
                     self.last_context_update = now
                     
@@ -48,15 +48,21 @@ class SignalGenerator:
                     btc_var = bybit_ws_service.btc_variation_1h
                     btc_cvd = bybit_ws_service.get_cvd_score("BTCUSDT")
                     
+                    # V7.0 Dynamic Exhaustion: Based on BTC CVD intensity ($5M = 100%)
+                    # And amplified by 1h Variation
+                    abs_btc_cvd = abs(btc_cvd)
+                    base_exhaustion = (abs_btc_cvd / 5000000) * 100
+                    var_boost = abs(btc_var) * 10 # 1% var = 10% exhaustion boost
+                    self.exhaustion_level = min(99.0, base_exhaustion + var_boost)
+
                     # Heuristic for Drag Mode: Var > 1.2% or Extreme CVD
-                    # For CVD, we compare to a high threshold (e.g. $2.5M delta in recent history)
-                    self.btc_drag_mode = abs(btc_var) > 1.2 or abs(btc_cvd) > 2500000
+                    self.btc_drag_mode = abs(btc_var) > 1.2 or abs_btc_cvd > 2500000
                     
                     if self.btc_drag_mode:
-                        logger.info(f"🦅 V5.1.0: BTC DRAG MODE ACTIVE | Var: {btc_var:.2f}% | CVD: {btc_cvd:.2f}")
+                        logger.info(f"🦅 V7.0: BTC DRAG MODE ACTIVE | Var: {btc_var:.2f}% | CVD: {btc_cvd:.2f} | Exh: {self.exhaustion_level:.1f}%")
                     
                     # Update RTDB for Frontend Widget
-                    await firebase_service.update_pulse_drag(self.btc_drag_mode, abs(btc_cvd), self.exhaustion_level)
+                    await firebase_service.update_pulse_drag(self.btc_drag_mode, abs_btc_cvd, self.exhaustion_level)
 
                 # 🆕 V6.0: Broadcast WebSocket Health to Command Tower
                 await firebase_service.update_ws_health(bybit_ws_service.latency_ms)

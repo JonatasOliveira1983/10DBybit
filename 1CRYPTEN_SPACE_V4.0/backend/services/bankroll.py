@@ -1,6 +1,9 @@
+from __future__ import annotations
 import logging
 import asyncio
 import time
+import math
+from typing import Optional, List, Dict, Any, Tuple
 from services.firebase_service import firebase_service
 from services.bybit_rest import bybit_rest_service
 from services.vault_service import vault_service
@@ -28,12 +31,6 @@ class BankrollManager:
         self.execution_lock = asyncio.Lock() # Iron Lock Atomic Protector
         self.pending_slots = set() # V4.9.4.2: Local memory lock to prevent duplicate assignments
 
-    async def sync_slots_with_exchange(self):
-        """
-        Two-way sync:
-        1. Clears slots that have no matching position on Bybit (Stale).
-        2. Populates empty slots with active Bybit positions (Recovery).
-        """
     async def sync_slots_with_exchange(self):
         """
         V4.9.4.3: Persistence Shield 2.0 - FIREBASE IS TRUTH.
@@ -236,77 +233,37 @@ class BankrollManager:
         
         return real_risk
 
-    async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER"):
+    async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER") -> Optional[int]:
         """
-        V6.0 SURF-FIRST PROTOCOL (STRICT ALIGNMENT):
-        1. Duplicate Guard (absolute - no symbol in any slot)
-        2. Slot Type Separation (SURF=1-5, SNIPER=6-10)
-        3. STRICT SURF-First Priority: 5 SURF slots BEFORE any SNIPER.
-        4. SNIPER Safety dependency: SNIPER allowed IF (5 SURF active) OR (Active SURF = Risk Zero).
-        5. 30% Hard Risk Cap.
+        [V7.0] SINGLE TRADE SNIPER RULE:
+        Strictly allows opening a slot ONLY if ALL slots are empty.
+        Always returns slot 1 as the primary sniper slot.
         """
-        slots = await firebase_service.get_active_slots()
-        
-        # 1. ABSOLUTE Duplicate Guard
-        if symbol:
-            norm_symbol = symbol.replace(".P", "").upper()
-            for s in slots:
-                existing_sym = (s.get("symbol") or "").replace(".P", "").upper()
-                if existing_sym == norm_symbol:
-                    logger.warning(f"Duplicate Guard: {symbol} already in Slot {s['id']}. BLOCKED.")
-                    return None
+        try:
+            slots = await firebase_service.get_active_slots()
+            occupied = [s for s in slots if s.get("symbol")]
             
-            # Check local pending lock
-            if any(p_sym == norm_symbol for p_sym, p_id in self.pending_slots):
-                 logger.warning(f"Atomic Lock: {symbol} already pending. BLOCKED.")
+            if len(occupied) > 0:
+                logger.info(f"🚫 SINGLE SNIPER RULE: Waiting for {occupied[0]['symbol']} to close.")
+                return None
+            
+            # Atomic Lock Check
+            if self.pending_slots:
+                 logger.warning(f"Atomic Lock: System already processing a trade. BLOCKED.")
                  return None
-        
-        # 2. Hard Risk Cap Check (global)
-        real_risk = await self.calculate_real_risk()
-        if (real_risk + self.margin_per_slot) > self.risk_cap:
-            logger.warning(f"Risk Cap Reached: {real_risk*100:.1f}% + {self.margin_per_slot*100}% > {self.risk_cap*100}%")
+
+            # Check if this symbol is already the one being processed
+            if symbol:
+                norm_symbol = symbol.replace(".P", "").upper()
+                if any(p_sym == norm_symbol for p_sym, p_id in self.pending_slots):
+                     return None
+
+            # If empty, return slot 1 as the designated Sniper slot
+            return 1
+            
+        except Exception as e:
+            logger.error(f"Error checking slot availability: {e}")
             return None
-
-        # 3. Protocol: SURF-FIRST & SNIPER-SAFETY
-        active_surf = [s for s in slots if s["id"] <= 5 and s.get("symbol")]
-        
-        if slot_type == "SNIPER":
-            # Rule 1: STRICT SURF DEPTH
-            if len(active_surf) < 5:
-                # Exception: Allow SNIPER if ALL active SURF are Risk Zero (even if < 5)
-                # This respects the "fill foundation" vs "safety first" balance.
-                all_surf_safe = True
-                if not active_surf:
-                    all_surf_safe = False # Cannot be safe if empty foundation
-                
-                for s in active_surf:
-                    entry = s.get("entry_price", 0)
-                    stop = s.get("current_stop", 0)
-                    side_norm = (s.get("side") or "").lower()
-                    
-                    is_risk_zero = False
-                    if side_norm == "buy" and stop >= entry: is_risk_zero = True
-                    elif side_norm == "sell" and stop <= entry: is_risk_zero = True
-                    
-                    if not is_risk_zero:
-                        all_surf_safe = False
-                        break
-                
-                if not all_surf_safe:
-                    logger.info(f"V6.0 Protocol: Foundation not full ({len(active_surf)}/5) and SURF not Risk Zero. SNIPER BLOCKED.")
-                    return None
-
-            slot_range = range(6, 11)
-        else:  # SURF
-            slot_range = range(1, 6)
-
-        # 4. Find available slot
-        pending_ids = [p_id for p_sym, p_id in self.pending_slots]
-        for s in slots:
-            if s["id"] in slot_range and not s.get("symbol") and s["id"] not in pending_ids:
-                return s["id"]
-        
-        return None
 
     async def update_banca_status(self):
         """Updates the banca_status table in Supabase."""
@@ -345,7 +302,6 @@ class BankrollManager:
                 if not hasattr(self, "_last_snapshot_time"):
                     self._last_snapshot_time = 0
                 
-                import time
                 current_time = time.time()
                 if (current_time - self._last_snapshot_time) > (6 * 3600): # 6 hours
                     await firebase_service.log_banca_snapshot({
@@ -413,9 +369,13 @@ class BankrollManager:
                 logger.warning(f"Balance too low: ${balance}")
                 return None
                 
-            # [V6.0] Fixed 5% Margin Rule
-            # As requested by Commander: each slot MUST use exactly 5% of balance.
-            margin = balance * 0.05
+            # [V7.0] SINGLE TRADE SNIPER: 20% Margin Rule
+            # Every trade uses exactly 20% of the current bankroll.
+            margin = balance * 0.20
+            
+            if margin < 1.0:
+                logger.warning(f"❌ Balance too low for 20% margin trade: ${balance:.2f}")
+                return False
             
             # Calculate final SL
             sl_percent = 0.01 if slot_type == "SNIPER" else 0.015
@@ -428,7 +388,6 @@ class BankrollManager:
             # [V5.4.5] Margin calculation for slot record
             margin = (raw_qty * current_price) / settings.LEVERAGE
 
-            import math
             precision = max(0, int(-math.log10(qty_step))) if qty_step > 0 else 3
             qty = round(raw_qty, precision)
             if qty <= 0: qty = qty_step
@@ -486,13 +445,6 @@ class BankrollManager:
             symbol = slot.get("symbol")
             if symbol:
                 side = slot.get("side")
-                # We don't know the exact qty from the slot currently (schema limitation), 
-                # but we can try to close full position via API if supported or check position
-                # For now, we assume we need to fetch position size or close generic.
-                # Bybit close_position usually takes qty. 
-                # Let's try to fetch position info first or pass a large qty if reduceOnly allows (risky).
-                # BETTER APPROACH: Fetch position from Bybit and close it.
-                
                 try:
                     # Fetch position to get size (Simulation aware)
                     pos_list = await bybit_rest_service.get_active_positions(symbol=symbol)

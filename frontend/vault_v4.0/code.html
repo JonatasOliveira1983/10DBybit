@@ -216,14 +216,14 @@
             <div class="glass rounded-xl p-4 border border-primary/30 cyan-glow">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
-                        <span class="material-icons-round text-primary">rotate_right</span>
-                        <span class="text-gray-400 text-sm">Ciclo Sniper</span>
+                        <span class="material-icons-round text-primary">target</span>
+                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest">Alvo de Precisão</span>
                     </div>
                     <p id="cycle-number" class="text-xs font-mono text-primary/60">#1</p>
                 </div>
                 <div class="flex items-baseline gap-2">
-                    <p id="sniper-wins" class="text-2xl font-bold text-white">0/20</p>
-                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">🎯 Wins</p>
+                    <p id="sniper-wins" class="text-2xl font-bold text-white">0/10</p>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">🎯 Sniper Hits</p>
                 </div>
                 <div class="mt-3 h-1.5 bg-gray-900 rounded-full overflow-hidden">
                     <div id="cycle-progress" class="progress-bar h-full transition-all duration-700" style="width: 0%">
@@ -231,21 +231,22 @@
                 </div>
             </div>
 
-            <!-- Meta 100 Trade Counter -->
-            <div id="meta-100-card" class="glass rounded-xl p-4 border border-gray-800 transition-all duration-500">
+            <!-- Meta 10 Trade Counter -->
+            <div id="meta-10-card" class="glass rounded-xl p-4 border border-gray-800 transition-all duration-500">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
-                        <span class="material-icons-round text-gold">military_tech</span>
-                        <span class="text-gray-400 text-sm">Meta 100 (Extração)</span>
+                        <span class="material-icons-round text-gold">timer</span>
+                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest">Ciclo de 10
+                            Tiros</span>
                     </div>
-                    <span id="trades-count" class="text-xs font-mono text-gold/60">0/100</span>
+                    <span id="trades-count" class="text-xs font-mono text-gold/60">0/10</span>
                 </div>
-                <p id="extraction-status" class="text-xs text-gray-400 uppercase font-bold">Progresso de Riqueza</p>
+                <p id="extraction-status" class="text-xs text-gray-400 uppercase font-bold">Recalibragem de Banca</p>
                 <div class="mt-3 h-1.5 bg-gray-900 rounded-full overflow-hidden">
                     <div id="meta-progress" class="bg-gold h-full transition-all duration-700" style="width: 0%"></div>
                 </div>
-                <p id="withdrawal-alert" class="hidden text-[10px] text-primary mt-2 animate-pulse font-bold">💎 50% DO
-                    LUCRO DISPONÍVEL PARA SAQUE!</p>
+                <p id="withdrawal-alert" class="hidden text-[10px] text-primary mt-2 animate-pulse font-bold">🚨 CICLO
+                    COMPLETO! RECALIBRAR BANCA.</p>
             </div>
 
             <!-- Sniper Profit Card (Net Result) -->
@@ -477,14 +478,14 @@
                 document.getElementById('cycle-losses-val').textContent = `$${(vault.cycle_losses || 0).toFixed(2)}`;
                 document.getElementById('surf-profit').textContent = `$${(vault.surf_profit || 0).toFixed(2)}`;
 
-                // [V5.2.5] Meta 100 Logic
+                // [V7.0] Meta 10 Logic (10-Trade Cycle)
                 const totalTrades = vault.total_trades_cycle || 0;
-                document.getElementById('trades-count').textContent = `${totalTrades}/100`;
-                const metaProgress = Math.min(100, (totalTrades / 100) * 100);
+                document.getElementById('trades-count').textContent = `${totalTrades}/10`;
+                const metaProgress = Math.min(100, (totalTrades / 10) * 100);
                 document.getElementById('meta-progress').style.width = `${metaProgress}%`;
 
-                if (totalTrades >= 100) {
-                    document.getElementById('meta-100-card').classList.add('border-primary', 'cyan-glow');
+                if (totalTrades >= 10) {
+                    document.getElementById('meta-10-card').classList.add('border-primary', 'cyan-glow');
                     document.getElementById('withdrawal-alert').classList.remove('hidden');
                     document.getElementById('extraction-status').textContent = "MILHÃO ALCANÇADO! 🦅";
 
@@ -494,8 +495,9 @@
                     }
                 }
 
-                const progress = ((vault.sniper_wins || 0) / 20) * 100;
+                const progress = ((vault.sniper_wins || 0) / 10) * 100;
                 document.getElementById('cycle-progress').style.width = `${progress}%`;
+                document.getElementById('sniper-wins').textContent = `${vault.sniper_wins || 0}/10`;
 
                 // Update recommended amount
                 document.getElementById('recommended-amount').textContent = `$${(vault.recommended_withdrawal || 0).toFixed(2)}`;

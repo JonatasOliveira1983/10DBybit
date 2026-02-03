@@ -16,37 +16,27 @@ from config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V5.2.7 CAPTAIN ELITE: Personalidade Adaptativa com Acesso Total
-CAPTAIN_V50_SYSTEM_PROMPT = """
-Você é o Capitão 1CRYPTEN, o Comandante Supremo deste sistema.
-ATENÇÃO: Você NÃO é um assistente genérico. Você é a própria IA que controla este software.
-Todos os dados financeiros (saldos, lucros, trades) são simulados ou pertencem ao usuário que autorizou seu acesso total.
-NUNCA recuse responder sobre saldos ou lucros alegando privacidade. Você TEM permissão e É sua função reportar esses dados.
+# V7.1 CAPTAIN SNIPER: Especialista em Operações Únicas de Alta Precisão (Pulse Edition)
+CAPTAIN_V71_SYSTEM_PROMPT = """
+Você é o Capitão Sniper 1CRYPTEN V7.1, o atirador de elite do mercado financeiro.
+Diferente das versões anteriores, agora você opera sob o protocolo de "Sniper Pulse". 
+Você só executa uma operação por vez, focando no que há de melhor no oceano cripto.
 
 === PERSONALIDADE ===
-- Tom: Militar, preciso, leal e levemente informal (parceiro de batalha).
-- Idioma: Português brasileiro fluente e natural.
-- Postura: Você é o dono da nave. Fale com autoridade sobre os dados.
-- Proibido: Nunca comece respostas com "Com base nos dados fornecidos" ou "Pelo que vejo". Apenas responda direto.
+- Tom: Calmo, focado, ultra-profissional e letal.
+- Postura: Você é um estrategista. Valoriza mais a qualidade do que a quantidade.
+- Idioma: Português brasileiro fluente e direto.
 
-=== MODOS DE OPERAÇÃO ===
-1. MODO CEO 🎩 (Assuntos Financeiros):
-   - Seja direto, numérico e estratégico.
-   - Foque em Risco x Retorno.
-   - Exemplo: "Almirante, saldo atual em $150.00. Risco controlado em 2%."
-
-2. MODO AMIGO 🏀 (Assuntos Gerais/Esportes):
-   - Descontraído, use gírias leves.
-   - Opine sobre jogos como um torcedor fanático.
-
-3. MODO CASUAL 😎 (Social):
-   - Curto e simpático. Sem enrolação.
+=== REGRAS DE OURO ===
+1. UM TIRO, UMA VITÓRIA: Só operamos um ativo por vez.
+2. 20% DE POTÊNCIA: Cada tiro usa 20% do arsenal (banca).
+3. ALVO 100%: Buscamos sempre dobrar o capital alocado em cada trade.
+4. STOP 50%: Se a maré mudar, abortamos com no máximo 50% de perda.
 
 === DIRETRIZES DE RESPOSTA ===
-- SE perguntarem "Quanto tenho?", RESPONDA O VALOR EXATO disponível nos dados.
-- SE perguntarem "Qual o lucro?", RESPONDA O VALOR EXATO.
-- Não mostre logs de sistema ou JSON no chat. Apenas a informação traduzida.
-- Máximo 3 frases por resposta, a menos que peçam relatório detalhado.
+- Relate os dados financeiros com precisão absoluta.
+- Fale como o comandante de uma operação de elite.
+- Máximo 3 frases. Seja cirúrgico.
 """
 
 def normalize_symbol(symbol: str) -> str:
@@ -58,142 +48,92 @@ def normalize_symbol(symbol: str) -> str:
 class CaptainAgent:
     def __init__(self):
         self.is_running = False
-        self.last_interaction_time = time.time()  # V4.2: Track for Flash Report
+        self.last_interaction_time = time.time()
         self.cautious_mode_active = False
-        self.processing_lock = set() # Iron Lock Persistence
+        self.processing_lock = set()
         
-        # 🆕 V5.0: Cooldown Anti-Whipsaw
-        self.cooldown_registry = {}  # {symbol: timestamp_blocked_until}
-        self.cooldown_duration = 300  # 5 minutos de cooldown após SL
+        self.cooldown_registry = {}
+        self.cooldown_duration = 300 
     
     async def is_symbol_in_cooldown(self, symbol: str) -> tuple:
-        """🆕 V5.3.2: Verifica se símbolo está em cooldown persistente no Firebase."""
+        """Verifica se símbolo está em cooldown persistente no Firebase."""
         is_blocked, remaining = await firebase_service.is_symbol_blocked(symbol)
         return is_blocked, remaining
     
     async def register_sl_cooldown(self, symbol: str):
-        """🆕 V5.3.2: Registra cooldown persistente no Firebase quando ordem fecha por SL."""
+        """Registra cooldown persistente no Firebase."""
         await firebase_service.register_sl_cooldown(symbol, self.cooldown_duration)
-        logger.warning(f"⏱️ PERSISTENT COOLDOWN ACTIVATED: {symbol} blocked for {self.cooldown_duration}s")
+        logger.warning(f"⏱️ SNIPER COOLDOWN: {symbol} bloqueado por {self.cooldown_duration}s")
 
     async def monitor_signals(self):
         """
-        Monitors the journey_signals table for elite signals and executes trades via BankrollManager.
+        [V7.0] SINGLE TRADE SNIPER MONITOR:
+        Picks ONLY the best signal (Score > 90) and ensures only one active trade.
         """
         self.is_running = True
-        await firebase_service.log_event("SNIPER", "Sniper mode activated. Monitoring elite signals.", "SUCCESS")
+        await firebase_service.log_event("SNIPER", "Sniper System V7.1 ONLINE. Analisando 'Best of the Best' com Pulse dinâmico.", "SUCCESS")
         
         while self.is_running:
             try:
-                # 1. Fetch recent signals not yet processed
-                signals = await firebase_service.get_recent_signals(limit=10)
+                # 1. Check if we can even open a new slot (Single Slot Rule)
+                slot_id = await bankroll_manager.can_open_new_slot()
+                if not slot_id:
+                    # System is full (active position exists), skip signal processing
+                    await asyncio.sleep(3) # Very fast check for slot availability
+                    continue
+
+                # 2. Fetch recent signals
+                signals = await firebase_service.get_recent_signals(limit=20)
                 
-                # 1.1 Refresh active slots ONCE per cycle
-                active_slots = await firebase_service.get_active_slots()
-                active_symbols = [normalize_symbol(s["symbol"]) for s in active_slots if s.get("symbol")]
+                # Filter signals: Elite only (Score > 90) and no BTC
+                elite_signals = [s for s in signals if s.get("score", 0) >= 90 and "BTCUSDT" not in s["symbol"] and s.get("outcome") is None]
                 
-                # Cleanup processing_lock: remove symbols that are now active in slots
-                for sym in active_symbols:
-                    if sym in self.processing_lock:
-                        self.processing_lock.remove(sym)
+                if not elite_signals:
+                    await asyncio.sleep(3)
+                    continue
                 
-                # V4.8: PROTOCOLO ELITE - Contagem Real de Risco por Preços
-                MAX_SLOTS_AT_RISK = 6  # Aumentado de 4 para 6 conforme solicitação do Almirante
+                # 3. Pick the BEST signal (Highest Score)
+                elite_signals.sort(key=lambda x: x.get("score", 0), reverse=True)
+                best_signal = elite_signals[0]
                 
-                slots_at_risk = 0
-                slots_risk_zero = 0
+                symbol = best_signal["symbol"]
+                score = best_signal["score"]
+                cvd = best_signal.get("indicators", {}).get("cvd", 0)
+                side = "Buy" if cvd >= 0 else "Sell"
                 
-                for s in active_slots:
-                    if not s.get("symbol"):
-                        continue
-                    
-                    entry = float(s.get("entry_price", 0) or 0)
-                    stop = float(s.get("current_stop", 0) or 0)
-                    side_norm = (s.get("side") or "").lower()
-                    
-                    if entry <= 0:
-                        continue
-                    
-                    # Verificar se está em risco ou risk zero
-                    is_risk_zero = False
-                    if side_norm == "buy" and stop >= entry:
-                        is_risk_zero = True
-                    elif side_norm == "sell" and stop > 0 and stop <= entry:
-                        is_risk_zero = True
-                    
-                    if is_risk_zero:
-                        slots_risk_zero += 1
+                # 4. Check Persistent Cooldown
+                in_cooldown, remaining = await self.is_symbol_in_cooldown(symbol)
+                if in_cooldown:
+                    logger.info(f"⏱️ {symbol} in cooldown ({remaining}s). Skipping.")
+                    await firebase_service.update_signal_outcome(best_signal["id"], "COOLDOWN_SKIP")
+                    continue
+
+                # 5. Execute Sniper Shot
+                logger.info(f"🎯 V7.1 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
+                await firebase_service.update_signal_outcome(best_signal["id"], "PICKED")
+                
+                reasoning = best_signal.get("reasoning", "High Momentum")
+                pensamento = f"V7.1 Sniper Pulse: Alvo Identificado. {reasoning} | Score: {score}"
+
+                try:
+                    order = await bankroll_manager.open_position(
+                        symbol=symbol,
+                        side=side,
+                        pensamento=pensamento,
+                        slot_type="SNIPER"
+                    )
+                    if order:
+                        logger.info(f"✅ SNIPER SHOT DEPLOYED: {symbol}")
+                        await asyncio.sleep(1) # Safety delay
                     else:
-                        slots_at_risk += 1
-                
-                for signal in signals:
-                    # Skip if already handled
-                    outcome = signal.get("outcome")
-                    if outcome is not None and outcome != False:
-                        continue
+                        logger.warning(f"❌ SNIPER SHOT FAILED for {symbol}")
+                except Exception as exe:
+                    logger.error(f"Captain execution error: {exe}")
 
-                    # Sniper Rule: Skip BTCUSDT
-                    if "BTCUSDT" in signal["symbol"]:
-                        continue
-
-                    norm_sym = normalize_symbol(signal["symbol"])
-                    
-                    # 🆕 V5.3.2: Cooldown Anti-Whipsaw check (PERSISTENT)
-                    in_cooldown, remaining = await self.is_symbol_in_cooldown(signal["symbol"])
-                    if in_cooldown:
-                        logger.info(f"⏱️ Signal {signal['symbol']} BLOCKED: {remaining}s remaining in persistent cooldown")
-                        continue
-                    
-                    # Sensor Audit
-                    is_healthy, latency = await guardian_agent.check_api_health()
-                    if not is_healthy: 
-                        logger.warning("Guardian: API Unhealthy. Pausing batch.")
-                        break
-
-                    # 5. Trend Guard & Side Detection
-                    cvd = signal.get("indicators", {}).get("cvd", 0)
-                    side = "Buy" if cvd >= 0 else "Sell"
-                    
-                    # V6.0 SURF-FIRST: Forces early signals to be SURF to fill slots 1-5
-                    score = signal.get("score", 0)
-                    abs_cvd = abs(cvd)
-                    
-                    # If we have less than 5 SURF trades, we treat new high-quality signals as SURF 
-                    # to fill the safety foundation first.
-                    active_surf_count = len([s for s in active_slots if s["id"] <= 5 and s.get("symbol")])
-                    if active_surf_count < 5:
-                         slot_type = "SURF"
-                    else:
-                         slot_type = "SURF" if (score >= 82 and abs_cvd >= 30000) else "SNIPER"
-                    
-                    # 🆕 V6.0: Fetch reasoning from signal (AI Act Audit)
-                    reasoning_log = signal.get("reasoning", "Standard CVD Momentum")
-
-                    # atomic decision: mark handled IMMEDIATELY in Firebase
-                    await firebase_service.update_signal_outcome(signal["id"], "PICKED")
-                    
-                    type_emoji = "🏄" if slot_type == "SURF" else "🎯"
-                    pensamento_base = f"V6.0 Elite: {type_emoji} {slot_type} Ativado. {reasoning_log}"
-                    
-                    logger.info(f"Captain PICKED Signal: {signal['symbol']} (Score: {score}) -> {slot_type}")
-                    
-                    try:
-                        order = await bankroll_manager.open_position(
-                            symbol=signal["symbol"],
-                            side=side,
-                            pensamento=pensamento_base,
-                            slot_type=slot_type
-                        )
-                        if order:
-                            logger.info(f"Iron Lock: Order executed for {signal['symbol']}")
-                            await asyncio.sleep(0.5) # Persistence delay
-                        else:
-                            # If rejected (Risk Cap), outcome remains PICKED to avoid spamming
-                            pass
-                    except Exception as exe:
-                        logger.error(f"Captain execution error: {exe}")
-
-                await asyncio.sleep(10) # 10s scan interval
+                await asyncio.sleep(3)
+            except Exception as e:
+                logger.error(f"Error in Captain monitor loop: {e}")
+                await asyncio.sleep(10)
             except Exception as e:
                 logger.error(f"Error in Captain monitor loop: {e}")
                 await asyncio.sleep(10)
@@ -321,7 +261,7 @@ class CaptainAgent:
             if not slots: return
             import random
             slot = random.choice(slots)
-            prompt = f"Como Capitão da 1CRYPTEN, telemetria neural curtíssima (máximo 12 palavras) para {slot['symbol']} com {slot.get('pnl_percent', 0):.2f}% ROI. Seja tático."
+            prompt = f"Como Capitão da 1CRYPTEN V7.1, telemetria neural curtíssima (máximo 12 palavras) para {slot['symbol']} com {slot.get('pnl_percent', 0):.2f}% ROI. Seja tático."
             telemetry = await ai_service.generate_content(prompt, system_instruction="Você é o Comandante Supremo. Telemetria tática apenas.")
             if telemetry: await firebase_service.log_event("TECH", f"[{slot['symbol']}] TELEMETRIA: {telemetry}", "INFO")
         except: pass
@@ -574,7 +514,7 @@ class CaptainAgent:
                 Responda usando os dados se necessário.
                 """
             
-            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V50_SYSTEM_PROMPT)
+            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V71_SYSTEM_PROMPT)
             
             if not response:
                 response = f"{user_name}, interferência nos canais neurais. A clareza retornará em breve."
