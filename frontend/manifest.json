@@ -1,8 +1,8 @@
 {
-    "name": "1CRYPTEN SPACE V4.0",
+    "name": "1CRYPTEN SNIPER V7.1",
     "short_name": "1CRYPTEN",
-    "description": "Elite Trading Space Command Center",
-    "start_url": "/dashboard",
+    "description": "Elite Sniper Trading Command Center",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
@@ -17,5 +17,6 @@
             "sizes": "512x512",
             "type": "image/png"
         }
-    ]
+    ],
+    "orientation": "portrait"
 }

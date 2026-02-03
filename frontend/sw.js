@@ -1,7 +1,6 @@
-const CACHE_NAME = '1crypten-space-v4-v4';
+const CACHE_NAME = '1crypten-sniper-v7.1';
 const ASSETS = [
     '/',
-    '/dashboard',
     '/logo10D.png',
     '/SoHoje1.png'
 ];
@@ -35,9 +34,9 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// V4.2 Push Notifications
+// V7.1 Push Notifications
 self.addEventListener('push', (event) => {
-    const data = event.data ? event.data.json() : { title: '1Crypten Alerta', body: 'Nova transmissão do Capitão.' };
+    const data = event.data ? event.data.json() : { title: '1Crypten Alerta', body: 'Mensagem do Capitão Sniper V7.1.' };
 
     const options = {
         body: data.body,
@@ -49,7 +48,7 @@ self.addEventListener('push', (event) => {
             primaryKey: 1
         },
         actions: [
-            { action: 'explore', title: 'Ver Dashboard', icon: '/logo10D.png' },
+            { action: 'explore', title: 'Ver Sniper Dash', icon: '/logo10D.png' },
             { action: 'close', title: 'Fechar', icon: '/logo10D.png' },
         ]
     };
