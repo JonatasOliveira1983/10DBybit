@@ -170,32 +170,61 @@
 
     <!-- Main Content -->
     <main class="pt-28 pb-8 px-4 max-w-7xl mx-auto">
+        <!-- MASTER EXECUTION CONTROL (V8.0) -->
+        <div class="mb-6">
+            <div id="master-control-card"
+                class="glass rounded-2xl p-6 border-2 transition-all duration-500 flex flex-col sm:flex-row items-center justify-between gap-6 border-red-500/30 bg-red-500/5">
+                <div class="flex items-center gap-4 text-center sm:text-left">
+                    <div id="master-status-icon"
+                        class="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                        <span class="material-icons-round text-4xl">block</span>
+                    </div>
+                    <div>
+                        <h2 id="master-status-text" class="text-2xl font-black text-white uppercase tracking-tighter">
+                            Capitão Sniper Pausado</h2>
+                        <p id="master-subtext" class="text-sm text-gray-400 font-medium">Aguardando autorização para
+                            iniciar caçada.</p>
+                    </div>
+                </div>
+                <button id="master-toggle-btn" onclick="toggleMasterSniper()"
+                    class="w-full sm:w-auto px-10 py-4 rounded-xl font-black uppercase tracking-widest text-lg transition-all duration-300 transform active:scale-95 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20">
+                    LIBERAR CAPITÃO
+                </button>
+            </div>
+        </div>
+
         <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
         <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-            <!-- Active Balance Card -->
-            <div class="glass rounded-xl p-4 border border-gray-800">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="material-icons-round text-emerald-400">account_balance_wallet</span>
-                    <span class="text-gray-400 text-sm">Banca Ativa</span>
+            <!-- Active Bankroll Card (V8.0 Adjustable) -->
+            <div class="glass rounded-xl p-4 border border-gray-800 relative group">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="material-icons-round text-emerald-400">account_balance_wallet</span>
+                        <span class="text-gray-400 text-sm">Banca Sniper</span>
+                    </div>
+                    <button onclick="showBancaModal()" class="text-gray-500 hover:text-emerald-400 transition">
+                        <span class="material-icons-round text-sm">edit</span>
+                    </button>
                 </div>
                 <p id="active-balance" class="text-xl font-bold text-white">$0.00</p>
-                <p id="balance-change" class="text-[10px] text-green-400 mt-1 uppercase font-bold">Saldo Bybit</p>
+                <p id="balance-change" class="text-[10px] text-emerald-400/60 mt-1 uppercase font-bold">Capital
+                    Operacional</p>
             </div>
 
-            <!-- Sniper Cycle Card -->
+            <!-- Sniper Cycle Card (V8.0 Update) -->
             <div class="glass rounded-xl p-4 border border-primary/30 cyan-glow">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                         <span class="material-icons-round text-primary">target</span>
-                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest truncate">Alvo
-                            Precisão</span>
+                        <span class="text-gray-400 text-sm font-black uppercase tracking-widest truncate">Objetivo
+                            6G/4L</span>
                     </div>
                     <p id="cycle-number" class="text-xs font-mono text-primary/60">#1</p>
                 </div>
                 <div class="flex items-baseline gap-2">
-                    <p id="sniper-wins" class="text-2xl font-bold text-white">0/10</p>
-                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">🎯 Sniper Hits</p>
+                    <p id="gains-losses-count" class="text-2xl font-bold text-white">0G / 0L</p>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Progresso</p>
                 </div>
                 <div class="mt-3 h-1.5 bg-gray-900 rounded-full overflow-hidden">
                     <div id="cycle-progress" class="progress-bar h-full transition-all duration-700" style="width: 0%">
@@ -394,29 +423,33 @@
         </div>
     </div>
 
-    <!-- Withdraw Modal -->
-    <div id="withdraw-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center">
-        <div class="glass rounded-2xl p-6 w-full max-w-md mx-4 border border-gray-700">
-            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <span class="material-icons-round text-gold">payments</span>
-                Registrar Retirada
+    <!-- Banca Update Modal (V8.0) -->
+    <div id="banca-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="glass rounded-2xl p-6 w-full max-w-sm mx-4 border border-emerald-500/30">
+            <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <span class="material-icons-round text-emerald-400">account_balance</span>
+                Ajustar Banca Sniper
             </h3>
-            <div class="mb-4">
-                <label class="text-sm text-gray-400 mb-2 block">Valor Recomendado (20% do lucro)</label>
-                <p id="recommended-amount" class="text-2xl font-bold text-gold mb-3">$0.00</p>
-            </div>
+            <p class="text-xs text-gray-500 mb-6 uppercase tracking-widest font-bold">Defina o capital de operação</p>
+
             <div class="mb-6">
-                <label class="text-sm text-gray-400 mb-2 block">Valor da Retirada</label>
-                <input type="number" id="withdraw-amount" placeholder="0.00"
-                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-gold focus:ring-gold">
+                <label class="text-sm text-gray-400 mb-2 block">Valor da Banca (Mín. $20.00)</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                    <input type="number" id="new-banca-amount" placeholder="20.00" min="20"
+                        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-10 py-4 text-white font-bold text-xl focus:border-emerald-500 focus:ring-emerald-500 transition-all">
+                </div>
+                <p class="text-[10px] text-gray-600 mt-2 uppercase font-mono italic">A entrada será recalibrada para 20%
+                    deste valor.</p>
             </div>
+
             <div class="flex gap-3">
-                <button onclick="closeWithdrawModal()"
-                    class="flex-1 bg-gray-700 hover:bg-gray-600 py-3 rounded-lg transition">
+                <button onclick="closeBancaModal()"
+                    class="flex-1 bg-gray-800 hover:bg-gray-700 py-3 rounded-xl transition text-sm font-bold uppercase tracking-wider">
                     Cancelar
                 </button>
-                <button onclick="confirmWithdraw()"
-                    class="flex-1 bg-gold hover:bg-yellow-500 text-black font-semibold py-3 rounded-lg transition">
+                <button onclick="confirmBancaUpdate()"
+                    class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-3 rounded-xl transition text-sm uppercase tracking-wider shadow-lg shadow-emerald-500/20">
                     Confirmar
                 </button>
             </div>
@@ -429,50 +462,75 @@
 
         async function fetchVaultStatus() {
             try {
-                const [vaultRes, bancaRes, historyRes] = await Promise.all([
+                const [vaultRes, bancaRes, historyRes, slotsRes] = await Promise.all([
                     fetch(`${API_BASE}/api/vault/status`),
                     fetch(`${API_BASE}/banca`),
-                    fetch(`${API_BASE}/api/vault/history?limit=20`)
+                    fetch(`${API_BASE}/api/vault/history?limit=20`),
+                    fetch(`${API_BASE}/api/slots`)
                 ]);
 
                 const vault = await vaultRes.json();
                 const banca = await bancaRes.json();
                 const history = await historyRes.json();
+                const slots = await slotsRes.json();
 
                 vaultData = vault;
 
-                // Update stats
-                document.getElementById('active-balance').textContent = `$${(banca.saldo_total || 0).toFixed(2)}`;
-                document.getElementById('vault-total').textContent = `$${(vault.vault_total || 0).toFixed(2)}`;
-                document.getElementById('cycle-number').textContent = `#${vault.cycle_number || 1}`;
-                document.getElementById('sniper-wins').textContent = `${vault.sniper_wins || 0}/20`;
-                document.getElementById('cycle-profit').textContent = `$${(vault.cycle_profit || 0).toFixed(2)}`;
-                document.getElementById('cycle-losses-val').textContent = `$${(vault.cycle_losses || 0).toFixed(2)}`;
-                document.getElementById('surf-profit').textContent = `$${(vault.surf_profit || 0).toFixed(2)}`;
+                // [V8.1] Check for active positions
+                const activeSlot = slots.find(s => s.symbol);
+                console.log('[V8.1] Slots received:', slots);
+                console.log('[V8.1] Active slot found:', activeSlot);
+                console.log('[V8.1] sniper_mode_active:', vault.sniper_mode_active);
+
+                // Update stats - [V8.1] Safe setter helper
+                const safeSet = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                };
+                const safeStyle = (id, prop, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.style[prop] = value;
+                };
+
+                const displayBalance = banca.configured_balance || banca.saldo_total || 0;
+                safeSet('active-balance', `$${displayBalance.toFixed(2)}`);
+                safeSet('vault-total', `$${(vault.vault_total || 0).toFixed(2)}`);
+                safeSet('cycle-number', `#${vault.cycle_number || 1}`);
+                safeSet('sniper-wins', `${vault.sniper_wins || 0}/20`);
+                safeSet('cycle-profit', `$${(vault.cycle_profit || 0).toFixed(2)}`);
+                safeSet('cycle-losses-val', `$${(vault.cycle_losses || 0).toFixed(2)}`);
+                safeSet('surf-profit', `$${(vault.surf_profit || 0).toFixed(2)}`);
 
                 // [V7.0] Meta 10 Logic (10-Trade Cycle)
                 const totalTrades = vault.total_trades_cycle || 0;
-                document.getElementById('trades-count').textContent = `${totalTrades}/10`;
+                safeSet('trades-count', `${totalTrades}/10`);
                 const metaProgress = Math.min(100, (totalTrades / 10) * 100);
-                document.getElementById('meta-progress').style.width = `${metaProgress}%`;
+                safeStyle('meta-progress', 'width', `${metaProgress}%`);
 
                 if (totalTrades >= 10) {
-                    document.getElementById('meta-10-card').classList.add('border-primary', 'cyan-glow');
-                    document.getElementById('withdrawal-alert').classList.remove('hidden');
-                    document.getElementById('extraction-status').textContent = "MILHÃO ALCANÇADO! 🦅";
+                    document.getElementById('meta-10-card')?.classList.add('border-primary', 'cyan-glow');
+                    document.getElementById('withdrawal-alert')?.classList.remove('hidden');
+                    safeSet('extraction-status', "MILHÃO ALCANÇADO! 🦅");
 
                     if (!window.meta100Announced) {
                         speakCaptain("Comandante, Meta cem atingida! Protocolo de extração de riqueza ativado. Cinquenta por cento do lucro disponível para saque.");
                         window.meta100Announced = true;
                     }
                 }
+                // [V8.1] Master Toggle Status with Position Awareness
+                const masterActive = vault.sniper_mode_active !== false;
+                updateMasterUI(masterActive, activeSlot);
 
-                const progress = ((vault.sniper_wins || 0) / 10) * 100;
-                document.getElementById('cycle-progress').style.width = `${progress}%`;
-                document.getElementById('sniper-wins').textContent = `${vault.sniper_wins || 0}/10`;
+                // [V8.0] Gains / Losses Count
+                const gainsCount = vault.cycle_gains_count || 0;
+                const lossesCount = vault.cycle_losses_count || 0;
+                safeSet('gains-losses-count', `${gainsCount}G / ${lossesCount}L`);
+
+                const progress = (((gainsCount + lossesCount) / 10) * 100);
+                safeStyle('cycle-progress', 'width', `${Math.min(100, progress)}%`);
 
                 // Update recommended amount
-                document.getElementById('recommended-amount').textContent = `$${(vault.recommended_withdrawal || 0).toFixed(2)}`;
+                safeSet('recommended-amount', `$${(vault.recommended_withdrawal || 0).toFixed(2)}`);
 
                 // Update history
                 renderWithdrawalHistory(history);
@@ -584,6 +642,122 @@
                 fetchVaultStatus();
             } catch (e) {
                 alert('Erro ao ativar descanso');
+            }
+        }
+
+        function showBancaModal() {
+            document.getElementById('banca-modal').classList.remove('hidden');
+            document.getElementById('banca-modal').classList.add('flex');
+            const current = document.getElementById('active-balance').textContent.replace('$', '');
+            document.getElementById('new-banca-amount').value = parseFloat(current) || 20.0;
+        }
+
+        function closeBancaModal() {
+            document.getElementById('banca-modal').classList.add('hidden');
+            document.getElementById('banca-modal').classList.remove('flex');
+        }
+
+        async function confirmBancaUpdate() {
+            const amount = parseFloat(document.getElementById('new-banca-amount').value);
+            if (isNaN(amount) || amount < 20) {
+                alert('A banca mínima permitida é de $20.00');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/banca/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ saldo_total: amount })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    closeBancaModal();
+                    fetchVaultStatus();
+                    speakCaptain(`Banca Sniper ajustada para ${amount} dólares. Operação recalibrada em vinte por cento.`);
+                } else {
+                    alert(data.message || 'Erro ao atualizar banca');
+                }
+            } catch (e) {
+                alert('Erro de conexão com o terminal.');
+            }
+        }
+
+        let isToggling = false;
+        async function toggleMasterSniper() {
+            if (isToggling) return;
+            isToggling = true;
+
+            // [V8.1] Check both LIBERADO and Monitorando states as active
+            const statusText = document.getElementById('master-status-text').textContent;
+            const currentStatus = statusText.includes('LIBERADO') || statusText.includes('Monitorando');
+            const newStatus = !currentStatus;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/system/sniper-toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active: newStatus })
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    if (newStatus) {
+                        speakCaptain("Capitão Sniper Liberado. Iniciando busca pelo melhor alvo do mercado.");
+                    } else {
+                        speakCaptain("Capitão Sniper em Standby. Nenhuma nova ordem será aberta até sua ordem.");
+                    }
+                    // Refresh to get updated slot and toggle state
+                    await fetchVaultStatus();
+                }
+            } catch (e) {
+                console.error('Toggle failed', e);
+            } finally {
+                isToggling = false;
+            }
+        }
+
+        function updateMasterUI(isActive, activeSlot = null) {
+            const card = document.getElementById('master-control-card');
+            const icon = document.getElementById('master-status-icon');
+            const iconSpan = icon.querySelector('span');
+            const text = document.getElementById('master-status-text');
+            const subtext = document.getElementById('master-subtext');
+            const btn = document.getElementById('master-toggle-btn');
+
+            // [V8.1] Three states: MONITORING (has position), HUNTING (active, no position), PAUSED
+            if (activeSlot && activeSlot.symbol) {
+                // MONITORING STATE - Active position exists
+                card.className = "mb-6 glass rounded-2xl p-6 border-2 transition-all duration-500 flex flex-col sm:flex-row items-center justify-between gap-6 border-primary/50 bg-primary/10 cyan-glow";
+                icon.className = "w-16 h-16 rounded-full bg-primary/30 flex items-center justify-center text-primary shadow-[0_0_25px_rgba(0,224,255,0.4)] animate-pulse";
+                iconSpan.textContent = "radar";
+                text.textContent = `Monitorando ${activeSlot.symbol.replace('.P', '')}`;
+                text.className = "text-2xl font-black text-primary uppercase tracking-tighter";
+                const roi = activeSlot.pnl_percent || 0;
+                const roiColor = roi >= 0 ? 'text-emerald-400' : 'text-red-400';
+                subtext.innerHTML = `Posição ativa: <span class="${roiColor} font-bold">${roi >= 0 ? '+' : ''}${roi.toFixed(2)}% ROI</span>`;
+                btn.textContent = "PAUSAR CAPITÃO";
+                btn.className = "w-full sm:w-auto px-10 py-4 rounded-xl font-black uppercase tracking-widest text-lg transition-all duration-300 transform active:scale-95 bg-primary hover:bg-primary/80 text-black shadow-lg shadow-primary/30";
+            } else if (isActive) {
+                // HUNTING STATE - Active but no position
+                card.className = "mb-6 glass rounded-2xl p-6 border-2 transition-all duration-500 flex flex-col sm:flex-row items-center justify-between gap-6 border-emerald-500/30 bg-emerald-500/5 cyan-glow";
+                icon.className = "w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]";
+                iconSpan.textContent = "gps_fixed";
+                text.textContent = "Capitão Sniper Liberado";
+                text.className = "text-2xl font-black text-white uppercase tracking-tighter";
+                subtext.textContent = "Caçada ativa. Pronto para abrir o próximo tiro de elite.";
+                btn.textContent = "PAUSAR CAPITÃO";
+                btn.className = "w-full sm:w-auto px-10 py-4 rounded-xl font-black uppercase tracking-widest text-lg transition-all duration-300 transform active:scale-95 bg-emerald-500 hover:bg-emerald-600 text-black shadow-lg shadow-emerald-500/20";
+            } else {
+                // PAUSED STATE
+                card.className = "mb-6 glass rounded-2xl p-6 border-2 transition-all duration-500 flex flex-col sm:flex-row items-center justify-between gap-6 border-red-500/30 bg-red-500/5";
+                icon.className = "w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]";
+                iconSpan.textContent = "block";
+                text.textContent = "Capitão Sniper Pausado";
+                text.className = "text-2xl font-black text-white uppercase tracking-tighter";
+                subtext.textContent = "Aguardando autorização para iniciar caçada.";
+                btn.textContent = "LIBERAR CAPITÃO";
+                btn.className = "w-full sm:w-auto px-10 py-4 rounded-xl font-black uppercase tracking-widest text-lg transition-all duration-300 transform active:scale-95 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20";
             }
         }
 

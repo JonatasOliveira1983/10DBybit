@@ -69,15 +69,12 @@ class SignalGenerator:
                 # 🆕 V6.0: Broadcast WebSocket Health to Command Tower
                 await firebase_service.update_ws_health(bybit_ws_service.latency_ms)
 
-                # V5.2.1: Check any slot availability (Sniper or Surf) to keep collecting signals
-                # Capacity flexibilization: If Drag Mode, allow more slots
-                max_slots = 7 if self.btc_drag_mode else 4
+                # V5.2.1: Check slot 1 availability
                 can_sniper = await bankroll_manager.can_open_new_slot(slot_type="SNIPER")
-                can_surf = await bankroll_manager.can_open_new_slot(slot_type="SURF")
                 
-                if can_sniper is None and can_surf is None:
-                    # Slow down scanning if EVERYTHING is full/risk capped
-                    await asyncio.sleep(15) # Reduced from 60s for better reactivity
+                if can_sniper is None:
+                    # Slow down scanning if Slot 1 is full
+                    await asyncio.sleep(15) 
                     continue
 
                 # 1. Scan all active symbols from WS service

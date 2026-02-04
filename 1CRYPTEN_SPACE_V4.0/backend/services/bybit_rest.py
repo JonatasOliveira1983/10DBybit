@@ -142,30 +142,40 @@ class BybitREST:
                 recv_window=30000,
             )
         return self._session
-    def get_elite_50x_pairs(self):
+    async def get_elite_50x_pairs(self):
         """
         🚀 REFINAMENTO ESTRATÉGICO V6.0: Escaneia apenas pares com alavancagem >= 50x.
         Foca nos ~85 pares de elite da Bybit para maximizar precisão e liquidez.
         """
         try:
-            # 1. Fetch ALL instruments info
-            logger.info("BybitREST: Fetching Elite 50x+ Instruments (Sniper Strategy)...")
-            instr_resp = self.session.get_instruments_info(category="linear")
-            instr_list = instr_resp.get("result", {}).get("list", [])
+            # 1. Fetch ALL instruments info with pagination
+            logger.info("BybitREST: Fetching Elite 50x Instruments (Sniper Strategy)...")
             
-            # 2. Filter by USDT suffix AND leverage >= 50x
             candidates = {}
-            for info in instr_list:
-                symbol = info.get("symbol")
-                if not symbol or not symbol.endswith("USDT"):
-                    continue
-                
-                max_lev = float(info.get("leverageFilter", {}).get("maxLeverage", 0))
-                # Filtro rigoroso: Apenas cavalos de corrida (50x+)
-                if max_lev >= 50:
-                    candidates[symbol] = info
+            cursor = ""
             
-            logger.info(f"BybitREST: Identified {len(candidates)} Elite pairs with 50x+ leverage.")
+            while True:
+                params = {"category": "linear", "limit": 1000}
+                if cursor: params["cursor"] = cursor
+                
+                # Fetch in thread to keep loop breathing
+                instr_resp = await asyncio.to_thread(self.session.get_instruments_info, **params)
+                instr_list = instr_resp.get("result", {}).get("list", [])
+                
+                for info in instr_list:
+                    symbol = info.get("symbol")
+                    if not symbol or not symbol.endswith("USDT"):
+                        continue
+                    
+                    max_lev = float(info.get("leverageFilter", {}).get("maxLeverage", 0))
+                    if max_lev == 50.0:
+                        candidates[symbol] = info
+                
+                cursor = instr_resp.get("result", {}).get("nextPageCursor")
+                if not cursor:
+                    break
+            
+            logger.info(f"BybitREST: Identified {len(candidates)} Elite pairs with exactly 50x leverage.")
             
             # 3. Sort by Turnover to ensure we track the most liquid targets
             tickers_resp = self.session.get_tickers(category="linear")

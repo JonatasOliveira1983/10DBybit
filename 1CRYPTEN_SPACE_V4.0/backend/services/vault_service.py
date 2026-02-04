@@ -56,15 +56,17 @@ class VaultService:
             "cycle_number": 1,
             "cycle_profit": 0.0,      # Lucro líquido Sniper (Wins - Losses)
             "cycle_losses": 0.0,      # Apenas perdas acumuladas Sniper
-            "surf_profit": 0.0,       # Lucro líquido exclusivo Surf
             "started_at": datetime.now(timezone.utc).isoformat(),
             "in_admiral_rest": False,
             "rest_until": None,
             "vault_total": 0.0,
             "cautious_mode": False,
-            "min_score_threshold": 75,
-            "total_trades_cycle": 0,    # [V5.2.5] Contador para Meta 100
-            "accumulated_vault": 0.0    # [V5.2.5] Saldo base + lucros para Juros Compostos
+            "min_score_threshold": 90,  # [V8.0] Strict Sniper Score
+            "total_trades_cycle": 0,    # Target: 10
+            "cycle_gains_count": 0,     # [V8.0] Count of trades with PnL > 0
+            "cycle_losses_count": 0,    # [V8.0] Count of trades with PnL < 0
+            "accumulated_vault": 0.0,
+            "sniper_mode_active": True  # [V8.0] Master Toggle for Captain
         }
     
     async def initialize_cycle(self):
@@ -106,26 +108,24 @@ class VaultService:
                     trade_data.get("side", "Buy")
                 )
 
-            new_wins = current.get("sniper_wins", 0)
-            new_losses = current.get("cycle_losses", 0)
+            new_wins_count = current.get("cycle_gains_count", 0)
+            new_losses_count = current.get("cycle_losses_count", 0)
             
-            is_elite_win = roi >= 100.0
+            is_gain = pnl > 0
             
-            if is_elite_win:
-                new_wins += 1
-                result_label = "SNIPER HIT 🎯"
-            elif pnl > 0:
-                result_label = "SOFT PROFIT 🟢"
+            if is_gain:
+                new_wins_count += 1
+                result_label = "GAIN 🟢"
             else:
-                new_losses += abs(pnl)
-                result_label = "SNIPER LOSS ❌"
+                new_losses_count += 1
+                result_label = "LOSS 🔴"
                 
             new_profit = current.get("cycle_profit", 0) + pnl
             new_total_trades = current.get("total_trades_cycle", 0) + 1
             
             update_data = {
-                "sniper_wins": new_wins,
-                "cycle_losses": new_losses,
+                "cycle_gains_count": new_wins_count,
+                "cycle_losses_count": new_losses_count,
                 "cycle_profit": new_profit,
                 "total_trades_cycle": new_total_trades
             }
@@ -135,9 +135,14 @@ class VaultService:
             
             await asyncio.to_thread(_update)
             
-            # [V7.0] 10-Trade Cycle Trigger
+            # [V8.0] 10-Trade Cycle Trigger
             if new_total_trades >= 10:
-                await firebase_service.log_event("VAULT", "🚨 CICLO DE 10 TRADES COMPLETO! Bankroll recalculation required.", "SUCCESS")
+                await firebase_service.log_event("VAULT", f"🏁 CICLO DE 10 TRADES FINALIZADO! Resultado: {new_wins_count}G / {new_losses_count}L. Recalibragem de banca ativada.", "SUCCESS")
+                # Automation could go here to lock trading or notify
+                
+            event_type = "SUCCESS" if is_gain else "WARNING"
+            result_msg = f"V8.0 Sniper {result_label} | Progresso: {new_wins_count}G / {new_losses_count}L (Total: {new_total_trades}/10) | PnL: ${pnl:.2f}"
+            await firebase_service.log_event("VAULT", result_msg, event_type)
                 # In a real implementation, this would trigger a bankroll reset or profit withdrawal
                 
             event_type = "SUCCESS" if pnl > 0 else "WARNING"
@@ -227,7 +232,6 @@ class VaultService:
                 "sniper_wins": new_wins,
                 "cycle_profit": new_profit,
                 "cycle_losses": new_losses,
-                "surf_profit": new_surf_profit,
                 "total_trades_cycle": len([t for t in trades if t.get('slot_type') == 'SNIPER']) # Sniper count for Meta 100
             }
             
@@ -241,32 +245,6 @@ class VaultService:
         except Exception as e:
             logger.error(f"Error syncing vault with history: {e}")
 
-    async def register_surf_trade(self, trade_data: dict) -> dict:
-        """
-        V4.9.4: Registra lucro/perda do modo Surf de forma independente.
-        """
-        try:
-            if not firebase_service.is_active or not firebase_service.db:
-                return self._default_cycle()
-            
-            current = await self.get_cycle_status()
-            pnl = trade_data.get("pnl", 0)
-            new_surf_profit = current.get("surf_profit", 0) + pnl
-            
-            update_data = {"surf_profit": new_surf_profit}
-            
-            def _update():
-                firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
-                
-            await asyncio.to_thread(_update)
-            await firebase_service.log_event("VAULT", f"🏄 Surf Trade Registered | PnL: ${pnl:.2f} | Surf Net: ${new_surf_profit:.2f}", "INFO")
-            
-            current.update(update_data)
-            return current
-        except Exception as e:
-            logger.error(f"Error registering surf trade: {e}")
-            return self._default_cycle()
-    
     async def calculate_withdrawal_amount(self) -> dict:
         """
         Calcula o valor recomendado para saque (20% do lucro do ciclo).
@@ -446,6 +424,29 @@ class VaultService:
         except Exception as e:
             logger.error(f"Error setting cautious mode: {e}")
             return False
+
+    async def set_sniper_mode(self, enabled: bool) -> bool:
+        """
+        [V8.0] Ativa ou Pausa o Capitão Sniper (Master Toggle).
+        """
+        try:
+            if not firebase_service.is_active or not firebase_service.db:
+                return False
+            
+            def _set():
+                firebase_service.db.collection("vault_management").document("current_cycle").update({
+                    "sniper_mode_active": enabled
+                })
+            
+            await asyncio.to_thread(_set)
+            
+            status = "AUTORIZADO 🟢" if enabled else "BLOQUEADO 🔴"
+            await firebase_service.log_event("VAULT", f"⚓ Capitão Sniper {status} pelo Almirante.", "SUCCESS" if enabled else "WARNING")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error setting sniper mode: {e}")
+            return False
     
     async def is_trading_allowed(self) -> tuple[bool, str]:
         """
@@ -455,6 +456,10 @@ class VaultService:
         try:
             status = await self.get_cycle_status()
             
+            # [V8.0] Master Toggle Check
+            if not status.get("sniper_mode_active", True):
+                return False, "Capitão Sniper está PAUSADO (Manual Stop)."
+
             if status.get("in_admiral_rest"):
                 rest_until = status.get("rest_until", "")
                 return False, f"Admiral's Rest ativo até {rest_until}"

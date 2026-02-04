@@ -31,10 +31,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     PORT: int = 5001
     HOST: str = "0.0.0.0"
-    MAX_SLOTS: int = 10
+    MAX_SLOTS: int = 1
     RISK_CAP_PERCENT: float = 0.20
     LEVERAGE: int = 50
-    INITIAL_SLOTS: int = 4
+    INITIAL_SLOTS: int = 1
     BREAKEVEN_TRIGGER_PERCENT: float = 5.0 # Increased to 5% ROI to avoid premature exits
     
     # Redis

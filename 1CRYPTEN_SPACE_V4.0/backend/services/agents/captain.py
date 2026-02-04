@@ -78,6 +78,15 @@ class CaptainAgent:
         
         while self.is_running:
             try:
+                # 0. Global Authorization Check [V8.0]
+                allowed, reason = await vault_service.is_trading_allowed()
+                if not allowed:
+                    if not hasattr(self, "_last_block_log") or (time.time() - self._last_block_log) > 300:
+                        logger.info(f"⏸️ SNIPER PAUSED: {reason}")
+                        self._last_block_log = time.time()
+                    await asyncio.sleep(5)
+                    continue
+
                 # 1. Check if we can even open a new slot (Single Slot Rule)
                 slot_id = await bankroll_manager.can_open_new_slot()
                 if not slot_id:

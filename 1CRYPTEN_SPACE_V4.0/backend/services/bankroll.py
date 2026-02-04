@@ -14,17 +14,16 @@ logger = logging.getLogger("BankrollManager")
 
 def get_slot_type(slot_id: int) -> str:
     """
-    [V7.0] SINGLE ORDER SNIPER: Strictly one order at a time.
-    Only SNIPER strategy is active as per Commander's orders.
+    [V8.0] SINGLE ORDER SNIPER: Only SNIPER strategy is active.
     """
     return "SNIPER"
 
 class BankrollManager:
     def __init__(self):
         self.max_slots = settings.MAX_SLOTS
-        self.risk_cap = 0.30 # Aumentado de 20% para 30% para suportar 6 slots em risco
-        self.margin_per_slot = 0.05 # 5% per slot (Sniper mode: 4 slots = 20%)
-        self.initial_slots = settings.INITIAL_SLOTS # 4
+        self.risk_cap = 0.20 
+        self.margin_per_slot = 0.20 # 20% per slot (Single Sniper rule)
+        self.initial_slots = 1
         self.last_log_times = {} # Cooldown for logs
         # V4.2: Sniper TP = +2% price = 100% ROI @ 50x
         self.sniper_tp_percent = 0.02  # 2% price movement
@@ -197,39 +196,31 @@ class BankrollManager:
 
     async def calculate_real_risk(self):
         """
-        Calculates the real risk: Sum of margin for slots where Stop Loss < Entry Price.
-        If Stop Loss >= Entry Price, risk is 0 (Risco Zero).
+        Calculates the real risk for the single Sniper slot.
         """
-
         slots = await firebase_service.get_active_slots()
         real_risk = 0.0
         
-        for slot in slots:
-            symbol = slot.get("symbol")
-            if not symbol:
-                continue
-                
+        # Only slot 1 matters
+        slot = next((s for s in slots if s["id"] == 1), None)
+        if slot and slot.get("symbol"):
             entry = slot.get("entry_price")
             stop = slot.get("current_stop")
             side = slot.get("side")
-
-            # In Long: if stop < entry, we still have risk
-            # In Short: if stop > entry, we still have risk
-            # Side is normalized
             side_norm = (side or "").upper()
+            
             is_risk_free = False
-            if side_norm == "BUY":
-                if stop and entry and stop >= entry:
-                    is_risk_free = True
-            elif side_norm == "SELL":
-                if stop and entry and stop <= entry:
-                    is_risk_free = True
+            if side_norm == "BUY" and stop and entry and stop >= entry:
+                is_risk_free = True
+            elif side_norm == "SELL" and stop and entry and stop <= entry:
+                is_risk_free = True
             
             if not is_risk_free:
-                real_risk += self.margin_per_slot
+                real_risk = self.margin_per_slot
         
-        # V4.9.4.2: Include pending slots in risk calculation to prevent over-deployment
-        real_risk += len(self.pending_slots) * self.margin_per_slot
+        # Add pending risk if any
+        if self.pending_slots:
+            real_risk = self.margin_per_slot
         
         return real_risk
 
@@ -288,15 +279,20 @@ class BankrollManager:
                 cycle_profit = vault_status.get("cycle_profit", 0)
                 vault_total = vault_status.get("vault_total", 0)
                 
-                await firebase_service.update_banca_status({
+                # [V8.1] Preserve configured_balance if set by user
+                update_data = {
                     "id": banca.get("id", "status"),
-                    "saldo_total": total_equity,
+                    "saldo_real_bybit": total_equity,  # Real balance from Bybit
                     "risco_real_percent": real_risk,
                     "slots_disponiveis": available_slots_count,
                     "lucro_total_acumulado": total_pnl,
                     "lucro_ciclo": cycle_profit,
                     "vault_total": vault_total
-                })
+                }
+                # Only update saldo_total if no configured_balance exists
+                if not banca.get("configured_balance"):
+                    update_data["saldo_total"] = total_equity
+                await firebase_service.update_banca_status(update_data)
                 
                 # Snapshot logging: Log once every 6 hours (approx)
                 if not hasattr(self, "_last_snapshot_time"):
@@ -316,7 +312,7 @@ class BankrollManager:
             logger.error(f"Error updating banca status: {e}")
 
     async def open_position(self, symbol: str, side: str, sl_price: float = 0, tp_price: float = None, pensamento: str = "", slot_type: str = "SNIPER"):
-        """V4.3: Executes Sniper/Surf entry with separated slot types (SNIPER=1-5, SURF=6-10)."""
+        """[V8.0] Executes Single Sniper entry on Slot 1."""
         async with self.execution_lock:
             # 1. Total Awareness: Check availability & local lock
             norm_symbol = (bybit_rest_service._strip_p(symbol) or "").upper()
@@ -362,23 +358,48 @@ class BankrollManager:
                 return None
 
             info = await bybit_rest_service.get_instrument_info(symbol)
+            if not info:
+                logger.error(f"Could not fetch instrument info for {symbol}")
+                return None
+            
+            # [V8.0] Strict 50x Leverage Guard
+            max_lev = float(info.get("leverageFilter", {}).get("maxLeverage", 0))
+            if max_lev != 50.0:
+                logger.warning(f"🚫 STRATEGY BLOCK: {symbol} has {max_lev}x max leverage. Only 50x pairs allowed.")
+                return None
+
             qty_step = float(info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
             
-            balance = await bybit_rest_service.get_wallet_balance()
-            if balance < 10:
-                logger.warning(f"Balance too low: ${balance}")
+            # [V8.1] Prioritize User's Configured Bankroll over real balance
+            status = await firebase_service.get_banca_status()
+            config_balance = status.get("configured_balance", 0)  # User's manual setting
+            real_balance = status.get("saldo_real_bybit", 0) or await bybit_rest_service.get_wallet_balance()
+            
+            if config_balance >= 20:
+                balance = config_balance
+                logger.info(f"📊 Using User's Configured Bankroll: ${balance:.2f} (Real: ${real_balance:.2f})")
+            else:
+                balance = real_balance
+                logger.info(f"📊 No configured balance. Using Real Bybit Balance: ${balance:.2f}")
+
+            if balance < 20:
+                logger.warning(f"❌ BANKROLL BELOW V8.0 MINIMUM ($20): ${balance:.2f}. Blocked.")
                 return None
                 
-            # [V7.0] SINGLE TRADE SNIPER: 20% Margin Rule
+            # [V8.0] STRATEGY: 20% Margin Rule
             # Every trade uses exactly 20% of the current bankroll.
+            # Min bankroll $20 => Min margin $4.
             margin = balance * 0.20
+            
+            if margin < 4.0:
+                 margin = 4.0 # Force minimum operational margin if balance allows
             
             if margin < 1.0:
                 logger.warning(f"❌ Balance too low for 20% margin trade: ${balance:.2f}")
                 return False
             
-            # Calculate final SL
-            sl_percent = 0.01 if slot_type == "SNIPER" else 0.015
+            # [V8.1] Calculate final SL - 10% Stop-Loss Rule (Cross Margin)
+            sl_percent = 0.10  # 10% Stop-Loss for all trades
             final_sl = sl_price if sl_price > 0 else (current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent))
             
             # Calculate Qty based on fixed margin and leverage
@@ -493,10 +514,6 @@ class BankrollManager:
                 await vault_service.register_sniper_trade(trade_data)
                 status_msg = "Win" if pnl > 0 else "Loss"
                 logger.info(f"Sniper {status_msg} registered in Vault: {trade_data.get('symbol')} ${pnl:.2f}")
-            elif slot_type == "SURF":
-                # V5.3.1: Support for Surf Vault Registration
-                await vault_service.register_surf_trade(trade_data)
-                logger.info(f"Surf trade registered in Vault: {trade_data.get('symbol')} ${pnl:.2f}")
         except Exception as e:
             logger.error(f"Error registering trade in vault: {e}")
 

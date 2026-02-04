@@ -22,8 +22,8 @@ asyncio.get_event_loop().set_default_executor(executor)
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
 # V7.0: Single Trade Sniper - Sniper Evolution Protocol
-VERSION = "V7.0"
-DEPLOYMENT_ID = "V70_SNIPER_EVOLUTION"
+VERSION = "V8.0"
+DEPLOYMENT_ID = "V80_SINGLE_SNIPER_EVOLUTION"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
                     try:
                         # V5.2.4: Use wait_for for Python 3.10 compatibility
                         s = await asyncio.wait_for(
-                            asyncio.to_thread(bybit_rest_service.get_elite_50x_pairs),
+                            bybit_rest_service.get_elite_50x_pairs(),
                             timeout=90
                         )
                         if s: await bybit_ws_service.start(s)
@@ -108,8 +108,8 @@ async def lifespan(app: FastAPI):
                         logger.error(f"Step 2: Symbol Scan or WS Start Error: {e}")
                         await bybit_ws_service.start(symbols)
                 asyncio.create_task(fetch_and_start_ws())
-                # Sync slots with Bybit
-                await bankroll_manager.sync_slots_with_exchange()
+                # Skip slot sync on startup - slots must be cleared by Vault button
+                logger.info("Skipping slot sync on startup - waiting for Vault authorization")
             except Exception as e:
                 logger.warning(f"Step 2: Symbol fetch scheduled (Background): {e}")
 
@@ -124,7 +124,8 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(sig_gen.radar_loop())
                 asyncio.create_task(captain.monitor_signals())
                 asyncio.create_task(captain.monitor_active_positions_loop())
-                asyncio.create_task(bankroll_manager.position_reaper_loop())
+                # Position reaper disabled on startup - will enable after Vault authorization
+                # asyncio.create_task(bankroll_manager.position_reaper_loop())
                 
                 # 3.1: V5.2.3: Initial Sync - Ensure Vault and Banca are aligned with history
                 async def initial_sync():
@@ -341,6 +342,27 @@ async def get_banca():
         "status": "ERROR"
     }
 
+@app.post("/api/banca/update")
+async def update_banca(payload: dict):
+    from services.firebase_service import firebase_service
+    try:
+        new_balance = float(payload.get("saldo_total", 0))
+        if new_balance < 20:
+            return {"status": "error", "message": "Banca mínima permitida é $20.00"}
+        
+        # [V8.1] Save to configured_balance - this won't be overwritten by periodic sync
+        data = {
+            "configured_balance": new_balance,  # User's manual setting
+            "saldo_total": new_balance,  # Also update display value
+            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+        await firebase_service.update_banca_status(data)
+        await firebase_service.log_event("Commander", f"Banca configurada manualmente para ${new_balance:.2f}", "SUCCESS")
+        return {"status": "success", "new_balance": new_balance}
+    except Exception as e:
+        logger.error(f"Error updating banca: {e}")
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/banca-history")
 async def get_banca_history(limit: int = 50):
     from services.firebase_service import firebase_service
@@ -439,6 +461,13 @@ async def get_trade_report(payload: dict):
     report = await ai_service.generate_content(prompt, system_instruction="Você é o Capitão 1CRYPTEN. Suas análises são a bíblia tática do Almirante.")
     return {"report": report or "Sincronização neural falhou ao gerar o relatório."}
 
+@app.post("/api/system/sniper-toggle")
+async def toggle_sniper(payload: dict):
+    from services.vault_service import vault_service
+    enabled = payload.get("active", True)
+    success = await vault_service.set_sniper_mode(enabled)
+    return {"status": "success" if success else "error"}
+
 @app.get("/api/logs")
 async def get_logs(limit: int = 50):
     from services.firebase_service import firebase_service
@@ -454,7 +483,7 @@ async def get_elite_pairs():
     from services.bybit_rest import bybit_rest_service
     try:
         # Tenta pegar a lista atualizada
-        symbols = await asyncio.to_thread(bybit_rest_service.get_elite_50x_pairs)
+        symbols = await bybit_rest_service.get_elite_50x_pairs()
         return {"symbols": symbols, "count": len(symbols)}
     except Exception as e:
         logger.error(f"Error fetching elite pairs: {e}")
@@ -742,7 +771,7 @@ else:
         return {"status": "online", "message": "Dashboard directory missing."}
 
 if __name__ == "__main__":
-    target_port = 8081
-    target_host = "127.0.0.1"
+    target_port = 8080
+    target_host = "0.0.0.0"
     logger.info(f"🌐 Server starting on http://{target_host}:{target_port}")
     uvicorn.run(app, host=target_host, port=target_port, reload=False)

@@ -32,16 +32,11 @@ O sistema opera de forma assíncrona com três camadas integradas:
 
 ## 3. Protocolo V8.0 Sequential Diversification 💎
 
-### 🎯 SINGLE TRADE PROTOCOL (Mantido)
-- **Limite Estrito**: O sistema permite apenas **01 (uma)** posição aberta por vez.
-- **Foco de Margem**: 20% da banca alocada em cada trade.
-- **Bloqueio de Sinais**: Enquanto houver um trade aberto, novas entradas são bloqueadas.
-
-### 🔄 SEQUENTIAL DIVERSIFICATION (Novo V8.0)
-- **Rastreamento**: O sistema registra o último par operado (`last_traded_symbol`).
-- **Filtro de Repetição**: Após fechar uma ordem (gain ou loss), a próxima ordem **não pode** ser do mesmo par.
-- **Objetivo**: Evitar ciclos viciosos onde o sistema fica "preso" em um único ativo.
-- **Reset Automático**: Após operar um par diferente, o par anterior volta a ser elegível.
+### 🎯 SINGLE TRADE PROTOCOL (Evolution V8.0)
+- **Limite Absoluto**: O sistema opera estritamente com **01 (uma)** posição aberta por vez no **Slot 1**.
+- **Remoção do SURF**: Todas as lógicas de "Surf" foram eliminadas em favor da precisão máxima do modo Sniper.
+- **Foco de Margem**: 20% da banca alocada em cada trade Sniper.
+- **Autorização de Voo**: O Capitão busca e executa ordens continuamente enquanto o `Master Toggle` estiver ATIVADO. Se desativado, o sistema entra em standby após o fechamento da posição atual.
 
 ### 💎 MEGA_PULSE (Trailing Profit)
 - **Ativação**: Iniciado quando o ROI atinge **100%**.

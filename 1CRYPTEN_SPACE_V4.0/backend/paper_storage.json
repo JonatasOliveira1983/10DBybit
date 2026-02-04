@@ -1,56 +1,16 @@
 {
-  "positions": [],
-  "balance": 122.1637817327999,
-  "history": [
+  "positions": [
     {
-      "symbol": "ETHUSDT.P",
+      "symbol": "XAUTUSDT",
       "side": "Sell",
-      "avgEntryPrice": "2293.91",
-      "avgExitPrice": "2233.42",
-      "closedPnl": "25.436354239999904",
-      "leverage": "50.0",
-      "qty": "0.44",
-      "updatedTime": "1770139348988"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "side": "Sell",
-      "avgEntryPrice": "2293.91",
-      "avgExitPrice": "2232.04",
-      "closedPnl": "26.044282879999955",
-      "leverage": "50.0",
-      "qty": "0.44",
-      "updatedTime": "1770139775499"
-    },
-    {
-      "symbol": "1000PEPEUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "0.004194",
-      "avgExitPrice": "0.004154",
-      "closedPnl": "-13.45108498720003",
-      "leverage": "50.0",
-      "qty": "299014.0",
-      "updatedTime": "1770140370884"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "side": "Buy",
-      "avgEntryPrice": "2215.94",
-      "avgExitPrice": "2193.66",
-      "closedPnl": "-15.445683040000123",
-      "leverage": "50.0",
-      "qty": "0.62",
-      "updatedTime": "1770141598396"
-    },
-    {
-      "symbol": "ETHUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "2198.24",
-      "avgExitPrice": "2200.13",
-      "closedPnl": "-0.4200873599998167",
-      "leverage": "50.0",
-      "qty": "0.56",
-      "updatedTime": "1770141743062"
+      "size": "0.249",
+      "avgPrice": "4903.0",
+      "leverage": "50",
+      "stopLoss": "4952.232",
+      "takeProfit": "4805.1359999999995",
+      "createdTime": "123456789"
     }
-  ]
+  ],
+  "balance": 0.0,
+  "history": []
 }
