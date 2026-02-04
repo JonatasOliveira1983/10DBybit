@@ -1,10 +1,11 @@
-# 1CRYPTEN SPACE - V8.0 (Sequential Diversification) 💎🛰️
+# 1CRYPTEN SPACE - V8.1 (Visual Precision Engine) 💎🛰️
 
-Sistema de Trading Autônomo com **Protocolo de Diversificação Sequencial V8.0**, focado em rotação de ativos e precisão Sniper.
+Sistema de Trading Autônomo com **Protocolo de Diversificação Sequencial V8.1**, focado em rotação de ativos e precisão visual milimétrica.
 
 ---
 
-## 🆕 Novidades V8.0 - Sequential Diversification
+## 🆕 Novidades V8.1 - Visual Precision Engine
+- **Visual Precision Engine**: Otimização do gráfico do Command Center da Banca. As linhas de **Stop Loss** e **Take Profit** agora são dinâmicas e baseadas no real distanciamento percentual do preço, permitindo visualizar a "Blindagem" (Risk-Zero) quando o stop cruza o preço de entrada.
 - **V8.0 Sequential Diversification**: Garante a rotação de ativos após cada trade. O sistema registra o último par operado e busca obrigatoriamente um novo símbolo, maximizando a diversificação e evitando "oversitting" no mesmo par.
 - **Single Sniper Rule**: Protocolo de trade único. Apenas 1 posição aberta por vez no Slot 1. Total remoção de lógicas de "Surf" para foco em precisão máxima.
 - **MEGA_PULSE (Trailing Profit)**: Motor de lucro aprimorado. Quando atinge 100% de ROI, trava o lucro em 80% e segue o preço com respiro de 20%, permitindo capturar swings exponenciais (200%, 500%+).

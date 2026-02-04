@@ -80,6 +80,7 @@ class BankrollManager:
                         "pnl_percent": pnl_pct,
                         "qty": float(pos.get("size", 0)),
                         "entry_price": float(pos.get("avgPrice", 0)),
+                        "liq_price": float(pos.get("liqPrice", 0)),
                         "timestamp_last_update": time.time()
                     })
                     continue
@@ -183,6 +184,8 @@ class BankrollManager:
                     "slot_type": get_slot_type(empty_slot["id"]), # V5.4.5: Ensure correct logic type
                     "pnl_percent": float(pos.get("unrealisedPnl", 0)) / float(pos.get("positionIM", 1)) * 100 if float(pos.get("positionIM", 0)) > 0 else 0,
                     "qty": float(pos.get("size", 0)),
+                    "opened_at": time.time(), # Fallback for recovery
+                    "liq_price": float(pos.get("liqPrice", 0)),
                     "timestamp_last_update": time.time()
                 })
                 # Refresh local list
@@ -280,6 +283,7 @@ class BankrollManager:
                 vault_total = vault_status.get("vault_total", 0)
                 
                 # [V8.1] Preserve configured_balance if set by user
+                config_bal = banca.get("configured_balance")
                 update_data = {
                     "id": banca.get("id", "status"),
                     "saldo_real_bybit": total_equity,  # Real balance from Bybit
@@ -287,11 +291,9 @@ class BankrollManager:
                     "slots_disponiveis": available_slots_count,
                     "lucro_total_acumulado": total_pnl,
                     "lucro_ciclo": cycle_profit,
-                    "vault_total": vault_total
+                    "vault_total": vault_total,
+                    "saldo_total": config_bal if config_bal else total_equity
                 }
-                # Only update saldo_total if no configured_balance exists
-                if not banca.get("configured_balance"):
-                    update_data["saldo_total"] = total_equity
                 await firebase_service.update_banca_status(update_data)
                 
                 # Snapshot logging: Log once every 6 hours (approx)
@@ -398,8 +400,8 @@ class BankrollManager:
                 logger.warning(f"❌ Balance too low for 20% margin trade: ${balance:.2f}")
                 return False
             
-            # [V8.1] Calculate final SL - 10% Stop-Loss Rule (Cross Margin)
-            sl_percent = 0.10  # 10% Stop-Loss for all trades
+            # [V8.1] Calculate final SL - 1% Stop-Loss Rule (Cross Margin)
+            sl_percent = 0.01  # 1% Stop-Loss for all Sniper trades
             final_sl = sl_price if sl_price > 0 else (current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent))
             
             # Calculate Qty based on fixed margin and leverage
@@ -441,6 +443,8 @@ class BankrollManager:
                     "status_risco": "ATIVO",
                     "pnl_percent": 0.0,
                     "pensamento": pensamento,
+                    "opened_at": time.time(),
+                    "liq_price": 0, # Sync will update this
                     "timestamp_last_update": time.time()
                 })
                 await self.update_banca_status()

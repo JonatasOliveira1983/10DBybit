@@ -236,9 +236,18 @@ class CaptainAgent:
                 if visual_status == "FLASH_ZONE": has_flash_zone = True
 
                 # Firebase Sync
+                from services.bybit_ws import bybit_ws_service
+                momentum = bybit_ws_service.get_cvd_score(symbol)
+                
                 prev = self.last_update_data.get(slot_id, {"pnl": -999, "status": "", "time": 0})
                 if abs(pnl_pct - prev["pnl"]) > 0.3 or visual_status != prev["status"] or (time.time() - prev["time"]) > 15:
-                    await firebase_service.update_slot(slot_id, {"pnl_percent": pnl_pct, "visual_status": visual_status, "current_price": last_price, "last_guardian_check": time.time()})
+                    await firebase_service.update_slot(slot_id, {
+                        "pnl_percent": pnl_pct, 
+                        "visual_status": visual_status, 
+                        "current_price": last_price, 
+                        "cvd_momentum": momentum,
+                        "last_guardian_check": time.time()
+                    })
                     self.last_update_data[slot_id] = {"pnl": pnl_pct, "status": visual_status, "time": time.time()}
 
                 # Logic Branch

@@ -1,6 +1,6 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V8.0 Sequential Diversification) 🎯🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V8.1 Visual Precision) 🎯🛰️
 
-Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE V8.0. O sistema foi evoluído para o protocolo de **Diversificação Sequencial**, otimizando a captura de lucros em múltiplos ativos.
+Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE V8.1. O sistema foi evoluído para o protocolo de **Visual Precision**, otimizando a telemetria visual de trades.
 
 ---
 
@@ -8,7 +8,7 @@ Este documento descreve o funcionamento interno, fluxos de dados e protocolos do
 
 O sistema opera de forma assíncrona com três camadas integradas:
 
-- **Frontend (UI)**: React/Tailwind em arquivo único (`code.html`). Layout otimizado para o "Mega Card Sniper" que ocupa todo o espaço lateral e destaca execução em tempo real.
+- **Frontend (UI)**: React/Tailwind em arquivo único (`code.html`). Layout otimizado para o "Mega Card Sniper" com a nova **Visual Precision Engine** para posicionamento dinâmico de SL/TP no gráfico.
 - **Backend (API)**: FastAPI (`main.py`) orquestrando sessões Bybit, IAs e persistência.
 - **Agents (Background)**: Loops `asyncio` que executam monitoramento e decisões em tempo real.
 
@@ -64,4 +64,4 @@ O sistema opera de forma assíncrona com três camadas integradas:
 6. Ao fechar: Registra `symbol` em `last_traded_symbol`.
 
 ---
-*Versão do Documento: 8.0 | Protocolo de Diversificação Sequencial para Rotação de Ativos*
+*Versão do Documento: 8.1 | Protocolo de Precisão Visual e Diversificação Sequencial*

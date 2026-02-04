@@ -1325,19 +1325,18 @@
                             }));
                         } catch (e) { }
 
-                        // Stop Loss Line
-                        if (ns > 0) {
-                            try {
-                                linesRef.current.push(seriesRef.current.createPriceLine({
-                                    price: ns,
-                                    color: '#EF4444',
-                                    lineWidth: 2,
-                                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                                    axisLabelVisible: true,
-                                    title: 'STOP LOSS'
-                                }));
-                            } catch (e) { }
-                        }
+                        // Stop Loss Line - Dynamic from s.current_stop but visualized at min 1% for Sniper clarity
+                        const nsVal = ns > 0 ? ns : (side === 'Buy' ? ne * 0.99 : ne * 1.01);
+                        try {
+                            linesRef.current.push(seriesRef.current.createPriceLine({
+                                price: nsVal,
+                                color: '#EF4444',
+                                lineWidth: 2,
+                                lineStyle: LightweightCharts.LineStyle.Dashed,
+                                axisLabelVisible: true,
+                                title: 'STOP LOSS (1%)'
+                            }));
+                        } catch (e) { }
 
                         // V4.3.2: Target Line - Only for SNIPER orders (slots 1-5)
                         const isSniper = slotId <= 5 || slotType === 'SNIPER';
@@ -1479,9 +1478,10 @@
 
             return tickers;
         };
-        // --- Sub-Component: Sniper Focus Card (V7.1) ---
+        // --- Sub-Component: Sniper Focus Card (V8.0) ---
         const SniperFocusCard = ({ s, tickers, getDynamicPnL, bestSignal }) => {
             const [displayPnl, setDisplayPnl] = useState(0);
+            const [missionTime, setMissionTime] = useState('00:00');
             const isActive = s && s.symbol;
             const cleanSymbol = isActive ? s.symbol.replace('.P', '').replace('.p', '') : null;
             const currentPrice = isActive ? (tickers[cleanSymbol] || s.current_price) : null;
@@ -1501,6 +1501,21 @@
                 setDisplayPnl(nextVal);
             }, [currentPrice, s && s.entry_price, s && s.side, s && s.pnl_percent, isActive]);
 
+            // Mission Timer logic
+            useEffect(() => {
+                if (!isActive || !s.opened_at) return;
+                const updateTimer = () => {
+                    const diff = Math.floor(Date.now() / 1000 - s.opened_at);
+                    const h = Math.floor(diff / 3600);
+                    const m = Math.floor((diff % 3600) / 60);
+                    const sec = Math.floor(diff % 60);
+                    setMissionTime(`${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`);
+                };
+                updateTimer();
+                const interval = setInterval(updateTimer, 1000);
+                return () => clearInterval(interval);
+            }, [isActive, s && s.opened_at]);
+
             if (!isActive) {
                 return (
                     <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/20 rounded-3xl bg-black/40 h-[240px]">
@@ -1512,7 +1527,7 @@
                         </div>
                         <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-primary to-white">Radar de Elite</h3>
                         <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] max-w-[250px] text-center font-medium leading-relaxed">
-                            Varredura Neural V7.2 em Andamento...<br />Aguardando Oportunidade > 90 Pts
+                            Varredura Neural V8.0 em Andamento...<br />Aguardando Oportunidade &gt; 90 Pts
                         </p>
 
                         {bestSignal && (
@@ -1537,75 +1552,132 @@
             }
 
             const pnl = displayPnl;
-            const entryMargin = Number(s.entry_margin) || 0;
-            const profitUSD = (entryMargin * (pnl / 100));
             const isProfit = pnl >= 0;
             const entryPrice = Number(s.entry_price) || 0;
             const targetPrice = s.side === 'Buy' ? entryPrice * 1.02 : entryPrice * 0.98;
+            const stopPrice = Number(s.current_stop) || 0;
+            const isMegaPulse = s.visual_status === 'MEGA_PULSE' || pnl >= 100;
 
-            const isMegaPulse = s.visual_status === 'MEGA_PULSE';
+            // Risk-Zero Shield Logic
+            const isRiskFree = s.side === 'Buy' ? (stopPrice >= entryPrice) : (stopPrice <= entryPrice);
+
+            // Progress Bar Logic (0 to 100)
+            const getProgress = () => {
+                if (!currentPrice || !entryPrice) return 0;
+                // Move from Stop (0%) to Target (100%)
+                const totalRange = Math.abs(targetPrice - stopPrice);
+                if (totalRange === 0) return 50;
+                const distance = s.side === 'Buy' ? (currentPrice - stopPrice) : (stopPrice - currentPrice);
+                return Math.min(100, Math.max(0, (distance / totalRange) * 100));
+            };
+            const progress = getProgress();
 
             return (
-                <div className={`relative overflow-hidden rounded-3xl border-2 p-6 h-[260px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500
-                    ${isMegaPulse ? 'border-amber-400 bg-gradient-to-br from-amber-900/60 to-black animate-pulse-slow' : 'border-primary/30 bg-gradient-to-br from-primary/10 to-transparent'}`}>
+                <div className={`relative overflow-hidden rounded-[2.5rem] border-2 p-6 min-h-[300px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 group
+                    ${isMegaPulse ? 'border-amber-400 bg-gradient-to-br from-amber-900/60 to-black animate-pulse-slow' : 'border-primary/20 bg-[#0a0a0b]'}`}>
 
-                    {/* Animated Pulse Background */}
-                    <div className={`absolute -top-12 -right-12 w-64 h-64 rounded-full blur-[100px] opacity-20 
+                    {/* Background Pulse/Glow */}
+                    <div className={`absolute -top-20 -right-20 w-80 h-80 rounded-full blur-[120px] transition-all duration-1000 opacity-20 
                         ${isMegaPulse ? 'bg-amber-400 animate-pulse' : (isProfit ? 'bg-emerald-500' : 'bg-red-600')}`}></div>
 
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        {/* Top Row: Symbol & Status */}
+                    <div className="relative z-10 flex flex-col h-full gap-5">
+                        {/* Header: Symbol & Timer */}
                         <div className="flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className={`w-2 h-2 rounded-full animate-pulse ${isProfit ? 'bg-emerald-500 shadow-[0_0_8px_#10B981]' : 'bg-red-500'}`}></span>
-                                    <h3 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tighter drop-shadow-2xl">
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <div className={`w-3 h-3 rounded-full animate-pulse shadow-[0_0_12px] ${isProfit ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-red-500 shadow-red-500/50'}`}></div>
+                                    <h3 className="text-4xl sm:text-5xl font-display font-black text-white tracking-tighter">
                                         {s.symbol.replace('.P', '').replace('USDT', '')}
                                     </h3>
+                                    {isRiskFree && (
+                                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+                                            <span className="material-icons-round text-sm">shield</span>
+                                            <span className="text-[8px] font-black uppercase tracking-tighter">Risk Free</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${s.side === 'Buy' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'}`}>
+                                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${s.side === 'Buy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/10 text-orange-500'}`}>
                                         {s.side === 'Buy' ? 'LONG' : 'SHORT'} 50X
                                     </span>
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                        {isMegaPulse ? 'MODE: MEGA_PULSE' : 'SNIPER ELITE V7'}
+                                    <span className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                                        <span className="material-icons-round text-[10px]">schedule</span>
+                                        {missionTime}
                                     </span>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <div className={`text-4xl sm:text-5xl font-mono font-black tracking-tighter ${isProfit ? 'text-emerald-400' : 'text-red-500'} drop-shadow-[0_0_20px_rgba(0,0,0,0.5)]`}>
-                                    {isProfit ? '+' : ''}{pnl.toFixed(1)}%
+
+                            <div className="flex flex-col items-end">
+                                <div className={`text-5xl sm:text-6xl font-mono font-black tracking-tighter drop-shadow-2xl transition-all duration-500 ${isProfit ? 'text-emerald-400' : 'text-red-500'}`}>
+                                    {isProfit ? '+' : ''}{pnl.toFixed(1)}<span className="text-2xl ml-0.5">%</span>
                                 </div>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">ROI ACUMULADO</p>
+                                <div className={`text-xl font-mono font-bold ${isProfit ? 'text-emerald-400' : 'text-danger'} mt-1`}>
+                                    {isProfit ? '+' : ''}${(pnl / 100 * (Number(s.entry_margin) || 0)).toFixed(2)} <span className="text-xs opacity-60 text-slate-500 uppercase">USD</span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <div className="h-1.5 w-16 bg-white/5 rounded-full overflow-hidden">
+                                        <div className={`h-full transition-all duration-1000 ${isProfit ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, Math.abs(pnl))}%` }}></div>
+                                    </div>
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">ROI Momentum</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Middle: Alvo Info (Full Width) */}
-                        <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex justify-between items-center backdrop-blur-md">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 ${isMegaPulse ? 'text-amber-400' : 'text-primary'}`}>
-                                    <span className="material-icons-round text-xl">{isMegaPulse ? 'diamond' : 'gps_fixed'}</span>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">ALVO ESTRATÉGICO</p>
-                                    <p className="text-base font-black text-white">{isMegaPulse ? 'SURFING UNLIMITED' : 'ALVO 100% ROI'}</p>
-                                </div>
+                        {/* Progress Bar Component */}
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                <span>Stop Loss</span>
+                                <span className={isMegaPulse ? 'text-amber-400' : 'text-primary'}>{isMegaPulse ? 'Mega Pulse' : 'Target 100%'}</span>
                             </div>
-                            <div className="text-right">
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">PREÇO ALVO</p>
-                                <p className="text-base font-mono font-bold text-primary animate-pulse">{formatPrice(targetPrice)}</p>
+                            <div className="h-4 bg-white/5 rounded-full p-1 border border-white/5 relative overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-1000 relative z-10 
+                                    ${isMegaPulse ? 'bg-gradient-to-r from-amber-600 to-amber-400' : (isProfit ? 'bg-emerald-500/40' : 'bg-red-500/40')}`}
+                                    style={{ width: `${progress}%` }}>
+                                    <div className="absolute right-0 top-0 h-full w-1 bg-white shadow-[0_0_10px_#fff]"></div>
+                                </div>
+                                {/* Entry Point Marker */}
+                                <div className="absolute left-[20%] top-0 h-full w-[1px] bg-white/20 z-20"></div>
+                            </div>
+                            <div className="flex justify-between font-mono text-[10px] text-slate-400">
+                                <span>{formatPrice(stopPrice)}</span>
+                                <span className="text-white font-bold">{formatPrice(currentPrice)}</span>
+                                <span>{formatPrice(targetPrice)}</span>
                             </div>
                         </div>
 
-                        {/* Bottom Row: Entry and Stop */}
-                        <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
-                            <div>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Entrada</p>
-                                <p className="text-sm font-mono text-slate-300">{formatPrice(entryPrice)}</p>
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-white/5 rounded-2xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
+                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Entrada</p>
+                                <p className="text-xs font-mono font-bold text-white">{formatPrice(entryPrice)}</p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Stop Loss</p>
-                                <p className="text-sm font-mono text-red-500 font-bold">{formatPrice(s.current_stop)}</p>
+                            <div className="bg-white/5 rounded-2xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
+                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Liquidação</p>
+                                <p className="text-xs font-mono font-bold text-orange-500/80">{s.liq_price ? formatPrice(s.liq_price) : '--'}</p>
+                            </div>
+                            <div className="bg-white/5 rounded-2xl p-3 border border-white/10 relative overflow-hidden group/gas">
+                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Gás Momentum</p>
+                                <div className="flex items-center gap-2">
+                                    <span className={`material-icons-round text-sm animate-pulse ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {isProfit ? 'speed' : 'trending_down'}
+                                    </span>
+                                    <p className="text-xs font-mono font-bold text-white">
+                                        {Math.abs((bestSignal && bestSignal.indicators && bestSignal.indicators.cvd) || 0) > 100000 ? 'ALTO' : 'ESTÁVEL'}
+                                    </p>
+                                </div>
+                                {/* Mini Gas visualization */}
+                                <div className="absolute bottom-0 left-0 h-0.5 bg-primary/40 transition-all duration-1000" style={{ width: `${Math.min(100, (bestSignal && bestSignal.score || 0))}%` }}></div>
+                            </div>
+                        </div>
+
+                        {/* Strategy Note */}
+                        <div className="flex items-center gap-3 bg-primary/5 border border-primary/10 rounded-2xl p-3">
+                            <span className="material-icons-round text-primary text-xl">psychology</span>
+                            <div className="flex-1">
+                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Insights do Capitão</p>
+                                <p className="text-[10px] text-slate-300 font-medium line-clamp-1 italic">
+                                    {s.pensamento || 'Analisando fluxos de ordens e liquidez institucional...'}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -2498,7 +2570,7 @@
                                 </div>
                                 <div className="flex items-baseline gap-1">
                                     <span className="text-base sm:text-lg font-display font-bold text-white tracking-tighter">
-                                        ${banca.saldo_total ? banca.saldo_total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                                        ${(banca.configured_balance || banca.saldo_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
                             </div>

@@ -416,12 +416,17 @@ async def get_signals(min_score: int = 0, limit: int = 20):
 
 @app.get("/api/stats")
 async def get_stats():
-    # Placeholder for stats - can be expanded
-    return {
-        "win_rate": 0.0,
-        "total_trades": 0,
-        "profit_factor": 0.0
-    }
+    from services.firebase_service import firebase_service
+    try:
+        status = await firebase_service.get_banca_status()
+        return status
+    except Exception as e:
+        logger.error(f"Error in stats endpoint: {e}")
+        return {
+            "saldo_total": 0.0,
+            "risco_real_percent": 0.0,
+            "win_rate": 0.0
+        }
 
 @app.get("/api/history")
 async def get_history(limit: int = 50, last_timestamp: str = None):
