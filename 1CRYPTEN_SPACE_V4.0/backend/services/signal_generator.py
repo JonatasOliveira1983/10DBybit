@@ -91,6 +91,12 @@ class SignalGenerator:
                     # Sniper Rule: Don't scan symbols already in operation (use normalized comparison)
                     if normalize_symbol(symbol) in occupied_symbols:
                         continue
+                    
+                    # V8.0 Sequential Diversification: Skip último par operado
+                    from services.agents.captain import captain_agent
+                    if captain_agent.last_traded_symbol:
+                        if normalize_symbol(symbol) == normalize_symbol(captain_agent.last_traded_symbol):
+                            continue
 
                     cvd_val = bybit_ws_service.get_cvd_score(symbol)
                     abs_cvd = abs(cvd_val)

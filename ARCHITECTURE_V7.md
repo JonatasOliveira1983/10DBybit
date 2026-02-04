@@ -1,6 +1,6 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V7.0 Sniper Evolution) 🎯🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V8.0 Sequential Diversification) 🎯🛰️
 
-Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE V7.0. O sistema foi simplificado para o protocolo de **Ordem Única Sniper**, otimizando a captura de lucros exponenciais.
+Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE V8.0. O sistema foi evoluído para o protocolo de **Diversificação Sequencial**, otimizando a captura de lucros em múltiplos ativos.
 
 ---
 
@@ -17,48 +17,56 @@ O sistema opera de forma assíncrona com três camadas integradas:
 ## 2. Dicionário de Componentes ⚙️
 
 ### 🛡️ Agents (services/agents/)
-- **Super Captain (`captain.py`)**: Único orquestrador tático. Escaneia sinais, verifica protocolos de risco e executa ordens. No V7.0, ele é responsável por gerenciar a **Regra de Ordem Única**.
-- **Signal Generator (`signal_generator.py`)**: Analisador de mercado focado no Radar Elite V7.0, priorizando ativos com momentum extremo de CVD.
+- **Super Captain (`captain.py`)**: Único orquestrador tático. Escaneia sinais, verifica protocolos de risco e executa ordens. No V8.0, ele gerencia a **Regra de Diversificação Sequencial**.
+- **Signal Generator (`signal_generator.py`)**: Analisador de mercado focado no Radar Elite V7.0, priorizando ativos com momentum extremo de CVD. V8.0: Filtra último par operado.
 - **AI Service (`ai_service.py`)**: Gerencia o contexto e a personalidade do Capitão, agora com integração aprimorada para o acompanhamento dos lucros MEGA_PULSE.
 
 ### 🔌 Services (services/)
 - **BybitREST**: Implementa o filtro **Elite 50x+** (83+ ativos). Gerencia a execução em modo PAPER ou LIVE e garante a integridade das ordens.
 - **BybitWS**: Monitoramento de alta velocidade para cálculo de ROI e PnL dinâmico.
 - **FirebaseService**: Persistência em Firestore (Histórico) e RTDB (Pulso). Gerencia o estado dos slots.
-- **BankrollManager**: Gestor de banca. Implementa a **Strict Single Sniper Rule** (Apenas 1 trade global por vez).
+- **BankrollManager**: Gestor de banca. Implementa a **Strict Single Sniper Rule** (Apenas 1 trade global por vez) com margem de 20%.
 - **ExecutionProtocol**: O coração da estratégia. Contém o motor de fechamento de ordens e a lógica de **Trailing Profit**.
 
 ---
 
-## 3. Protocolo V7.0 Sniper Evolution 💎
+## 3. Protocolo V8.0 Sequential Diversification 💎
 
-### 🎯 SINGLE TRADE PROTOCOL
-- **Limite Estrito**: O sistema permite apenas **01 (uma)** posição aberta no total de todos os slots.
-- **Foco de Margem**: Concentração total de recursos e atenção do Capitão em uma única oportunidade de alta convicção.
-- **Bloqueio de Sinais**: Enquanto houver um trade aberto, o gerador de sinais e o capitão ignoram novas entradas.
+### 🎯 SINGLE TRADE PROTOCOL (Mantido)
+- **Limite Estrito**: O sistema permite apenas **01 (uma)** posição aberta por vez.
+- **Foco de Margem**: 20% da banca alocada em cada trade.
+- **Bloqueio de Sinais**: Enquanto houver um trade aberto, novas entradas são bloqueadas.
+
+### 🔄 SEQUENTIAL DIVERSIFICATION (Novo V8.0)
+- **Rastreamento**: O sistema registra o último par operado (`last_traded_symbol`).
+- **Filtro de Repetição**: Após fechar uma ordem (gain ou loss), a próxima ordem **não pode** ser do mesmo par.
+- **Objetivo**: Evitar ciclos viciosos onde o sistema fica "preso" em um único ativo.
+- **Reset Automático**: Após operar um par diferente, o par anterior volta a ser elegível.
 
 ### 💎 MEGA_PULSE (Trailing Profit)
 - **Ativação**: Iniciado quando o ROI atinge **100%**.
 - **Piso de Lucro**: O Stop Loss é movido para **80% de ROI**, garantindo a meta inicial.
 - **Perseguição Progressiva**: O SL segue o preço mantendo um "respiro" de **20% de ROI**.
-- **Exponencialidade**: Permite que trades vencedores cheguem a 200%, 300% ou mais, fechando apenas quando o momentum reverte e toca o SL móvel.
+- **Exponencialidade**: Permite que trades vencedores cheguem a 200%, 300% ou mais.
 
 ### 🛡️ BLINDAGEM DE STOP LOSS
 - **Check Universal**: Validação em tempo real do preço atual contra o `current_stop` em cada loop de execução.
-- **Fechamento Atômico**: Garante que o lucro seja travado no milissegundo em que o Stop (seja ele fixo ou MEGA_PULSE) é atingido.
+- **Fechamento Atômico**: Garante que o lucro seja travado no milissegundo em que o Stop é atingido.
 
 ---
 
 ## 4. Fluxos de Dados 🔄
 
 ### A. Geração de Sinais
-`BybitWS` ➡️ `SignalGenerator` (CVD Elite) ➡️ `RTDB` (Radar) ➡️ `Captain` (Avaliação Convicta)
+`BybitWS` ➡️ `SignalGenerator` (CVD Elite + Filtro V8.0) ➡️ `RTDB` (Radar) ➡️ `Captain` (Avaliação Convicta)
 
-### B. Gestão da Ordem Única
+### B. Gestão da Ordem Única + Diversificação
 1. `Captain` recebe sinal ➡️ `Bankroll` verifica se existem `active_positions`.
-2. Se `positions == 0`: Abre Sniper.
-3. Se `positions > 0`: Descarta sinal.
-4. `ExecutionProtocol` monitora posição ➡️ Aplica escada de SL ou MEGA_PULSE.
+2. Se `positions == 0`: Verifica se `sinal.symbol != last_traded_symbol`.
+3. Se diferente: Abre Sniper. Se igual: Descarta e busca outro par.
+4. Se `positions > 0`: Descarta sinal.
+5. `ExecutionProtocol` monitora posição ➡️ Aplica escada de SL ou MEGA_PULSE.
+6. Ao fechar: Registra `symbol` em `last_traded_symbol`.
 
 ---
-*Versão do Documento: 7.0 | Protocolo de Elite para Captura de Grandes Movimentos*
+*Versão do Documento: 8.0 | Protocolo de Diversificação Sequencial para Rotação de Ativos*

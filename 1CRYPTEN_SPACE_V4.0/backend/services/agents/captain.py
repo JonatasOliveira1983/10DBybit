@@ -53,7 +53,10 @@ class CaptainAgent:
         self.processing_lock = set()
         
         self.cooldown_registry = {}
-        self.cooldown_duration = 300 
+        self.cooldown_duration = 300
+        
+        # V8.0 Sequential Diversification: Último par operado
+        self.last_traded_symbol = None
     
     async def is_symbol_in_cooldown(self, symbol: str) -> tuple:
         """Verifica se símbolo está em cooldown persistente no Firebase."""
@@ -118,8 +121,17 @@ class CaptainAgent:
                     await firebase_service.update_signal_outcome(best_signal["id"], "COOLDOWN_SKIP")
                     continue
 
+                # 4.5 V8.0 SEQUENTIAL DIVERSIFICATION: Skip se for o mesmo par do último trade
+                if self.last_traded_symbol:
+                    norm_last = normalize_symbol(self.last_traded_symbol)
+                    norm_current = normalize_symbol(symbol)
+                    if norm_current == norm_last:
+                        logger.info(f"🔄 V8.0 DIVERSIFICATION: {symbol} = último par operado. Aguardando par diferente.")
+                        await firebase_service.update_signal_outcome(best_signal["id"], "DIVERSIFY_SKIP")
+                        continue
+
                 # 5. Execute Sniper Shot
-                logger.info(f"🎯 V7.1 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
+                logger.info(f"🎯 V8.0 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
                 await firebase_service.update_signal_outcome(best_signal["id"], "PICKED")
                 
                 reasoning = best_signal.get("reasoning", "High Momentum")
@@ -239,6 +251,11 @@ class CaptainAgent:
         symbol = slot["symbol"]
         slot_id = slot["id"]
         logger.info(f"⚓ CAPTAIN CLOSURE: {symbol} | Reason: {reason} | ROI: {pnl_pct:.2f}%")
+        
+        # V8.0 Sequential Diversification: Registrar último par operado
+        self.last_traded_symbol = symbol
+        logger.info(f"🔄 V8.0: Último par = {symbol}. Próxima ordem será de par diferente.")
+        
         if "SL" in reason or pnl_pct < 0: await self.register_sl_cooldown(symbol)
         
         try:
