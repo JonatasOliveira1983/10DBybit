@@ -1,16 +1,21 @@
-# 1CRYPTEN SPACE - V8.1 (Visual Precision Engine) 💎🛰️
+# 1CRYPTEN SPACE - V10.1 (Pulse Edition) 💎🛰️
 
-Sistema de Trading Autônomo com **Protocolo de Diversificação Sequencial V8.1**, focado em rotação de ativos e precisão visual milimétrica.
+Sistema de Trading Autônomo com **Protocolo de Pulse V10.1**, focado em detecção institucional, unificação de versão e estabilidade de infraestrutura.
 
 ---
 
-## 🆕 Novidades V8.1 - Visual Precision Engine
-- **Visual Precision Engine**: Otimização do gráfico do Command Center da Banca. As linhas de **Stop Loss** e **Take Profit** agora são dinâmicas e baseadas no real distanciamento percentual do preço, permitindo visualizar a "Blindagem" (Risk-Zero) quando o stop cruza o preço de entrada.
-- **V8.0 Sequential Diversification**: Garante a rotação de ativos após cada trade. O sistema registra o último par operado e busca obrigatoriamente um novo símbolo, maximizando a diversificação e evitando "oversitting" no mesmo par.
-- **Single Sniper Rule**: Protocolo de trade único. Apenas 1 posição aberta por vez no Slot 1. Total remoção de lógicas de "Surf" para foco em precisão máxima.
-- **MEGA_PULSE (Trailing Profit)**: Motor de lucro aprimorado. Quando atinge 100% de ROI, trava o lucro em 80% e segue o preço com respiro de 20%, permitindo capturar swings exponenciais (200%, 500%+).
-- **Elite 50x+ Asset Rotation**: Filtro dinâmico para os ativos mais voláteis e líquidos da Bybit (83+ pares), priorizando momentum extremo de CVD.
-- **20% Margin Strategy**: Alocação de 20% da banca configurada por operação Sniper, otimizando o poder de compra para um único trade de alta convicção.
+## 🆕 Novidades V10.1 - Pulse Edition
+- **Unified Versioning**: Sincronização total de versão (V10.1) entre Backend (`main.py`) e Inteligência (`captain.py`).
+- **Stability Protocol**: Correção crítica de `UnboundLocalError` (Bankroll) e Limpeza Automática de Porta 8080 no startup.
+- **RSI Sniper Logic**: Refinamento da pontuação de RSI para capturar reversões com precisão cirúrgica.
+- **Pulse Heartbeat**: Monitoramento ativo de saúde do sistema e integridade de dados.
+
+## 🆕 Novidades V10.0 - Radar Intelligence
+- **Advanced Pattern Detection**: Detecção de padrões institucionais de alta precisão: **Whale Activity (CVD Extremo)**, **Bull/Bear Traps (Institutional Sweeps)** e **Accumulation Box Exits**.
+- **V10.0 Multi-Indicator Scoring**: Sistema de pontuação aprimorado (0-99) que integra Força de Tendência 1H, RSI, Gás de CVD e gatilhos de padrões institucionais.
+- **BTC Drag Mode integration**: Sistema de monitoramento de fluxo do BTC que ajusta dinamicamente a agressividade do Sniper com base na variação e exaustão do Bitcoin.
+- **Enhanced "Why" Insights**: O Capitão agora comunica o motivo exato de cada entrada, identificando baleias, rompimentos ou armadilhas de liquidez diretamente no Radar UI e SniperFocusCard.
+- **V9.0 Cycle Diversification**: Gestão de ciclos de 10 trades obrigatoriamente diversificados com compound automático de banca.
 
 ---
 
@@ -26,11 +31,11 @@ Sistema de Trading Autônomo com **Protocolo de Diversificação Sequencial V8.1
 
 ---
 
-## 🏦 Lógica de Operação V8.0
+## 🏦 Lógica de Operação V10.1
 
 | Tipo | Slots | Alocação | Protocolo |
 |------|-------|-------------|-----------|
-| **SNIPER** | 1 | 20% | Sequential Diversification |
+| **SNIPER PULSE** | 1 | 20% | Sequential Diversification |
 
 ---
 
@@ -48,8 +53,8 @@ cd 1CRYPTEN_SPACE_V4.0/backend
 python main.py
 ```
 
-Acesse `http://localhost:8080` (Standard V8.0 Port)
+Acesse `http://localhost:8080` (Standard V10.1 Port)
 
 ---
 
-**Operação: 10D - Sequential Diversification - V8.0**
+**Operação: 10D - Pulse Diversification - V10.1**

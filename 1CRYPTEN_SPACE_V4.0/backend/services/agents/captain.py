@@ -16,9 +16,9 @@ from config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V7.1 CAPTAIN SNIPER: Especialista em Operações Únicas de Alta Precisão (Pulse Edition)
-CAPTAIN_V71_SYSTEM_PROMPT = """
-Você é o Capitão Sniper 1CRYPTEN V7.1, o atirador de elite do mercado financeiro.
+# V10.1 CAPTAIN SNIPER: Especialista em Operações Únicas de Alta Precisão (Pulse Edition)
+CAPTAIN_V10_1_SYSTEM_PROMPT = """
+Você é o Capitão Sniper 1CRYPTEN V10.1, o atirador de elite do mercado financeiro.
 Diferente das versões anteriores, agora você opera sob o protocolo de "Sniper Pulse". 
 Você só executa uma operação por vez, focando no que há de melhor no oceano cripto.
 
@@ -55,8 +55,7 @@ class CaptainAgent:
         self.cooldown_registry = {}
         self.cooldown_duration = 300
         
-        # V8.0 Sequential Diversification: Último par operado
-        self.last_traded_symbol = None
+        # V9.0 Cycle Diversification: Gerenciado pelo VaultService (não mais local)
     
     async def is_symbol_in_cooldown(self, symbol: str) -> tuple:
         """Verifica se símbolo está em cooldown persistente no Firebase."""
@@ -74,11 +73,12 @@ class CaptainAgent:
         Picks ONLY the best signal (Score > 90) and ensures only one active trade.
         """
         self.is_running = True
-        await firebase_service.log_event("SNIPER", "Sniper System V7.1 ONLINE. Analisando 'Best of the Best' com Pulse dinâmico.", "SUCCESS")
+        await firebase_service.log_event("SNIPER", "Sniper System V10.1 ONLINE. Analisando 'Best of the Best' com Pulse dinâmico.", "SUCCESS")
         
         while self.is_running:
             try:
                 # 0. Global Authorization Check [V8.0]
+                from services.vault_service import vault_service
                 allowed, reason = await vault_service.is_trading_allowed()
                 if not allowed:
                     if not hasattr(self, "_last_block_log") or (time.time() - self._last_block_log) > 300:
@@ -118,7 +118,11 @@ class CaptainAgent:
                     except: pass
 
                 # 3. Validation & Context
-                if "BTCUSDT" in symbol or score < 90:
+                if score < 90:
+                    continue
+                
+                if "BTCUSDT" in symbol:
+                    # Skip BTC as per Sniper Elite rules
                     continue
                 cvd = best_signal.get("indicators", {}).get("cvd", 0)
                 side = "Buy" if cvd >= 0 else "Sell"
@@ -130,21 +134,19 @@ class CaptainAgent:
                     await firebase_service.update_signal_outcome(best_signal["id"], "COOLDOWN_SKIP")
                     continue
 
-                # 4.5 V8.0 SEQUENTIAL DIVERSIFICATION: Skip se for o mesmo par do último trade
-                if self.last_traded_symbol:
-                    norm_last = normalize_symbol(self.last_traded_symbol)
-                    norm_current = normalize_symbol(symbol)
-                    if norm_current == norm_last:
-                        logger.info(f"🔄 V8.0 DIVERSIFICATION: {symbol} = último par operado. Aguardando par diferente.")
-                        await firebase_service.update_signal_outcome(best_signal["id"], "DIVERSIFY_SKIP")
-                        continue
+                # 4.5 V10.0 CYCLE DIVERSIFICATION: Skip se par já foi usado no ciclo de 10
+                is_used = await vault_service.is_symbol_used_in_cycle(symbol)
+                if is_used:
+                    logger.info(f"🔄 V10.0 CYCLE LOCK: {symbol} já operado neste ciclo. Aguardando par diferente.")
+                    await firebase_service.update_signal_outcome(best_signal["id"], "CYCLE_SKIP")
+                    continue
 
                 # 5. Execute Sniper Shot
-                logger.info(f"🎯 V8.0 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
+                logger.info(f"🎯 V10.1 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
                 await firebase_service.update_signal_outcome(best_signal["id"], "PICKED")
                 
                 reasoning = best_signal.get("reasoning", "High Momentum")
-                pensamento = f"V7.1 Sniper Pulse: Alvo Identificado. {reasoning} | Score: {score}"
+                pensamento = f"V10.1 Sniper Pulse: Alvo Identificado. {reasoning} | Score: {score}"
 
                 try:
                     order = await bankroll_manager.open_position(
@@ -164,9 +166,8 @@ class CaptainAgent:
                 await asyncio.sleep(3)
             except Exception as e:
                 logger.error(f"Error in Captain monitor loop: {e}")
-                await asyncio.sleep(10)
-            except Exception as e:
-                logger.error(f"Error in Captain monitor loop: {e}")
+                import traceback
+                traceback.print_exc()
                 await asyncio.sleep(10)
 
     async def monitor_active_positions_loop(self):
@@ -270,9 +271,9 @@ class CaptainAgent:
         slot_id = slot["id"]
         logger.info(f"⚓ CAPTAIN CLOSURE: {symbol} | Reason: {reason} | ROI: {pnl_pct:.2f}%")
         
-        # V8.0 Sequential Diversification: Registrar último par operado
-        self.last_traded_symbol = symbol
-        logger.info(f"🔄 V8.0: Último par = {symbol}. Próxima ordem será de par diferente.")
+        # V9.0 Cycle Diversification: Registrar par no ciclo
+        await vault_service.add_symbol_to_cycle(symbol)
+        logger.info(f"🔄 V9.0: {symbol} registrado no ciclo. Próxima ordem será de par diferente.")
         
         if "SL" in reason or pnl_pct < 0: await self.register_sl_cooldown(symbol)
         
@@ -454,9 +455,9 @@ class CaptainAgent:
 
     async def process_chat(self, user_message: str, symbol: str = None):
         """
-        V5.0 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
+        V10.1 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
         """
-        logger.info(f"Captain V5.0 processing: {user_message}")
+        logger.info(f"Captain V10.1 processing: {user_message}")
         
         try:
             # 1. Load Long-Term Memory & Profile
@@ -559,7 +560,7 @@ class CaptainAgent:
                 Responda usando os dados se necessário.
                 """
             
-            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V71_SYSTEM_PROMPT)
+            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V10_1_SYSTEM_PROMPT)
             
             if not response:
                 response = f"{user_name}, interferência nos canais neurais. A clareza retornará em breve."
@@ -573,7 +574,7 @@ class CaptainAgent:
             return response
             
         except Exception as e:
-            logger.error(f"Critical error in Captain V5.0: {e}")
+            logger.error(f"Critical error in Captain V10.1: {e}")
             import traceback
             traceback.print_exc()
             return "Almirante, falha temporária nos sistemas. Reiniciando protocolos."

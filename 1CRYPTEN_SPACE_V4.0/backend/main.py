@@ -22,8 +22,9 @@ asyncio.get_event_loop().set_default_executor(executor)
 # V5.2.4.8 Cloud Run Startup Optimization - Infrastructure Protocol
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
 # V7.0: Single Trade Sniper - Sniper Evolution Protocol
-VERSION = "V8.0"
-DEPLOYMENT_ID = "V80_SINGLE_SNIPER_EVOLUTION"
+# V10.1: Cycle Diversification & Compound - Institutional Logic & Pulse
+VERSION = "V10.1"
+DEPLOYMENT_ID = "V101_RADAR_INTELLIGENCE_EVOLUTION"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -691,6 +692,44 @@ async def get_vault_status():
     except Exception as e:
         logger.error(f"Error fetching vault status: {e}")
         return {"error": str(e)}
+
+@app.get("/api/vault/cycle")
+async def get_vault_cycle():
+    """V9.0: Returns cycle data for the Cycle Tracker frontend component."""
+    from services.vault_service import vault_service
+    try:
+        return await vault_service.get_cycle_status()
+    except Exception as e:
+        logger.error(f"Error fetching vault cycle: {e}")
+        return {
+            "cycle_number": 1,
+            "used_symbols_in_cycle": [],
+            "cycle_start_bankroll": 0,
+            "total_trades_cycle": 0
+        }
+
+# ============ V9.0 TREND ANALYSIS ENDPOINT ============
+
+@app.get("/api/trend/{symbol}")
+async def get_trend_analysis(symbol: str):
+    """V9.0: Returns 1H trend analysis for chart overlay."""
+    from services.signal_generator import signal_generator
+    try:
+        analysis = await signal_generator.get_1h_trend_analysis(symbol)
+        return {
+            "symbol": symbol,
+            "trend": analysis.get("trend", "sideways"),
+            "pattern": analysis.get("pattern", "none"),
+            "trend_strength": analysis.get("trend_strength", 0),
+            "sma20": analysis.get("sma20", 0),
+            "atr": analysis.get("atr", 0),
+            "accumulation_boxes": analysis.get("accumulation_boxes", []),
+            "liquidity_zones": analysis.get("liquidity_zones", [])
+        }
+    except Exception as e:
+        logger.error(f"Error fetching trend for {symbol}: {e}")
+        return {"symbol": symbol, "trend": "sideways", "pattern": "none", "trend_strength": 0}
+
 
 @app.get("/api/vault/history")
 async def get_vault_history(limit: int = 20):
