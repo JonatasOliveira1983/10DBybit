@@ -32,6 +32,7 @@ class SignalGenerator:
         self.trend_cache = {}  # {symbol: {'trend': 'bullish'|'bearish'|'sideways', 'updated_at': timestamp, 'pattern': str}}
         self.trend_cache_ttl = 300  # 5 minutes cache
         self.last_sent_signals = {} # {symbol: {'score': int, 'timestamp': float}}
+        self.btc_drag_mode = False # V10.2: Initial State
 
     async def get_1h_trend_analysis(self, symbol: str) -> dict:
         """

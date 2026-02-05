@@ -16,9 +16,9 @@ from config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V10.1 CAPTAIN SNIPER: Especialista em Operações Únicas de Alta Precisão (Pulse Edition)
-CAPTAIN_V10_1_SYSTEM_PROMPT = """
-Você é o Capitão Sniper 1CRYPTEN V10.1, o atirador de elite do mercado financeiro.
+# V10.2 CAPTAIN SNIPER: Especialista em Operações Únicas de Alta Precisão (ATR Edition)
+CAPTAIN_V10_2_SYSTEM_PROMPT = """
+Você é o Capitão Sniper 1CRYPTEN V10.2, o atirador de elite do mercado financeiro.
 Diferente das versões anteriores, agora você opera sob o protocolo de "Sniper Pulse". 
 Você só executa uma operação por vez, focando no que há de melhor no oceano cripto.
 
@@ -73,7 +73,7 @@ class CaptainAgent:
         Picks ONLY the best signal (Score > 90) and ensures only one active trade.
         """
         self.is_running = True
-        await firebase_service.log_event("SNIPER", "Sniper System V10.1 ONLINE. Analisando 'Best of the Best' com Pulse dinâmico.", "SUCCESS")
+        await firebase_service.log_event("SNIPER", "Sniper System V10.2 ONLINE. Analisando 'Best of the Best' com ATR dinâmico.", "SUCCESS")
         
         while self.is_running:
             try:
@@ -142,11 +142,11 @@ class CaptainAgent:
                     continue
 
                 # 5. Execute Sniper Shot
-                logger.info(f"🎯 V10.1 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
+                logger.info(f"🎯 V10.2 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
                 await firebase_service.update_signal_outcome(best_signal["id"], "PICKED")
                 
                 reasoning = best_signal.get("reasoning", "High Momentum")
-                pensamento = f"V10.1 Sniper Pulse: Alvo Identificado. {reasoning} | Score: {score}"
+                pensamento = f"V10.2 Sniper ATR: Alvo Identificado. {reasoning} | Score: {score}"
 
                 try:
                     order = await bankroll_manager.open_position(
@@ -455,9 +455,9 @@ class CaptainAgent:
 
     async def process_chat(self, user_message: str, symbol: str = None):
         """
-        V10.1 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
+        V10.2 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
         """
-        logger.info(f"Captain V10.1 processing: {user_message}")
+        logger.info(f"Captain V10.2 processing: {user_message}")
         
         try:
             # 1. Load Long-Term Memory & Profile
@@ -560,7 +560,7 @@ class CaptainAgent:
                 Responda usando os dados se necessário.
                 """
             
-            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V10_1_SYSTEM_PROMPT)
+            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V10_2_SYSTEM_PROMPT)
             
             if not response:
                 response = f"{user_name}, interferência nos canais neurais. A clareza retornará em breve."

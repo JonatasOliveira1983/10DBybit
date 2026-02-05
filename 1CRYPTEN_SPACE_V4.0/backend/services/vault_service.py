@@ -94,12 +94,49 @@ class VaultService:
     async def is_symbol_used_in_cycle(self, symbol: str) -> bool:
         """
         V9.0: Verifica se um par já foi operado no ciclo atual de 10 trades.
+        # V10.2: Dynamic Asset Locking (Drag Mode).
+        - Drag Mode Active: Lock for 10 trades (Cycle).
+        - Drag Mode Standby: Lock for 3 trades (Flexible).
         """
         try:
             current = await self.get_cycle_status()
             used_symbols = current.get("used_symbols_in_cycle", [])
             norm_symbol = symbol.replace(".P", "").upper()
-            return norm_symbol in [s.replace(".P", "").upper() for s in used_symbols]
+            
+            # V10.1: Check Drag Mode
+            from services.signal_generator import signal_generator
+            drag_mode = signal_generator.btc_drag_mode
+            
+            # Current virtual index (next trade would be len + 1)
+            current_trade_index = len(used_symbols) + 1
+            
+            for item in used_symbols:
+                # Handle legacy strings (V9.0)
+                if isinstance(item, str):
+                    if item.replace(".P", "").upper() == norm_symbol:
+                        return True # Legacy items are always hard-locked
+                
+                # Handle V10.1 objects
+                elif isinstance(item, dict):
+                    item_sym = item.get("symbol", "").replace(".P", "").upper()
+                    if item_sym == norm_symbol:
+                        if drag_mode:
+                            logger.info(f"🔒 {norm_symbol} locked (Drag Mode ACTIVE)")
+                            return True # Hard lock in Drag Mode
+                        else:
+                            # Drag Mode OFF: Check 3-trade rule
+                            entry_idx = item.get("entry_index", 0)
+                            # If current is 5, entry was 1: 5 - 1 = 4 (> 3). Unlocked.
+                            # If current is 4, entry was 1: 4 - 1 = 3 (>= 3). Unlocked.
+                            diff = current_trade_index - entry_idx
+                            if diff < 3:
+                                logger.info(f"🔒 {norm_symbol} locked (Drag Mode STANDBY | diff {diff}/3)")
+                                return True
+                            else:
+                                logger.info(f"🔓 {norm_symbol} UNLOCKED instance found (Drag Mode STANDBY | diff {diff}/3) - Checking for newer locks...")
+                                # Continue checking other instances!
+                                
+            return False
         except Exception as e:
             logger.error(f"Error checking symbol in cycle: {e}")
             return False
@@ -107,7 +144,7 @@ class VaultService:
     async def add_symbol_to_cycle(self, symbol: str):
         """
         V9.0: Adiciona par à lista de exclusão do ciclo.
-        Se completar 10 trades, inicia novo ciclo automaticamente.
+        V10.1: Stores trade index for partial locking.
         """
         try:
             if not firebase_service.is_active or not firebase_service.db:
@@ -117,8 +154,21 @@ class VaultService:
             used_symbols = current.get("used_symbols_in_cycle", [])
             norm_symbol = symbol.replace(".P", "").upper()
             
-            if norm_symbol not in used_symbols:
-                used_symbols.append(norm_symbol)
+            # V10.1: Check if already exists (avoid duplicates even if allowed)
+            # Actually, if we re-use, we should probably APPEND the new entry to lock it again?
+            # Yes, if we reuse BTC at index 5, it should be locked again until index 8.
+            # So simply appending is correct.
+            
+            current_index = len(used_symbols) + 1
+            
+            # V10.1 Object structure
+            entry = {
+                "symbol": norm_symbol,
+                "entry_index": current_index,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            
+            used_symbols.append(entry)
             
             total_trades = len(used_symbols)
             
@@ -128,9 +178,11 @@ class VaultService:
                 })
             
             await asyncio.to_thread(_update)
-            logger.info(f"🔄 V9.0: {norm_symbol} adicionado ao ciclo. Progresso: {total_trades}/10 pares únicos.")
+            logger.info(f"🔄 V10.1: {norm_symbol} adicionado ao ciclo (Trade #{current_index}). Progresso Total: {total_trades}.")
             
             # Se completou 10 trades, iniciar recálculo de compound
+            # Note: With reuse, 'total_trades' represents volume, not unique pairs.
+            # This aligns with the cycle concept (10 trades total).
             if total_trades >= 10:
                 await self.recalculate_cycle_bankroll()
                 await self.reset_cycle_symbols()
@@ -303,12 +355,11 @@ class VaultService:
             if new_wins >= 10:
                 await firebase_service.log_event("VAULT", f"🏆 CICLO PERFEITO {current.get('cycle_number', 1)}! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
             
-            current.update(update_data)
+            # [V9.0] Fix: Ensure symbol is added to cycle list
+            if trade_data.get("symbol"):
+                await self.add_symbol_to_cycle(trade_data.get("symbol"))
+
             return current
-            
-        except Exception as e:
-            logger.error(f"Error registering sniper trade: {e}")
-            return self._default_cycle()
             
         except Exception as e:
             logger.error(f"Error registering sniper trade: {e}")
@@ -350,6 +401,7 @@ class VaultService:
             new_profit = 0.0
             new_losses = 0.0
             new_surf_profit = 0.0
+            used_symbols = set()
             
             from services.execution_protocol import execution_protocol
             
@@ -357,6 +409,7 @@ class VaultService:
                 pnl = t.get("pnl", 0)
                 roi = t.get("pnl_percent", 0)
                 slot_type = t.get("slot_type", "SNIPER")
+                symbol = t.get("symbol")
                 
                 # Filter by timestamp if cycle start is known
                 if started_at:
@@ -375,6 +428,12 @@ class VaultService:
                     new_profit += pnl
                     if pnl < 0:
                         new_losses += abs(pnl)
+                    
+                    # Track unique symbols for the cycle
+                    if symbol:
+                        norm_symbol = symbol.replace(".P", "").upper()
+                        used_symbols.add(norm_symbol)
+                        
                 elif slot_type == "SURF":
                     new_surf_profit += pnl
             
@@ -383,15 +442,16 @@ class VaultService:
                 "sniper_wins": new_wins,
                 "cycle_profit": new_profit,
                 "cycle_losses": new_losses,
-                "total_trades_cycle": len([t for t in trades if t.get('slot_type') == 'SNIPER']) # Sniper count for Meta 100
+                "total_trades_cycle": len([t for t in trades if t.get('slot_type') == 'SNIPER']),
+                "used_symbols_in_cycle": list(used_symbols)
             }
             
             def _push():
                 firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
             
             await asyncio.to_thread(_push)
-            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Total Trades (Sniper): {len([t for t in all_trades if t.get('slot_type') == 'SNIPER'])} | Profit: ${new_profit:.2f}")
-            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Trades (Sniper): {len([t for t in all_trades if t.get('slot_type') == 'SNIPER'])}/100 | Profit: ${new_profit:.2f}", "SUCCESS")
+            logger.info(f"✅ Sincronização concluída: #{new_wins}/20 Wins | Total Trades (Sniper): {len([t for t in all_trades if t.get('slot_type') == 'SNIPER'])} | Profit: ${new_profit:.2f} | Symbols: {len(used_symbols)}")
+            await firebase_service.log_event("VAULT", f"🔄 SINCRONIA COMPLETA: #{new_wins}/20 | Trades (Sniper): {len([t for t in all_trades if t.get('slot_type') == 'SNIPER'])}/10 | Profit: ${new_profit:.2f}", "SUCCESS")
             
         except Exception as e:
             logger.error(f"Error syncing vault with history: {e}")

@@ -37,15 +37,14 @@ class ExecutionProtocol:
         self.sniper_stop_roi = -50.0      # Stop Loss inicial = -50% ROI (1% movimento)
         self.flash_zone_threshold = 80.0  # Zona Roxa: 80% do target (ROI >= 80%)
         
-        # 🆕 V5.0: Escada Adaptive SL para SNIPER (ROI% -> SL em ROI%)
-        # Move o SL conforme lucro aumenta, protegendo ganhos
+        # 🆕 V10.2: Relaxed Adaptive SL for SNIPER (ATR-Aware context)
+        # We start trailing later to allow for "breathing" and "sniper" candle wicks.
         self.sniper_trailing_ladder = [
-            {"trigger": 70.0, "stop_roi": 30.0},   # ROI 70%  → SL em +30% (protege lucro)
-            {"trigger": 50.0, "stop_roi": 10.0},   # ROI 50%  → SL em +10% (lucro garantido)
-            {"trigger": 30.0, "stop_roi": -10.0},  # ROI 30%  → SL em -10% (reduz perda max)
-            {"trigger": 15.0, "stop_roi": -30.0},  # ROI 15%  → SL em -30% (de -50% original)
+            {"trigger": 80.0, "stop_roi": 40.0},   # ROI 80%  → SL at +40% (Lock nice profit)
+            {"trigger": 50.0, "stop_roi": 10.0},   # ROI 50%  → SL at +10% (Risk Zero Shield)
+            {"trigger": 30.0, "stop_roi": -20.0},  # ROI 30%  → SL at -20% (instead of -10% or -50%)
         ]
-        # Se ROI < 15%, mantém SL original de -50%
+        # Se ROI < 30%, mantém SL original dinâmico (ATR-based)
         
         # === VISUAL STATUS CODES ===
         # Usados pelo frontend para cores dos slots

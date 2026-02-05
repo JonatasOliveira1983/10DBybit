@@ -410,8 +410,22 @@ class BankrollManager:
                 logger.warning(f"❌ Balance too low for 20% margin trade: ${balance:.2f}")
                 return False
             
-            # [V8.1] Calculate final SL - 1% Stop-Loss Rule (Cross Margin)
-            sl_percent = 0.01  # 1% Stop-Loss for all Sniper trades
+            # [V10.2] ATR-Based Dynamic Stop-Loss Rule
+            # This protects against "sniper" candle wicks on volatile assets.
+            from services.bybit_ws import bybit_ws_service
+            atr = bybit_ws_service.atr_cache.get(symbol, 0)
+            
+            # Base SL calculation: 1.5x ATR expressed as percentage of price
+            # If ATR is missing, fallback to 1.0%
+            if atr > 0:
+                atr_sl_pct = (1.5 * atr / current_price)
+                # Safety Caps: Min 0.7% (tight), Max 2.0% (v8-safety)
+                sl_percent = max(0.007, min(0.02, atr_sl_pct))
+                logger.info(f"🛡️ Dynamic SL for {symbol}: {sl_percent*100:.2f}% (ATR: {atr:.6f})")
+            else:
+                sl_percent = 0.01  # Fallback to standard 1%
+                logger.info(f"🛡️ Fallback SL for {symbol}: 1.00% (ATR Missing)")
+            
             final_sl = sl_price if sl_price > 0 else (current_price * (1 - sl_percent) if side == "Buy" else current_price * (1 + sl_percent))
             
             # Calculate Qty based on fixed margin and leverage
@@ -425,7 +439,7 @@ class BankrollManager:
             qty = round(raw_qty, precision)
             if qty <= 0: qty = qty_step
             
-            # Validation
+            # Validation (Cross Margin Safeguard)
             if side == "Buy" and final_sl >= current_price: final_sl = current_price * (1 - sl_percent)
             if side == "Sell" and final_sl <= current_price: final_sl = current_price * (1 + sl_percent)
             

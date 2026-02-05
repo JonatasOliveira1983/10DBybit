@@ -23,8 +23,8 @@ asyncio.get_event_loop().set_default_executor(executor)
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
 # V7.0: Single Trade Sniper - Sniper Evolution Protocol
 # V10.1: Cycle Diversification & Compound - Institutional Logic & Pulse
-VERSION = "V10.1"
-DEPLOYMENT_ID = "V101_RADAR_INTELLIGENCE_EVOLUTION"
+VERSION = "V10.2"
+DEPLOYMENT_ID = "V102_ATR_EDITION_SNIPER"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
