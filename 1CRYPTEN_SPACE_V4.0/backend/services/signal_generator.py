@@ -28,6 +28,163 @@ class SignalGenerator:
         self.exhaustion_level = 0.0
  # 0-100
         self.last_context_update = 0
+        # V9.0 Multi-Timeframe Trend Cache
+        self.trend_cache = {}  # {symbol: {'trend': 'bullish'|'bearish'|'sideways', 'updated_at': timestamp, 'pattern': str}}
+        self.trend_cache_ttl = 300  # 5 minutes cache
+        self.last_sent_signals = {} # {symbol: {'score': int, 'timestamp': float}}
+
+    async def get_1h_trend_analysis(self, symbol: str) -> dict:
+        """
+        V9.0: Fetch 1H candles and analyze trend + patterns.
+        Returns: {'trend': 'bullish'|'bearish'|'sideways', 'pattern': str, 'trend_strength': 0-100}
+        """
+        try:
+            # Check cache first
+            cached = self.trend_cache.get(symbol)
+            if cached and (time.time() - cached.get('updated_at', 0)) < self.trend_cache_ttl:
+                return cached
+            
+            # Fetch 1H candles from Bybit via pybit
+            from pybit.unified_trading import HTTP
+            from config import settings
+            
+            session = HTTP(
+                testnet=settings.BYBIT_TESTNET,
+                api_key=settings.BYBIT_API_KEY,
+                api_secret=settings.BYBIT_API_SECRET
+            )
+            
+            api_symbol = symbol.replace('.P', '')
+            klines = session.get_kline(
+                category="linear",
+                symbol=api_symbol,
+                interval="60",  # 1H
+                limit=24  # Last 24 hours
+            )
+            
+            if not klines.get('result', {}).get('list'):
+                return {'trend': 'sideways', 'pattern': 'unknown', 'trend_strength': 0}
+            
+            candles = klines['result']['list']
+            # Bybit returns newest first, so reverse for chronological order
+            candles = candles[::-1]
+            
+            # Extract close prices
+            closes = [float(c[4]) for c in candles]
+            highs = [float(c[2]) for c in candles]
+            lows = [float(c[3]) for c in candles]
+            
+            if len(closes) < 10:
+                return {'trend': 'sideways', 'pattern': 'unknown', 'trend_strength': 0}
+            
+            # Calculate trend using SMA20 vs current price
+            sma20 = sum(closes[-20:]) / 20 if len(closes) >= 20 else sum(closes) / len(closes)
+            current = closes[-1]
+            
+            # Calculate ATR for volatility context
+            atr_values = []
+            for i in range(1, len(closes)):
+                tr = max(highs[i] - lows[i], abs(highs[i] - closes[i-1]), abs(lows[i] - closes[i-1]))
+                atr_values.append(tr)
+            atr = sum(atr_values[-14:]) / min(14, len(atr_values)) if atr_values else 0
+            
+            # Trend determination
+            pct_diff = ((current - sma20) / sma20) * 100
+            
+            if pct_diff > 0.5:
+                trend = 'bullish'
+            elif pct_diff < -0.5:
+                trend = 'bearish'
+            else:
+                trend = 'sideways'
+            
+            trend_strength = min(100, abs(pct_diff) * 20)
+            
+            # Pattern Detection
+            pattern = 'none'
+            
+            # 1. Pullback Detection: Price retraced but bounced from SMA/support
+            recent_low = min(lows[-5:])
+            recent_high = max(highs[-5:])
+            if trend == 'bullish' and current > sma20 and recent_low < sma20:
+                pattern = 'pullback_bounce'
+            elif trend == 'bearish' and current < sma20 and recent_high > sma20:
+                pattern = 'pullback_rejection'
+            
+            # 2. Liquidity Sweep: Recent wick below/above previous range then reversal
+            if len(closes) >= 10:
+                prev_low = min(lows[-10:-5])
+                prev_high = max(highs[-10:-5])
+                curr_low = min(lows[-3:])
+                curr_high = max(highs[-3:])
+                
+                if curr_low < prev_low and current > prev_low:
+                    pattern = 'liquidity_sweep_long'
+                    if trend == 'bearish': pattern = 'bear_trap'
+                elif curr_high > prev_high and current < prev_high:
+                    pattern = 'liquidity_sweep_short'
+                    if trend == 'bullish': pattern = 'bull_trap'
+            
+            # 4. Accumulation Box Detection (Consolidation)
+            # Find periods where price is range-bound in the last 24h
+            accumulation_boxes = []
+            box_min_candles = 10
+            for i in range(len(highs) - box_min_candles):
+                window_highs = highs[i:i+box_min_candles]
+                window_lows = lows[i:i+box_min_candles]
+                window_range = max(window_highs) - min(window_lows)
+                # If range is tight (< 0.5% of price), mark as accumulation
+                if window_range < closes[i] * 0.005:
+                    accumulation_boxes.append({
+                        'top': max(window_highs),
+                        'bottom': min(window_lows),
+                    })
+            
+            # Detect Box Exit
+            if accumulation_boxes:
+                last_box = accumulation_boxes[-1]
+                if current > last_box['top'] and closes[-2] <= last_box['top']:
+                    pattern = 'accumulation_box_exit_up'
+                elif current < last_box['bottom'] and closes[-2] >= last_box['bottom']:
+                    pattern = 'accumulation_box_exit_down'
+            
+            # 5. Liquidity Zones (1H Highs/Lows)
+            # Identify key support/resistance levels from recent peaks/troughs
+            liquidity_zones = []
+            max_24h = max(highs)
+            min_24h = min(lows)
+            
+            # Simple version: the absolute 24h extreme values are the strongest liquidity zones
+            liquidity_zones.append({'price': max_24h, 'type': 'high'})
+            liquidity_zones.append({'price': min_24h, 'type': 'low'})
+            
+            # Add secondary zones (e.g., first 12h extremes if different)
+            if len(highs) >= 24:
+                max_12h = max(highs[:12])
+                min_12h = min(lows[:12])
+                if abs(max_12h - max_24h) / max_24h > 0.002: # 0.2% difference
+                    liquidity_zones.append({'price': max_12h, 'type': 'high_secondary'})
+                if abs(min_12h - min_24h) / min_24h > 0.002:
+                    liquidity_zones.append({'price': min_12h, 'type': 'low_secondary'})
+
+            result = {
+                'trend': trend,
+                'pattern': pattern,
+                'trend_strength': round(trend_strength, 1),
+                'atr': round(atr, 6),
+                'sma20': round(sma20, 6),
+                'accumulation_boxes': accumulation_boxes[-2:], # Return last 2 detected boxes
+                'liquidity_zones': liquidity_zones,
+                'updated_at': time.time()
+            }
+            
+            # Update cache
+            self.trend_cache[symbol] = result
+            return result
+            
+        except Exception as e:
+            logger.warning(f"V9.0 Trend Analysis Error for {symbol}: {e}")
+            return {'trend': 'sideways', 'pattern': 'unknown', 'trend_strength': 0}
 
     async def monitor_and_generate(self):
         """
@@ -77,8 +234,9 @@ class SignalGenerator:
                     await asyncio.sleep(15) 
                     continue
 
-                # 1. Scan all active symbols from WS service
-                active_symbols_ws = bybit_ws_service.active_symbols
+                # V9.0 Sniper Scan: Only instruments with exactly 50x leverage
+                from services.bybit_rest import bybit_rest_service
+                active_symbols_ws = await bybit_rest_service.get_elite_50x_pairs()
                 
                 # Fetch active slots symbols to avoid redundant signals (normalized)
                 slots = await firebase_service.get_active_slots()
@@ -91,8 +249,9 @@ class SignalGenerator:
                     
                     # V8.0 Sequential Diversification: Skip último par operado
                     from services.agents.captain import captain_agent
-                    if captain_agent.last_traded_symbol:
-                        if normalize_symbol(symbol) == normalize_symbol(captain_agent.last_traded_symbol):
+                    last_traded = getattr(captain_agent, 'last_traded_symbol', None)
+                    if last_traded:
+                        if normalize_symbol(symbol) == normalize_symbol(last_traded):
                             continue
 
                     cvd_val = bybit_ws_service.get_cvd_score(symbol)
@@ -114,30 +273,88 @@ class SignalGenerator:
                         
                         # RSI Alignment logic
                         if side_label == "Long":
-                            if rsi > 80: # Overbought - Block Long
-                                logger.info(f"🚫 [RSI BLOCK] {symbol} Long blocked (RSI: {rsi:.1f})")
+                            # Sniper Reversal Long: Prime below 30 RSI
+                            if rsi > 60: 
+                                logger.info(f"🚫 [RSI MOMENTUM BLOCK] {symbol} Long blocked (RSI: {rsi:.1f})")
                                 continue
-                            rsi_score = min(30.0, (rsi / 50.0) * 15.0) if rsi > 50 else 0
+                            rsi_score = min(30.0, ((65 - rsi) / 35.0) * 30.0) if rsi < 65 else 0
                         else: # Short
-                            if rsi < 20: # Oversold - Block Short
-                                logger.info(f"🚫 [RSI BLOCK] {symbol} Short blocked (RSI: {rsi:.1f})")
+                            # Sniper Reversal Short: Prime above 70 RSI
+                            if rsi < 40:
+                                logger.info(f"🚫 [RSI MOMENTUM BLOCK] {symbol} Short blocked (RSI: {rsi:.1f})")
                                 continue
-                            rsi_score = min(30.0, ((100 - rsi) / 50.0) * 15.0) if rsi < 50 else 0
+                            rsi_score = min(30.0, ((rsi - 35) / 35.0) * 30.0) if rsi > 35 else 0
                         
-                        final_score = int(cvd_score + rsi_score + 20) # Base 20 for meeting threshold
+                        # --- V9.0 Multi-Timeframe Analysis ---
+                        trend_analysis = await self.get_1h_trend_analysis(symbol)
+                        trend = trend_analysis.get('trend', 'sideways')
+                        pattern = trend_analysis.get('pattern', 'none')
+                        trend_strength = trend_analysis.get('trend_strength', 0)
+                        
+                        # Trend Alignment Check: Block contra-trend trades
+                        if trend == 'bullish' and side_label == 'Short':
+                            logger.info(f"🚫 [TREND BLOCK] {symbol} Short blocked (1H Trend: Bullish, Str: {trend_strength:.1f})")
+                            continue
+                        elif trend == 'bearish' and side_label == 'Long':
+                            logger.info(f"🚫 [TREND BLOCK] {symbol} Long blocked (1H Trend: Bearish, Str: {trend_strength:.1f})")
+                            continue
+                        
+                        # Pattern Bonus (0-20 points)
+                        pattern_bonus = 0
+                        if pattern in ['pullback_bounce', 'pullback_rejection']:
+                            pattern_bonus = 12
+                        elif pattern in ['liquidity_sweep_long', 'liquidity_sweep_short']:
+                            pattern_bonus = 15
+                        elif pattern in ['bull_trap', 'bear_trap']:
+                            pattern_bonus = 20
+                        elif pattern in ['accumulation_box_exit_up', 'accumulation_box_exit_down']:
+                            pattern_bonus = 18
+                        elif pattern in ['breakout_up', 'breakout_down']:
+                            pattern_bonus = 10
+                        
+                        # Whale Activity Bonus (0-20 points)
+                        # Threshold based on $250k USD delta in the recent buffer
+                        is_whale = abs(cvd_val) > 250000
+                        whale_bonus = 20 if is_whale else 0
+                        
+                        # Trend Alignment Bonus (0-10 points)
+                        trend_bonus = 0
+                        if (trend == 'bullish' and side_label == 'Long') or (trend == 'bearish' and side_label == 'Short'):
+                            trend_bonus = min(10.0, trend_strength / 10)
+                        
+                        final_score = int(cvd_score + rsi_score + trend_bonus + pattern_bonus + whale_bonus + 15) # Base 15
                         final_score = min(99, final_score)
 
                         if final_score >= 90:
-                            logger.info(f"Sniper detected ELITE opportunity: {symbol} | CVD: {cvd_val:.2f} | RSI: {rsi:.1f} | Score: {final_score}")
+                            # --- V10.0 De-duplication Logic ---
+                            last_sig = self.last_sent_signals.get(symbol)
+                            now_ts = time.time()
+                            if last_sig:
+                                time_since = now_ts - last_sig['timestamp']
+                                score_diff = final_score - last_sig['score']
+                                
+                                # Skip if was sent recently (< 60s) AND score didn't improve significantly
+                                if time_since < 60 and score_diff <= 3:
+                                    continue
                             
-                            reasoning = f"Elite {side_label} Momentum | CVD: {cvd_val/1000:.1f}k | RSI: {rsi:.1f} | Score: {final_score}"
+                            # Update last sent tracking
+                            self.last_sent_signals[symbol] = {
+                                'score': final_score,
+                                'timestamp': now_ts
+                            }
+
+                            whale_label = " | 🐋 Whale Activity" if is_whale else ""
+                            pattern_label = f" | Pattern: {pattern.replace('_', ' ')}" if pattern != 'none' else ""
+                            logger.info(f"🎯 Sniper detected ELITE opportunity: {symbol} | Score: {final_score}{pattern_label}{whale_label}")
+                            
+                            reasoning = f"Elite {side_label} | CVD: {cvd_val/1000:.1f}k | RSI: {rsi:.1f} | Trend: {trend}{pattern_label}{whale_label}"
                             if self.btc_drag_mode: reasoning += " | BTC Drag Boosted"
 
                             signal_data = {
                                 "id": f"sig_{int(time.time())}_{symbol}", # Ensure ID is available for queue
                                 "symbol": symbol,
                                 "score": final_score,
-                                "type": "MULTI_PULSE_V7.2",
+                                "type": "MULTI_PULSE_V10.0",
                                 "market_environment": "Bullish" if cvd_val > 0 else "Bearish",
                                 "is_elite": True,
                                 "reasoning": reasoning,

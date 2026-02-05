@@ -1,6 +1,6 @@
 """
-Vault Management Service V4.2
-Gerencia o ciclo de 20 trades Sniper e retiradas para o Cofre do Almirante.
+Vault Management Service V9.0
+Gerencia o ciclo de 10 trades Sniper com diversificação obrigatória e compound automático.
 """
 import logging
 import asyncio
@@ -66,7 +66,11 @@ class VaultService:
             "cycle_gains_count": 0,     # [V8.0] Count of trades with PnL > 0
             "cycle_losses_count": 0,    # [V8.0] Count of trades with PnL < 0
             "accumulated_vault": 0.0,
-            "sniper_mode_active": True  # [V8.0] Master Toggle for Captain
+            "sniper_mode_active": True,  # [V8.0] Master Toggle for Captain
+            # V9.0 Cycle Diversification & Compound
+            "used_symbols_in_cycle": [],  # V9.0: Lista de pares já operados no ciclo
+            "cycle_start_bankroll": 0.0,  # V9.0: Banca travada no início do ciclo
+            "next_entry_value": 0.0       # V9.0: Valor de entrada (20% da banca ciclo)
         }
     
     async def initialize_cycle(self):
@@ -85,6 +89,153 @@ class VaultService:
         except Exception as e:
             logger.error(f"Error initializing cycle: {e}")
     
+    # ========== V9.0 CYCLE DIVERSIFICATION ==========
+    
+    async def is_symbol_used_in_cycle(self, symbol: str) -> bool:
+        """
+        V9.0: Verifica se um par já foi operado no ciclo atual de 10 trades.
+        """
+        try:
+            current = await self.get_cycle_status()
+            used_symbols = current.get("used_symbols_in_cycle", [])
+            norm_symbol = symbol.replace(".P", "").upper()
+            return norm_symbol in [s.replace(".P", "").upper() for s in used_symbols]
+        except Exception as e:
+            logger.error(f"Error checking symbol in cycle: {e}")
+            return False
+    
+    async def add_symbol_to_cycle(self, symbol: str):
+        """
+        V9.0: Adiciona par à lista de exclusão do ciclo.
+        Se completar 10 trades, inicia novo ciclo automaticamente.
+        """
+        try:
+            if not firebase_service.is_active or not firebase_service.db:
+                return
+            
+            current = await self.get_cycle_status()
+            used_symbols = current.get("used_symbols_in_cycle", [])
+            norm_symbol = symbol.replace(".P", "").upper()
+            
+            if norm_symbol not in used_symbols:
+                used_symbols.append(norm_symbol)
+            
+            total_trades = len(used_symbols)
+            
+            def _update():
+                firebase_service.db.collection("vault_management").document("current_cycle").update({
+                    "used_symbols_in_cycle": used_symbols
+                })
+            
+            await asyncio.to_thread(_update)
+            logger.info(f"🔄 V9.0: {norm_symbol} adicionado ao ciclo. Progresso: {total_trades}/10 pares únicos.")
+            
+            # Se completou 10 trades, iniciar recálculo de compound
+            if total_trades >= 10:
+                await self.recalculate_cycle_bankroll()
+                await self.reset_cycle_symbols()
+                
+        except Exception as e:
+            logger.error(f"Error adding symbol to cycle: {e}")
+    
+    async def reset_cycle_symbols(self):
+        """
+        V9.0: Reseta a lista de pares após completar 10 trades.
+        """
+        try:
+            if not firebase_service.is_active or not firebase_service.db:
+                return
+            
+            current = await self.get_cycle_status()
+            new_cycle_number = current.get("cycle_number", 1) + 1
+            
+            def _reset():
+                firebase_service.db.collection("vault_management").document("current_cycle").update({
+                    "used_symbols_in_cycle": [],
+                    "cycle_number": new_cycle_number,
+                    "total_trades_cycle": 0,
+                    "cycle_gains_count": 0,
+                    "cycle_losses_count": 0,
+                    "cycle_profit": 0.0,
+                    "started_at": datetime.now(timezone.utc).isoformat()
+                })
+            
+            await asyncio.to_thread(_reset)
+            await firebase_service.log_event("VAULT", f"🔄 V9.0: CICLO #{new_cycle_number} INICIADO! Lista de exclusão resetada. 83 pares disponíveis.", "SUCCESS")
+            logger.info(f"V9.0: Cycle symbols reset. New cycle #{new_cycle_number}")
+            
+        except Exception as e:
+            logger.error(f"Error resetting cycle symbols: {e}")
+    
+    async def initialize_cycle_bankroll(self, balance: float):
+        """
+        V9.0: Trava a banca no início de um novo ciclo para compound.
+        """
+        try:
+            if not firebase_service.is_active or not firebase_service.db:
+                return
+            
+            entry_value = balance * 0.20  # 20% margin rule
+            
+            def _init():
+                firebase_service.db.collection("vault_management").document("current_cycle").update({
+                    "cycle_start_bankroll": balance,
+                    "next_entry_value": entry_value
+                })
+            
+            await asyncio.to_thread(_init)
+            logger.info(f"📊 V9.0 Compound: Banca travada em ${balance:.2f}. Entrada: ${entry_value:.2f}")
+            await firebase_service.log_event("VAULT", f"📊 V9.0 COMPOUND: Banca do ciclo travada em ${balance:.2f}. Cada trade usará ${entry_value:.2f}.", "SUCCESS")
+            
+        except Exception as e:
+            logger.error(f"Error initializing cycle bankroll: {e}")
+    
+    async def recalculate_cycle_bankroll(self):
+        """
+        V9.0: Recalcula a banca após completar 10 trades (Compound).
+        Consulta saldo atual na Bybit e atualiza valores.
+        """
+        try:
+            from services.bybit_rest import bybit_rest_service
+            
+            new_balance = await bybit_rest_service.get_wallet_balance()
+            current = await self.get_cycle_status()
+            old_bankroll = current.get("cycle_start_bankroll", 0)
+            
+            profit_pct = ((new_balance - old_bankroll) / old_bankroll * 100) if old_bankroll > 0 else 0
+            new_entry = new_balance * 0.20
+            
+            if not firebase_service.is_active or not firebase_service.db:
+                return
+            
+            def _update():
+                firebase_service.db.collection("vault_management").document("current_cycle").update({
+                    "cycle_start_bankroll": new_balance,
+                    "next_entry_value": new_entry
+                })
+            
+            await asyncio.to_thread(_update)
+            
+            emoji = "🚀" if profit_pct > 0 else "⚠️"
+            logger.info(f"V9.0 Compound: Recálculo completo. Nova banca: ${new_balance:.2f} ({profit_pct:+.2f}%)")
+            await firebase_service.log_event("VAULT", f"{emoji} V9.0 COMPOUND RECALCULADO: ${old_bankroll:.2f} → ${new_balance:.2f} ({profit_pct:+.2f}%). Nova entrada: ${new_entry:.2f}", "SUCCESS")
+            
+        except Exception as e:
+            logger.error(f"Error recalculating cycle bankroll: {e}")
+    
+    async def get_used_symbols_in_cycle(self) -> list:
+        """
+        V9.0: Retorna lista de pares já usados no ciclo atual.
+        """
+        try:
+            current = await self.get_cycle_status()
+            return current.get("used_symbols_in_cycle", [])
+        except Exception as e:
+            logger.error(f"Error getting used symbols: {e}")
+            return []
+    
+    # ========== END V9.0 ==========
+
     async def register_sniper_trade(self, trade_data: dict) -> dict:
         """
         [V7.0] SINGLE TRADE SNIPER: Registra um trade no ciclo de 10.

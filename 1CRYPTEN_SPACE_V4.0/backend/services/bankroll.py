@@ -387,11 +387,21 @@ class BankrollManager:
             if balance < 20:
                 logger.warning(f"❌ BANKROLL BELOW V8.0 MINIMUM ($20): ${balance:.2f}. Blocked.")
                 return None
-                
-            # [V8.0] STRATEGY: 20% Margin Rule
-            # Every trade uses exactly 20% of the current bankroll.
-            # Min bankroll $20 => Min margin $4.
-            margin = balance * 0.20
+            
+            # [V9.0] COMPOUND STRATEGY: Use Cycle Locked Bankroll
+            # If a cycle bankroll is set, use it for compound interest
+            cycle_status = await vault_service.get_cycle_status()
+            cycle_bankroll = cycle_status.get("cycle_start_bankroll", 0)
+            
+            if cycle_bankroll >= 20:
+                # V9.0: Use locked cycle bankroll for consistent position sizing
+                margin = cycle_bankroll * 0.20
+                logger.info(f"📊 V9.0 Compound: Usando banca do ciclo ${cycle_bankroll:.2f} → Margem: ${margin:.2f}")
+            else:
+                # First trade of cycle: initialize cycle bankroll
+                margin = balance * 0.20
+                await vault_service.initialize_cycle_bankroll(balance)
+                logger.info(f"📊 V9.0: Novo ciclo iniciado com banca ${balance:.2f} → Margem: ${margin:.2f}")
             
             if margin < 4.0:
                  margin = 4.0 # Force minimum operational margin if balance allows

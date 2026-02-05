@@ -1,6 +1,6 @@
-# 1CRYPTEN SPACE - Blueprint & System Architecture (V8.1 Visual Precision) 🎯🛰️
+# 1CRYPTEN SPACE - Blueprint & System Architecture (V9.0 Cycle Compound) 🎯🛰️
 
-Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE V8.1. O sistema foi evoluído para o protocolo de **Visual Precision**, otimizando a telemetria visual de trades.
+Este documento descreve o funcionamento interno, fluxos de dados e protocolos do sistema 1CRYPTEN SPACE V9.0. O sistema foi evoluído para o protocolo de **Cycle Diversification & Compound**, com ciclos de 10 trades obrigatoriamente diversificados e recálculo automático de banca.
 
 ---
 

@@ -226,6 +226,54 @@
                 <p class="text-2xl font-display font-bold text-neon-cyan">88.4%</p>
             </div>
         </div>
+
+        <!-- V9.0 Cycle Tracker Component -->
+        <div class="px-6 mb-6" id="cycle-tracker-container">
+            <div class="glass-card rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons-round text-primary text-[16px]">sync</span>
+                        <span class="text-[10px] uppercase tracking-widest opacity-50">Ciclo de Trades V9.0</span>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-primary" id="cycle-counter">0/10</span>
+                </div>
+
+                <!-- Progress Bar com 10 segmentos -->
+                <div class="flex gap-1 mb-4" id="cycle-progress">
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                    <div class="flex-1 h-2 bg-white/5 rounded-full border border-white/5"></div>
+                </div>
+
+                <!-- Ativos Bloqueados -->
+                <div class="mb-3">
+                    <p class="text-[9px] uppercase opacity-30 mb-2">Ativos Operados (Bloqueados)</p>
+                    <div class="flex flex-wrap gap-1" id="used-assets">
+                        <span class="text-[9px] opacity-40 italic">Nenhum ainda</span>
+                    </div>
+                </div>
+
+                <!-- Compound Info -->
+                <div class="flex justify-between items-center pt-2 border-t border-white/5">
+                    <div>
+                        <p class="text-[9px] opacity-30 uppercase">Banca do Ciclo</p>
+                        <p class="text-sm font-mono font-bold text-white" id="cycle-bankroll">$0.00</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] opacity-30 uppercase">Próximo Recálculo</p>
+                        <p class="text-[10px] font-mono text-primary" id="next-rebalance">10 trades restantes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <main class="flex-1 px-6 space-y-4">
             <div class="glass-card rounded-3xl p-5 border-l-4 border-l-primary/50">
                 <div class="flex justify-between items-start mb-4">
@@ -363,7 +411,102 @@
         <div class="fixed bottom-20 left-0 -z-10 w-48 h-48 bg-neon-cyan/5 blur-[100px] rounded-full"></div>
     </div>
     <script>
-        // Optional: Simple scroll behavior for header
+        // V9.0 Cycle Tracker Integration
+        const API_BASE = window.location.origin;
+
+        // Fetch cycle status from backend
+        async function fetchCycleStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/api/vault/cycle`);
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (e) {
+                console.error('Error fetching cycle:', e);
+                return null;
+            }
+        }
+
+        // Update the Cycle Tracker UI
+        function updateCycleTracker(cycle) {
+            if (!cycle) return;
+
+            const usedSymbols = cycle.used_symbols_in_cycle || [];
+            const tradesCount = usedSymbols.length;
+            const cycleBankroll = cycle.cycle_start_bankroll || 0;
+            const remaining = 10 - tradesCount;
+
+            // Update counter
+            const counter = document.getElementById('cycle-counter');
+            if (counter) counter.textContent = `${tradesCount}/10`;
+
+            // Update progress bar segments
+            const progressContainer = document.getElementById('cycle-progress');
+            if (progressContainer) {
+                const segments = progressContainer.children;
+                for (let i = 0; i < segments.length; i++) {
+                    if (i < tradesCount) {
+                        // Filled segment (gold gradient)
+                        segments[i].className = 'flex-1 h-2 rounded-full';
+                        segments[i].style.background = 'linear-gradient(135deg, #BF953F, #FBF5B7, #AA771C)';
+                        segments[i].style.border = '1px solid rgba(212, 175, 55, 0.5)';
+                        segments[i].style.boxShadow = '0 0 8px rgba(212, 175, 55, 0.3)';
+                    } else {
+                        // Empty segment
+                        segments[i].className = 'flex-1 h-2 bg-white/5 rounded-full border border-white/5';
+                        segments[i].style.background = '';
+                        segments[i].style.boxShadow = '';
+                    }
+                }
+            }
+
+            // Update used assets badges
+            const assetsContainer = document.getElementById('used-assets');
+            if (assetsContainer) {
+                if (usedSymbols.length > 0) {
+                    assetsContainer.innerHTML = usedSymbols.map(s =>
+                        `<span class="px-2 py-0.5 bg-red-500/10 text-red-400 rounded text-[9px] font-mono border border-red-500/20">${s.replace('USDT', '')}</span>`
+                    ).join('');
+                } else {
+                    assetsContainer.innerHTML = '<span class="text-[9px] opacity-40 italic">Nenhum ainda</span>';
+                }
+            }
+
+            // Update cycle bankroll
+            const bankrollEl = document.getElementById('cycle-bankroll');
+            if (bankrollEl) bankrollEl.textContent = `$${cycleBankroll.toFixed(2)}`;
+
+            // Update next rebalance
+            const rebalanceEl = document.getElementById('next-rebalance');
+            if (rebalanceEl) {
+                if (remaining === 0) {
+                    rebalanceEl.textContent = '🔄 Recalculando...';
+                    rebalanceEl.className = 'text-[10px] font-mono text-green-400';
+                } else {
+                    rebalanceEl.textContent = `${remaining} trade${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''}`;
+                    rebalanceEl.className = 'text-[10px] font-mono text-primary';
+                }
+            }
+
+            // Update cycle number in header if exists
+            const cycleNum = cycle.cycle_number || 1;
+            const trackerLabel = document.querySelector('#cycle-tracker-container .glass-card > div:first-child span:last-child');
+            if (trackerLabel) {
+                trackerLabel.textContent = `Ciclo #${cycleNum} de Trades V9.0`;
+            }
+        }
+
+        // Initial load and periodic refresh
+        async function initCycleTracker() {
+            const cycle = await fetchCycleStatus();
+            updateCycleTracker(cycle);
+        }
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', initCycleTracker);
+        // Refresh every 10 seconds
+        setInterval(initCycleTracker, 10000);
+
+        // Original scroll behavior
         window.addEventListener('scroll', () => {
             const header = document.querySelector('header');
             if (window.scrollY > 10) {

@@ -1062,6 +1062,24 @@
             const [tf, setTf] = useState('15'); // Default 15m
             const isMounted = useRef(true);
 
+            // V9.0 Trend Data State
+            const [trendData, setTrendData] = useState({ trend: 'sideways', pattern: 'none', trend_strength: 0 });
+
+            // V9.0 Trend Fetch
+            useEffect(() => {
+                if (!symbol) return;
+                const fetchTrend = async () => {
+                    try {
+                        const apiSymbol = symbol.replace('.P', '');
+                        const res = await fetch(API_BASE + '/api/trend/' + apiSymbol);
+                        if (res.ok) setTrendData(await res.json());
+                    } catch (e) { console.warn('Trend fetch error:', e); }
+                };
+                fetchTrend();
+                const interval = setInterval(fetchTrend, 60000); // Refresh every 1 min
+                return () => clearInterval(interval);
+            }, [symbol]);
+
             const timeframes = [
                 { label: '1m', value: '1' },
                 { label: '5m', value: '5' },
@@ -1286,6 +1304,62 @@
                 };
             }, [symbol, tf]);
 
+            const extraLinesRef = useRef([]);
+
+            useEffect(() => {
+                if (!seriesRef.current || !trendData) return;
+
+                // Clear previous extra lines
+                extraLinesRef.current.forEach(line => {
+                    try { seriesRef.current.removePriceLine(line); } catch (e) { }
+                });
+                extraLinesRef.current = [];
+
+                // 1. Render Liquidity Zones
+                if (trendData.liquidity_zones) {
+                    trendData.liquidity_zones.forEach(zone => {
+                        const isMain = !zone.type.includes('secondary');
+                        try {
+                            const line = seriesRef.current.createPriceLine({
+                                price: zone.price,
+                                color: zone.type.includes('high') ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)',
+                                lineWidth: isMain ? 1 : 1,
+                                lineStyle: isMain ? LightweightCharts.LineStyle.Dashed : LightweightCharts.LineStyle.Dotted,
+                                axisLabelVisible: true,
+                                title: `LIQ ${zone.type.toUpperCase()}`
+                            });
+                            extraLinesRef.current.push(line);
+                        } catch (e) { }
+                    });
+                }
+
+                // 2. Render Accumulation Boxes
+                if (trendData.accumulation_boxes) {
+                    trendData.accumulation_boxes.forEach((box, idx) => {
+                        try {
+                            // Top boundary
+                            const top = seriesRef.current.createPriceLine({
+                                price: box.top,
+                                color: 'rgba(168, 85, 247, 0.5)',
+                                lineWidth: 1,
+                                lineStyle: LightweightCharts.LineStyle.Solid,
+                                axisLabelVisible: false,
+                                title: idx === 0 ? 'ACC BOX' : ''
+                            });
+                            // Bottom boundary
+                            const bottom = seriesRef.current.createPriceLine({
+                                price: box.bottom,
+                                color: 'rgba(168, 85, 247, 0.5)',
+                                lineWidth: 1,
+                                lineStyle: LightweightCharts.LineStyle.Solid,
+                                axisLabelVisible: false
+                            });
+                            extraLinesRef.current.push(top, bottom);
+                        } catch (e) { }
+                    });
+                }
+            }, [trendData, tf]);
+
             useEffect(() => {
                 if (!seriesRef.current || !chartRef.current) return;
 
@@ -1403,6 +1477,17 @@
                                 ROI (50x): {displayPnl > 0 ? '+' : '-'}{Math.abs(displayPnl).toFixed(2)}%
                             </div>
                         )}
+                        {/* V9.0 Trend Indicator */}
+                        <div className={`mt-1 px-2 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 ${trendData.trend === 'bullish' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                            trendData.trend === 'bearish' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                            }`}>
+                            <span className="material-icons-round text-[12px]">
+                                {trendData.trend === 'bullish' ? 'trending_up' : trendData.trend === 'bearish' ? 'trending_down' : 'trending_flat'}
+                            </span>
+                            <span>1H: {trendData.trend.toUpperCase()}</span>
+                            {trendData.pattern !== 'none' && <span className="opacity-60">| {trendData.pattern.replace('_', ' ')}</span>}
+                        </div>
                     </div>
                     <div ref={chartContainerRef} className="w-full h-full" />
                 </div>
@@ -1518,25 +1603,29 @@
 
             if (!isActive) {
                 return (
-                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/20 rounded-3xl bg-black/40 h-[240px]">
-                        <div className="relative mb-4">
-                            <span className="material-icons-round text-5xl text-primary/20 animate-pulse">radar</span>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="material-icons-round text-primary text-2xl animate-spin-slow">searching</span>
+                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-primary/20 rounded-[2.5rem] bg-black/40 min-h-[320px] w-full transition-all duration-500">
+                        <div className="flex flex-col items-center justify-center mb-8">
+                            <div className="relative mb-6">
+                                <div className="absolute -inset-4 bg-primary/10 rounded-full blur-xl animate-pulse"></div>
+                                <span className="material-icons-round text-6xl text-primary/30 animate-pulse">radar</span>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="material-icons-round text-primary text-3xl animate-spin-slow">searching</span>
+                                </div>
                             </div>
+                            <h3 className="text-2xl font-display font-bold text-white mb-2 uppercase tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r from-primary via-white to-primary bg-[length:200%_auto] animate-shimmer">Radar V10.0</h3>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] max-w-[280px] text-center font-black leading-relaxed opacity-80">
+                                Buscando Padrão de Reversão Institucional...<br />
+                                <span className="text-primary/60">Aguardando Confirmação Sniper &gt; 90 Pts</span>
+                            </p>
                         </div>
-                        <h3 className="text-xl font-display font-bold text-white mb-2 uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-primary to-white">Radar de Elite</h3>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] max-w-[250px] text-center font-medium leading-relaxed">
-                            Varredura Neural V8.0 em Andamento...<br />Aguardando Oportunidade &gt; 90 Pts
-                        </p>
 
                         {bestSignal && (
-                            <div className="mt-8 p-4 rounded-2xl bg-primary/5 border border-primary/20 w-full max-w-sm animate-in fade-in slide-in-from-bottom duration-500">
+                            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 w-full animate-in fade-in slide-in-from-bottom duration-500">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-[10px] font-black text-primary uppercase tracking-widest">Melhor Oportunidade</span>
                                     <span className="text-[10px] font-mono font-bold text-white px-2 py-0.5 bg-primary/20 rounded">SCORE {bestSignal.score}</span>
                                 </div>
-                                <div className="flex justify-between items-end">
+                                <div className="flex justify-between items-end mb-2">
                                     <h4 className="text-lg font-bold text-white">{bestSignal.symbol.replace('.P', '')}</h4>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[9px] text-slate-500 uppercase">Tendência</span>
@@ -1544,6 +1633,11 @@
                                             {(bestSignal.indicators && bestSignal.indicators.cvd >= 0) ? 'ALTA MOMENTUM' : 'BAIXA MOMENTUM'}
                                         </span>
                                     </div>
+                                </div>
+                                <div className="pt-2 border-t border-white/5">
+                                    <p className="text-[9px] text-slate-400 italic leading-tight">
+                                        "{(bestSignal.reasoning && bestSignal.reasoning.replace(/\|/g, '•')) || 'Análise em andamento...'}"
+                                    </p>
                                 </div>
                             </div>
                         )}
@@ -2188,6 +2282,23 @@
             const [isHuntActive, setIsHuntActive] = useState(false);
             const [showBtc, setShowBtc] = useState(false);
             const { latency, status: pulseStatus } = usePulseMonitor();
+            const btcCommand = useBtcCommandCenter();
+
+            // V9.0 Cycle Tracker State
+            const [cycleStatus, setCycleStatus] = useState({ cycle_number: 1, used_symbols_in_cycle: [], cycle_start_bankroll: 0 });
+
+            // V9.0 Cycle Tracker Fetch
+            useEffect(() => {
+                const fetchCycle = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/api/vault/cycle');
+                        if (res.ok) setCycleStatus(await res.json());
+                    } catch (e) { console.error('Cycle Fetch:', e); }
+                };
+                fetchCycle();
+                const interval = setInterval(fetchCycle, 10000);
+                return () => clearInterval(interval);
+            }, []);
 
             // Fetch Signals via API
             useEffect(() => {
@@ -2247,6 +2358,34 @@
                                 </div>
                             </div>
 
+                            {/* BTC Command Center Mini-Bar */}
+                            <div className="flex items-center justify-between mt-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/5 backdrop-blur-md">
+                                <div className="flex items-center gap-2">
+                                    <span className={`material-icons-round text-xs ${btcCommand.btc_drag_mode ? 'text-orange-400 animate-pulse' : 'text-slate-500'}`}>
+                                        {btcCommand.btc_drag_mode ? 'bolt' : 'drag_indicator'}
+                                    </span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">BTC Drag Mode</span>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${btcCommand.btc_drag_mode ? 'bg-orange-500/20 text-orange-400' : 'bg-slate-500/10 text-slate-500'}`}>
+                                        {btcCommand.btc_drag_mode ? 'ACTIVE' : 'IDLE'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tighter">CVD</span>
+                                        <span className="text-[10px] font-mono font-bold text-white">{btcCommand.btc_cvd > 0 ? '+' : ''}{(btcCommand.btc_cvd / 1000).toFixed(1)}k</span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tighter">Exaustão</span>
+                                        <div className="flex items-center gap-1">
+                                            <div className="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-1000 ${btcCommand.exhaustion > 80 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${btcCommand.exhaustion}%` }}></div>
+                                            </div>
+                                            <span className="text-[9px] font-mono text-white">{btcCommand.exhaustion ? btcCommand.exhaustion.toFixed(0) : 0}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Tab Switcher */}
                             <div className="flex gap-4 mt-4 border-b border-white/5">
                                 <button onClick={() => setActiveTab('signals')}
@@ -2281,6 +2420,71 @@
                         </div>
                     </header>
 
+                    {/* V9.0 Cycle Tracker Component */}
+                    <div className="px-3 sm:px-4 py-3">
+                        <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#0a0a0b] p-4 shadow-2xl">
+                            {/* Decorative Glow */}
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl"></div>
+
+                            <div className="flex justify-between items-end mb-4 relative z-10">
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="material-icons-round text-primary text-sm animate-spin-slow">sync</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Missão do Ciclo</span>
+                                    </div>
+                                    <h3 className="text-xl font-display font-bold text-white tracking-tight">
+                                        Progressão <span className="text-primary">{(cycleStatus.used_symbols_in_cycle || []).length}/10</span>
+                                    </h3>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Banca do Ciclo</p>
+                                    <p className="text-lg font-mono font-bold text-white tracking-tighter">${(cycleStatus.cycle_start_bankroll || 0).toFixed(0)}<span className="text-[10px] opacity-50">.{(cycleStatus.cycle_start_bankroll || 0).toFixed(2).split('.')[1]}</span></p>
+                                </div>
+                            </div>
+
+                            {/* Progress Bar - 10 segments */}
+                            <div className="flex gap-1.5 mb-4 relative z-10">
+                                {[...Array(10)].map((_, i) => (
+                                    <div key={i} className="flex-1">
+                                        <div className={`h-1.5 rounded-full shadow-inner transition-all duration-700 ${i < (cycleStatus.used_symbols_in_cycle || []).length ? 'bg-primary shadow-primary/20' : 'bg-white/5'}`}></div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex flex-col gap-3 relative z-10">
+                                {/* Used Assets */}
+                                <div className="flex flex-col gap-1.5">
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-600">Ativos Bloqueados (Neste Ciclo)</p>
+                                    <div className="flex flex-wrap gap-1.5 MIN-H-[20px]">
+                                        {(cycleStatus.used_symbols_in_cycle || []).length > 0 ? (
+                                            (cycleStatus.used_symbols_in_cycle || []).map(sym => (
+                                                <span key={sym} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-red-500/10 text-red-400 border border-red-500/10 transition-all hover:scale-105">
+                                                    {sym.replace('USDT', '')}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-[9px] text-slate-700 italic">Varredura inicial completa. Próxima entrada liberada.</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Extra Info Row */}
+                                <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                            {10 - (cycleStatus.used_symbols_in_cycle || []).length} Slots Restantes
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+                                        <span className="material-icons-round text-[10px] text-primary">auto_graph</span>
+                                        <span className="text-[8px] font-black text-primary uppercase tracking-tighter">Auto Compound Ativo</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <main className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 custom-scrollbar">
                         {activeTab === 'signals' ? (
                             filteredSignals.length === 0 ? (
@@ -2290,25 +2494,80 @@
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-                                    {filteredSignals.map(signal => {
-                                        const isBTC = signal.symbol.includes("BTC");
-                                        const isElite = signal.score >= 85 && !isBTC;
-                                        return (
-                                            <div key={signal.id || Math.random()} className={`p-3 rounded-xl border transition-all ${isElite ? 'bg-red-500/10 border-red-500/30' : 'v5-bg-card border-none opacity-60'}`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-bold uppercase ${isElite ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-500'}`}>{isElite ? 'Elite' : 'Track'}</span>
-                                                        <h2 className="text-sm sm:text-base font-bold mt-1 text-white">{signal.symbol.replace('.P', '')}</h2>
+                                    {(() => {
+                                        // V10.0 Grouping: Only the best score per unique symbol
+                                        const grouped = filteredSignals.reduce((acc, sig) => {
+                                            const sym = sig.symbol;
+                                            if (!acc[sym] || sig.score > acc[sym].score) {
+                                                acc[sym] = sig;
+                                            }
+                                            return acc;
+                                        }, {});
+
+                                        return Object.values(grouped)
+                                            .sort((a, b) => b.score - a.score)
+                                            .map(signal => {
+                                                const isBTC = signal.symbol.includes("BTC");
+                                                const isElite = signal.score >= 85 && !isBTC;
+                                                const patternMatch = signal.reasoning && signal.reasoning.split('|').find(s => s.trim().startsWith('Pattern:'));
+                                                const pattern = (patternMatch && patternMatch.split(':')[1] && patternMatch.split(':')[1].trim()) || 'Standard';
+
+                                                return (
+                                                    <div key={signal.id || Math.random()} className={`relative p-3 rounded-xl border transition-all ${isElite ? 'bg-red-500/10 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.05)]' : 'v5-bg-card border-white/5 opacity-70'}`}>
+                                                        {isElite && (
+                                                            <div className="absolute -top-1 -right-1 flex gap-1">
+                                                                <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className={`text-[7px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${isElite ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                                                        {isElite ? 'Elite' : 'Scan'}
+                                                                    </span>
+                                                                    <span className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter opacity-70">
+                                                                        {(signal.type && signal.type.replace('_V7.2', ''))}
+                                                                    </span>
+                                                                </div>
+                                                                <h2 className="text-sm font-black mt-1 text-white tracking-tight">{signal.symbol.replace('.P', '')}</h2>
+                                                            </div>
+                                                            <div className={`flex flex-col items-center justify-center w-9 h-9 rounded-lg border-2 font-mono transition-all
+                                                        ${isElite ? 'border-red-500 text-red-400 bg-red-500/5' : 'border-white/10 text-slate-500'}`}>
+                                                                <span className="text-[11px] font-black">{signal.score}</span>
+                                                                <span className="text-[6px] uppercase tracking-tighter">Pts</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Reasoning & Why */}
+                                                        <div className="mt-2 py-1.5 border-t border-white/5">
+                                                            <div className="flex items-center gap-1.5 mb-1">
+                                                                <span className="material-icons-round text-[10px] text-primary">psychology</span>
+                                                                <p className="text-[9px] font-bold text-slate-300 uppercase tracking-tight line-clamp-1">
+                                                                    {pattern.replace('_', ' ')}
+                                                                </p>
+                                                            </div>
+                                                            <p className="text-[8px] text-slate-500 italic leading-tight line-clamp-2">
+                                                                {(signal.reasoning && signal.reasoning.split('|').slice(0, 2).join(' | ')) || 'Detectando fluxo institucional...'}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className={`w-1 h-1 rounded-full ${signal.market_environment === 'Bullish' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                                <span className={`text-[7px] font-black uppercase tracking-wider ${signal.market_environment === 'Bullish' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                    {signal.market_environment}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[7px] font-mono text-slate-600 font-bold">
+                                                                {new Date(signal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-[10px] font-bold text-slate-400">{signal.score}</div>
-                                                </div>
-                                                <div className="flex justify-between text-[8px] opacity-50">
-                                                    <span className={signal.market_environment === 'Bullish' ? 'text-emerald-400' : 'text-red-400'}>{signal.market_environment}</span>
-                                                    <span>{new Date(signal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                                );
+                                            })
+                                    })()}
                                 </div>
                             )
                         ) : (
@@ -2370,6 +2629,22 @@
                 return safeJsonParse(cached, []);
             });
             const chatRef = useRef(null);
+
+            // V9.0 Cycle Tracker State
+            const [cycleStatus, setCycleStatus] = useState({ cycle_number: 1, used_symbols_in_cycle: [], cycle_start_bankroll: 0 });
+
+            // V9.0 Cycle Tracker Fetch
+            useEffect(() => {
+                const fetchCycle = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/api/vault/cycle');
+                        if (res.ok) setCycleStatus(await res.json());
+                    } catch (e) { console.error('Cycle Fetch:', e); }
+                };
+                fetchCycle();
+                const interval = setInterval(fetchCycle, 15000);
+                return () => clearInterval(interval);
+            }, []);
 
             // Auto-scroll chat to bottom on new messages
             useEffect(() => {
@@ -2551,8 +2826,12 @@
                                     </span>
                                 </div>
                                 <h1 className="text-base sm:text-lg font-display font-bold text-white uppercase tracking-[0.2em] text-center ml-4">Deep Space</h1>
-                                <div className="flex justify-end gap-3 items-center">
-                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V7.1 SNIPER</span>
+                                <div className="flex justify-end gap-2 items-center">
+                                    {/* V9.0 Mini Cycle Indicator */}
+                                    <span className="text-[8px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                        C{cycleStatus.cycle_number || 1}: {(cycleStatus.used_symbols_in_cycle || []).length}/10
+                                    </span>
+                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V9.0</span>
                                     <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-90" />
                                 </div>
                             </div>

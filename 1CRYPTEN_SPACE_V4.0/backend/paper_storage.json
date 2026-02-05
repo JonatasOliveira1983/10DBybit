@@ -3,14 +3,55 @@
     {
       "symbol": "XAUTUSDT",
       "side": "Sell",
-      "size": "0.249",
-      "avgPrice": "4903.0",
+      "size": "0.083",
+      "avgPrice": "4809.0",
       "leverage": "50",
-      "stopLoss": "4952.232",
-      "takeProfit": "4805.1359999999995",
+      "stopLoss": "4859.514",
+      "takeProfit": "4715.172",
       "createdTime": "123456789"
     }
   ],
-  "balance": 0.0,
-  "history": []
+  "balance": 5.465513880000151,
+  "history": [
+    {
+      "symbol": "XAUTUSDT.P",
+      "side": "Sell",
+      "avgEntryPrice": "4903.0",
+      "avgExitPrice": "4932.9",
+      "closedPnl": "-8.91905051999991",
+      "leverage": "50.0",
+      "qty": "0.249",
+      "updatedTime": "1770232115460"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "9.429",
+      "avgExitPrice": "9.372",
+      "closedPnl": "-2.893647360000016",
+      "leverage": "50.0",
+      "qty": "42.4",
+      "updatedTime": "1770235874784"
+    },
+    {
+      "symbol": "XAUTUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "4918.5",
+      "avgExitPrice": "4808.2",
+      "closedPnl": "8.466942960000015",
+      "leverage": "50.0",
+      "qty": "0.081",
+      "updatedTime": "1770294422771"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "side": "Sell",
+      "avgEntryPrice": "8.999",
+      "avgExitPrice": "8.79",
+      "closedPnl": "8.811268800000063",
+      "leverage": "50.0",
+      "qty": "44.4",
+      "updatedTime": "1770303868120"
+    }
+  ]
 }
