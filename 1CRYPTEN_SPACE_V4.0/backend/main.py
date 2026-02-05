@@ -24,7 +24,7 @@ asyncio.get_event_loop().set_default_executor(executor)
 # V7.0: Single Trade Sniper - Sniper Evolution Protocol
 # V10.1: Cycle Diversification & Compound - Institutional Logic & Pulse
 VERSION = "V10.3"
-DEPLOYMENT_ID = "V102_ATR_EDITION_SNIPER"
+DEPLOYMENT_ID = "V10.3_ATR_EDITION"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
