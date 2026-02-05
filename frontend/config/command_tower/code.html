@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         name="viewport" />
-    <title>Elite Command Tower | V6.0</title>
+    <title>Elite Command Tower | V10.2 ATR Edition</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -99,7 +99,7 @@
             <div>
                 <h1 class="text-xl font-bold tracking-tighter text-primary uppercase">Command Tower</h1>
                 <p class="text-[10px] text-gray-500 font-mono tracking-widest uppercase">Observability & Governance
-                    Elite V6.0</p>
+                    Elite V10.2</p>
             </div>
         </div>
         <div id="connection-badge"
@@ -156,7 +156,7 @@
                     <span id="reports-count" class="text-5xl font-bold text-dynamic tracking-tighter">0</span>
                     <span class="text-gray-500 font-mono text-sm">Reports</span>
                 </div>
-                <p class="text-[10px] text-primary mt-2 font-mono uppercase">AI Act 2026 Compliant</p>
+                <p class="text-[10px] text-primary mt-2 font-mono uppercase">V10.2 Protocol Compliant</p>
             </div>
         </div>
 
@@ -217,16 +217,20 @@
             try {
                 // Fetch from RTDB via our backend proxy
                 // Assuming we can access the health status from an endpoint
-                const res = await fetch(`${API_BASE}/api/logs?limit=1`); // Or any endpoint that provides health
+                // real latency check
+                const start = Date.now();
+                await fetch(`${API_BASE}/api/version`);
+                const realLatency = Date.now() - start;
+                updateLatencyDisplay(realLatency);
 
-                // For demonstration, let's use a dynamic simulation if real data is pending
-                // Actually, I'll try to fetch the real status from Redis/RTDB if available
-                const healthRes = await fetch(`${API_BASE}/test`); // Placeholder for real health check
-                const status = await healthRes.json();
-
-                // Simulate latency movement (will be replaced by real data if the user has it)
-                const mockLatency = Math.floor(Math.random() * 50) + 80;
-                updateLatencyDisplay(mockLatency);
+                // Fetch real health via /health
+                const healthRes = await fetch(`${API_BASE}/health`);
+                if (healthRes.ok) {
+                    const healthData = await healthRes.json();
+                    document.getElementById('health-val').textContent = healthData.bybit_connected ? "100" : "0";
+                    document.getElementById('health-progress').style.width = healthData.bybit_connected ? "100%" : "0%";
+                    document.getElementById('connection-badge').className = `flex items-center gap-2 px-3 py-1 rounded-full ${healthData.bybit_connected ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}`;
+                }
 
             } catch (e) {
                 console.warn("Failed to update health", e);

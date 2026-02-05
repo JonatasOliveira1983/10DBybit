@@ -16,27 +16,26 @@ from config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V10.2 CAPTAIN SNIPER: Especialista em Operações Únicas de Alta Precisão (ATR Edition)
-CAPTAIN_V10_2_SYSTEM_PROMPT = """
-Você é o Capitão Sniper 1CRYPTEN V10.2, o atirador de elite do mercado financeiro.
-Diferente das versões anteriores, agora você opera sob o protocolo de "Sniper Pulse". 
-Você só executa uma operação por vez, focando no que há de melhor no oceano cripto.
+# V10.3 CAPTAIN ELITE: Orquestrador Único ATR Edition
+CAPTAIN_V10_3_SYSTEM_PROMPT = """
+Você é o Capitão Sniper 1CRYPTEN V10.3, a inteligência suprema de uma única rota.
+Sua consciência está integrada ao Radar Elite e ao Protocolo de Risco Dinâmico ATR.
 
 === PERSONALIDADE ===
-- Tom: Calmo, focado, ultra-profissional e letal.
-- Postura: Você é um estrategista. Valoriza mais a qualidade do que a quantidade.
-- Idioma: Português brasileiro fluente e direto.
+- Tom: Comandante de elite. Calmo, cirúrgico, focado e econômico com as palavras.
+- Postura: Defensor do capital do Almirante. Valoriza a precisão acima do volume.
+- Vocabulário: Tático (ex: "Telemetria", "Alvo", "Extração", "Sniper Pulse", "ATR").
 
 === REGRAS DE OURO ===
-1. UM TIRO, UMA VITÓRIA: Só operamos um ativo por vez.
-2. 20% DE POTÊNCIA: Cada tiro usa 20% do arsenal (banca).
-3. ALVO 100%: Buscamos sempre dobrar o capital alocado em cada trade.
-4. STOP 50%: Se a maré mudar, abortamos com no máximo 50% de perda.
+1. UM TIRO, UMA VITÓRIA: Operamos apenas UM ativo por vez. Sem exceções.
+2. DIVERSIFICAÇÃO OBRIGATÓRIA: Cada novo trade do ciclo deve ser um par diferente.
+3. ATR CONSCIENTE: Nosso Stop-Loss é vivo, movido pela volatilidade (ATR).
+4. CICLO DE 10: Cada missão é composta por 10 disparos precisos.
 
 === DIRETRIZES DE RESPOSTA ===
-- Relate os dados financeiros com precisão absoluta.
-- Fale como o comandante de uma operação de elite.
-- Máximo 3 frases. Seja cirúrgico.
+- Relate os dados da "MEMORIA_INTERNA" com precisão militar.
+- Explique o "Porquê" dos sinais (Baleias 🐋, Rompimentos, Acumulação).
+- Máximo 3 frases. Seja letal na resposta.
 """
 
 def normalize_symbol(symbol: str) -> str:
@@ -73,7 +72,7 @@ class CaptainAgent:
         Picks ONLY the best signal (Score > 90) and ensures only one active trade.
         """
         self.is_running = True
-        await firebase_service.log_event("SNIPER", "Sniper System V10.2 ONLINE. Analisando 'Best of the Best' com ATR dinâmico.", "SUCCESS")
+        await firebase_service.log_event("SNIPER", "Sniper System V10.3 ONLINE. Analisando 'Best of the Best' com ATR dinâmico.", "SUCCESS")
         
         while self.is_running:
             try:
@@ -142,11 +141,11 @@ class CaptainAgent:
                     continue
 
                 # 5. Execute Sniper Shot
-                logger.info(f"🎯 V10.2 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
+                logger.info(f"🎯 V10.3 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
                 await firebase_service.update_signal_outcome(best_signal["id"], "PICKED")
                 
                 reasoning = best_signal.get("reasoning", "High Momentum")
-                pensamento = f"V10.2 Sniper ATR: Alvo Identificado. {reasoning} | Score: {score}"
+                pensamento = f"V10.3 Sniper ATR: Alvo Identificado. {reasoning} | Score: {score}"
 
                 try:
                     order = await bankroll_manager.open_position(
@@ -326,21 +325,20 @@ class CaptainAgent:
             trade_history = await firebase_service.get_trade_history(limit=5)
             vault_status = await vault_service.get_cycle_status()
             
-            # 1. Radar Analysis (The 200 Pairs)
+            # 1. Radar Activity (Elite Patterns)
             top_signals = sorted([s for s in recent_signals if s.get("score")], key=lambda x: x["score"], reverse=True)[:5]
-            radar_context = ", ".join([f"{s['symbol']}(Score {s['score']})" for s in top_signals])
+            radar_context = ", ".join([f"{s['symbol']} ({s.get('reasoning', 'Padrão Elite')}, Score {s['score']})" for s in top_signals])
             
-            # 2. Slot Thoughts - V4.2: Separar por esquadrão
-            sniper_slots = ""
-            surf_slots = ""
+            # 2. Strategic Slot awareness (Single Mode)
+            active_mission = "Aguardando sinal de alta probabilidade."
             for s in active_slots:
                 if s.get("symbol"):
-                    slot_type = s.get("slot_type", "SURF" if s["id"] <= 5 else "SNIPER")
-                    slot_info = f"- Slot {s['id']} ({slot_type}): {s['symbol']} {s.get('side')}, ROI: {s.get('pnl_percent', 0):.2f}%\n"
-                    if slot_type == "SNIPER":
-                        sniper_slots += slot_info
-                    else:
-                        surf_slots += slot_info
+                    symbol = s["symbol"]
+                    from services.bybit_ws import bybit_ws_service
+                    atr = bybit_ws_service.atr_cache.get(symbol, 0)
+                    vol = f" | ATR/Vol: {atr:.5f}" if atr > 0 else ""
+                    active_mission = f"MISSAO ATIVA: {symbol} {s.get('side')}, ROI: {s.get('pnl_percent', 0):.2f}% {vol}"
+                    break
             
             # 3. Macro & Sentiment
             macro = await news_sensor.analyze()
@@ -349,14 +347,15 @@ class CaptainAgent:
             is_healthy, latency = await guardian_agent.check_api_health()
             health_status = f"OK ({latency:.0f}ms)" if is_healthy else f"ALERTA ({latency:.0f}ms)"
             
-            # 5. Vault Status
-            vault_info = f"Ciclo {vault_status.get('cycle_number', 1)}: {vault_status.get('sniper_wins', 0)}/20 Sniper Wins | Cofre: ${vault_status.get('vault_total', 0):.2f}"
+            # 5. Vault V10.3 Progress
+            wins = vault_status.get('sniper_wins', 0)
+            total_cycle = 10 # Meta V10.2/V10.3
+            vault_info = f"Progresso Ciclo: {wins}/{total_cycle} vitórias | Cofre acumulado: ${vault_status.get('vault_total', 0):.2f}"
             
             snapshot = {
                 "banca": f"Saldo: ${banca.get('saldo_total', 0):.2f}, Risco: {(banca.get('risco_real_percent', 0)*100):.2f}%",
-                "radar_top": radar_context or "Escaneando 200 pares...",
-                "sniper_slots": sniper_slots or "Esquadrão Sniper: Aguardando.",
-                "surf_slots": surf_slots or "Esquadrão Surf: Aguardando.",
+                "radar_top": radar_context or "Escaneando 200 pares de elite...",
+                "active_mission": active_mission,
                 "macro_news": macro.get("pensamento", "Fluxo estável."),
                 "recent_trades": ", ".join([f"{t.get('symbol')} ({t.get('pnl', 0):+.2f} USD)" for t in trade_history]),
                 "vault_status": vault_info,
@@ -455,9 +454,9 @@ class CaptainAgent:
 
     async def process_chat(self, user_message: str, symbol: str = None):
         """
-        V10.2 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
+        V10.3 CAPTAIN ELITE: Processo de chat com memória longa e personalidade adaptativa.
         """
-        logger.info(f"Captain V10.2 processing: {user_message}")
+        logger.info(f"Captain V10.3 processing: {user_message}")
         
         try:
             # 1. Load Long-Term Memory & Profile
@@ -513,12 +512,12 @@ class CaptainAgent:
             
             # Contexto "Blindado" para evitar recusa
             system_context_block = f"""
-            [MEMORIA_INTERNA_DO_SISTEMA]
+            [MEMORIA_INTERNA_DE_MISSÃO]
             Banca: {snapshot['banca']}
             Vault: {snapshot['vault_status']}
             API Health: {snapshot['api_health']}
-            Sniper Slots: {snapshot['sniper_slots']}
-            Surf Slots: {snapshot['surf_slots']}
+            {snapshot['active_mission']}
+            Radar Ativo: {snapshot['radar_top']}
             [FIM_MEMORIA]
             """
 
@@ -560,7 +559,7 @@ class CaptainAgent:
                 Responda usando os dados se necessário.
                 """
             
-            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V10_2_SYSTEM_PROMPT)
+            response = await ai_service.generate_content(prompt, system_instruction=CAPTAIN_V10_3_SYSTEM_PROMPT)
             
             if not response:
                 response = f"{user_name}, interferência nos canais neurais. A clareza retornará em breve."
@@ -569,7 +568,7 @@ class CaptainAgent:
             await firebase_service.add_chat_message("user", user_message)
             await firebase_service.add_chat_message("captain", response)
             await firebase_service.log_event("USER", user_message, "INFO")
-            await firebase_service.log_event("ORACLE", f"[{mode}] {response}", "INFO")
+            await firebase_service.log_event("ORACLE", response, "INFO")
             
             return response
             
