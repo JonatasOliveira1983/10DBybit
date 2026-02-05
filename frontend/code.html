@@ -924,7 +924,7 @@
         // Dynamic API Base: Uses the current origin if available, falling back to 5001 only if on file: protocol
         const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
             ? window.location.origin
-            : 'http://127.0.0.1:5001';
+            : 'http://127.0.0.1:8080';
         console.log("Protocol V5.2.4.8: API_BASE =", API_BASE, "Origin =", window.location.origin);
 
         // Firebase Config
@@ -1603,19 +1603,18 @@
 
             if (!isActive) {
                 return (
-                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-primary/20 rounded-[2.5rem] bg-black/40 min-h-[320px] w-full transition-all duration-500">
-                        <div className="flex flex-col items-center justify-center mb-8">
-                            <div className="relative mb-6">
+                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-primary/20 rounded-[2.5rem] bg-black/40 min-h-[280px] w-full transition-all duration-500">
+                        <div className="flex flex-col items-center justify-center mb-6">
+                            <div className="relative mb-4">
                                 <div className="absolute -inset-4 bg-primary/10 rounded-full blur-xl animate-pulse"></div>
-                                <span className="material-icons-round text-6xl text-primary/30 animate-pulse">radar</span>
+                                <span className="material-icons-round text-5xl text-primary/30 animate-pulse">radar</span>
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="material-icons-round text-primary text-3xl animate-spin-slow">searching</span>
+                                    <span className="material-icons-round text-primary text-2xl animate-spin-slow">searching</span>
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-display font-bold text-white mb-2 uppercase tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r from-primary via-white to-primary bg-[length:200%_auto] animate-shimmer">Radar V10.0</h3>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] max-w-[280px] text-center font-black leading-relaxed opacity-80">
-                                Buscando Padrão de Reversão Institucional...<br />
-                                <span className="text-primary/60">Aguardando Confirmação Sniper &gt; 90 Pts</span>
+                            <h3 className="text-lg font-display font-bold text-white mb-2 uppercase tracking-[0.3em] bg-clip-text text-transparent bg-gradient-to-r from-primary via-white to-primary bg-[length:200%_auto] animate-shimmer">Radar V10.0</h3>
+                            <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] max-w-[280px] text-center font-black leading-relaxed opacity-60">
+                                Reversão Institucional
                             </p>
                         </div>
 
@@ -1667,7 +1666,7 @@
             const progress = getProgress();
 
             return (
-                <div className={`relative overflow-hidden rounded-[2.5rem] border-2 p-6 min-h-[300px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 group
+                <div className={`relative overflow-hidden rounded-[2.5rem] border-2 p-6 min-h-[270px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 group
                     ${isMegaPulse ? 'border-amber-400 bg-gradient-to-br from-amber-900/60 to-black animate-pulse-slow' : 'border-primary/20 bg-[#0a0a0b]'}`}>
 
                     {/* Background Pulse/Glow */}
@@ -2105,8 +2104,8 @@
                                 </div>
                             </div>
 
-                            <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all">
-                                <span className="material-icons-round text-slate-400">close</span>
+                            <button onClick={() => navigate('/settings')} className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 border border-primary/20 overflow-hidden">
+                                <span className="material-icons-round text-primary text-xl">person</span>
                             </button>
                         </div>
                     </header>
@@ -2118,13 +2117,10 @@
                             <div className="h-full flex flex-col items-center justify-center px-4">
                                 {/* Saudação Premium */}
                                 <div className="text-center mb-10">
-                                    <p className="text-slate-400 text-lg sm:text-xl font-light">Olá, Operador</p>
-                                    <h1 className="text-2xl sm:text-4xl font-display font-bold premium-gradient-text mt-3 leading-tight">
-                                        O oceano espera...
+                                    <p className="text-slate-300 text-2xl sm:text-3xl font-medium">Olá, Almirante</p>
+                                    <h1 className="text-3xl sm:text-5xl font-display font-bold text-white mt-1 leading-tight">
+                                        Por onde começamos?
                                     </h1>
-                                    <p className="text-xl sm:text-3xl font-display text-white/80 mt-1">
-                                        Qual rota vamos traçar?
-                                    </p>
                                 </div>
 
                                 {/* Chips de Sugestão */}
@@ -2200,73 +2196,59 @@
                         )}
                     </main>
 
-                    {/* Input Area - Above Mobile Nav */}
-                    {/* Input Area - Above Mobile Nav - Z-index abaixo da navbar - V4.9.4.2.2 FLUSH */}
-                    <footer className="flex-shrink-0 px-3 sm:px-6 pt-3 pb-[env(safe-area-inset-bottom,12px)] v5-bg-deep/95 backdrop-blur-3xl border-t v5-border-subtle relative z-40">
-                        <div className="max-w-4xl mx-auto flex flex-col gap-2">
-                            <div className="flex gap-2 items-end">
-                                {/* Microphone Button */}
-                                {sttSupported && (
+                    {/* Input Area - Above Mobile Nav - Gemini Unified Pill */}
+                    <footer className="flex-shrink-0 px-4 pt-2 pb-24 v5-bg-deep/80 backdrop-blur-3xl border-t v5-border-subtle relative z-40">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="v5-bg-card border v5-border-subtle rounded-[28px] flex items-end gap-2 p-1.5 pr-3 shadow-2xl focus-within:v5-border-primary transition-all">
+                                {/* Textarea Area - Blends into the pill */}
+                                <textarea
+                                    ref={inputRef}
+                                    rows="1"
+                                    value={inputValue}
+                                    onChange={(e) => {
+                                        setInputValue(e.target.value);
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+                                    }}
+                                    placeholder="Peça ao Capitão..."
+                                    disabled={isSending}
+                                    className="flex-1 bg-transparent px-5 py-3 text-sm sm:text-base v5-text-main placeholder-slate-500 outline-none resize-none min-h-[48px] custom-scrollbar focus:ring-0"
+                                />
+
+                                {/* Unified Action Area */}
+                                <div className="flex items-center gap-1 pb-1.5">
+                                    {sttSupported && (
+                                        <button
+                                            onClick={isListening ? stopListening : startListening}
+                                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isListening
+                                                ? 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                                                : 'text-slate-400 hover:bg-white/5'
+                                                }`}
+                                            title="Falar"
+                                        >
+                                            <span className="material-icons-round text-xl">
+                                                {isListening ? 'mic' : 'mic_none'}
+                                            </span>
+                                        </button>
+                                    )}
+
                                     <button
-                                        onClick={isListening ? stopListening : startListening}
-                                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all ${isListening
-                                            ? 'bg-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                                            : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                                        onClick={sendMessage}
+                                        disabled={!inputValue.trim() || isSending}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${!inputValue.trim() || isSending
+                                            ? 'text-slate-600 bg-white/5'
+                                            : 'text-black bg-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95'
                                             }`}
-                                        title={isListening ? 'Parar gravação' : 'Falar mensagem'}
+                                        title="Enviar"
                                     >
-                                        <span className="material-icons-round text-xl text-white">
-                                            {isListening ? 'mic' : 'mic_none'}
+                                        <span className="material-icons-round text-xl font-bold">
+                                            {isSending ? 'hourglass_empty' : 'arrow_upward'}
                                         </span>
                                     </button>
-                                )}
-
-                                {/* Premium Text Input - V4.9.4.2.2 Multiline */}
-                                <div className="flex-1 relative">
-                                    <textarea
-                                        ref={inputRef}
-                                        rows="2"
-                                        value={inputValue}
-                                        onChange={(e) => {
-                                            setInputValue(e.target.value);
-                                            // Simple auto-resize logic
-                                            e.target.style.height = 'auto';
-                                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(max-width: 768px)').matches) {
-                                                e.preventDefault();
-                                                sendMessage();
-                                            }
-                                        }}
-                                        placeholder="Ordens, Capitão?"
-                                        disabled={isSending}
-                                        className="w-full v5-bg-input backdrop-blur-md border v5-border-subtle rounded-2xl px-5 py-3 text-sm sm:text-base v5-text-main placeholder-slate-600 outline-none focus:v5-border-primary focus:bg-black/60 focus:shadow-[0_0_25px_rgba(255,215,0,0.1)] transition-all disabled:opacity-50 resize-none overflow-y-auto min-h-[52px]"
-                                        style={{ scrollbarWidth: 'none' }}
-                                    />
-                                    {isListening && (
-                                        <div className="absolute right-5 bottom-4 flex gap-1">
-                                            <span className="w-1 h-4 bg-red-500 rounded-full animate-pulse"></span>
-                                            <span className="w-1 h-5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></span>
-                                            <span className="w-1 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
-                                        </div>
-                                    )}
                                 </div>
-
-                                {/* Send Button */}
-                                <button
-                                    onClick={sendMessage}
-                                    disabled={!inputValue.trim() || isSending}
-                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-[0_4px_20px_rgba(255,215,0,0.3)] active:scale-95"
-                                >
-                                    <span className="material-icons-round text-xl text-black">
-                                        {isSending ? 'hourglass_empty' : 'arrow_upward'}
-                                    </span>
-                                </button>
                             </div>
-
-                            <p className="text-center text-[10px] text-slate-600 uppercase tracking-widest opacity-60">
-                                {isListening ? '🎤 Escuta ativa habilitada...' : 'V6.0 ELITE Gemini Mode Chat'}
+                            <p className="text-center text-[9px] text-slate-600 uppercase tracking-widest mt-2 opacity-60">
+                                {isListening ? '🎤 Escuta ativa habilitada...' : 'V6.4 ELITE AI Unified Input'}
                             </p>
                         </div>
                     </footer>
@@ -2280,7 +2262,7 @@
             const [elitePairs, setElitePairs] = useState([]);
             const [activeTab, setActiveTab] = useState('signals'); // 'signals' or 'elite'
             const [isHuntActive, setIsHuntActive] = useState(false);
-            const [showBtc, setShowBtc] = useState(false);
+            const [showBtc, setShowBtc] = useState(true);
             const { latency, status: pulseStatus } = usePulseMonitor();
             const btcCommand = useBtcCommandCenter();
 
@@ -2974,11 +2956,11 @@
                                     <span className="material-icons-round text-primary text-sm">flag</span>
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Missão do Ciclo (10 Trades)</span>
                                 </div>
-                                <span className="text-[10px] font-mono font-bold text-primary">{banca.total_trades_cycle || 0}/10 COMPLETE</span>
+                                <span className="text-[10px] font-mono font-bold text-primary">{(cycleStatus.used_symbols_in_cycle || []).length}/10 COMPLETE</span>
                             </div>
                             <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden flex gap-1">
                                 {Array.from({ length: 10 }).map((_, i) => (
-                                    <div key={i} className={`h-full flex-1 transition-all duration-500 rounded-sm ${i < (banca.total_trades_cycle || 0) ? 'bg-primary shadow-[0_0_8px_rgba(255,215,0,0.5)]' : 'bg-white/5'}`}></div>
+                                    <div key={i} className={`h-full flex-1 transition-all duration-500 rounded-sm ${i < (cycleStatus.used_symbols_in_cycle || []).length ? 'bg-primary shadow-[0_0_8px_rgba(255,215,0,0.5)]' : 'bg-white/5'}`}></div>
                                 ))}
                             </div>
                         </section>
@@ -3014,7 +2996,157 @@
             );
         };
 
+        const ArmamentPage = () => {
+            const [bankroll, setBankroll] = useState(5000);
+            const [leverage, setLeverage] = useState(50);
+            const [loading, setLoading] = useState(false);
+
+            const loadSettings = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/system/settings`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.bankroll_limit) setBankroll(data.bankroll_limit);
+                        if (data.leverage) setLeverage(data.leverage);
+                    }
+                } catch (e) { console.warn("Failed to load settings"); }
+            };
+
+            const saveSettings = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/system/settings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bankroll_limit: bankroll, leverage: leverage })
+                    });
+                    if (res.ok) alert("Configurações salvas com sucesso!");
+                } catch (e) { alert("Erro ao salvar configurações."); }
+                setLoading(false);
+            };
+
+            useEffect(() => {
+                loadSettings();
+            }, []);
+
+            return (
+                <div className="flex flex-col h-full v5-bg-deep v5-text-main font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
+                    {/* Header */}
+                    <header className="mb-6 v5-bg-deep/80 backdrop-blur-xl border-b v5-border-subtle -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
+                        <div className="max-w-3xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Link to="/settings" className="text-gray-400 hover:text-white transition">
+                                    <span className="material-icons-round">arrow_back</span>
+                                </Link>
+                                <div>
+                                    <h1 className="text-base font-display font-bold text-white tracking-wide uppercase leading-tight">Armament</h1>
+                                    <p className="text-[8px] text-slate-500 uppercase tracking-widest font-mono">Elite Configuration V10.2</p>
+                                </div>
+                            </div>
+                            <span className="material-icons-round text-primary text-sm">sensors</span>
+                        </div>
+                    </header>
+
+                    <main className="space-y-6 max-w-3xl mx-auto w-full">
+                        {/* API Status Card */}
+                        <div className="glass-card p-5 rounded-2xl border v5-border-subtle bg-white/[0.02] space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Conexão Bybit API</h3>
+                                <span className="text-[8px] bg-accent-blue/20 text-accent-blue px-2 py-0.5 rounded-full border border-accent-blue/30 uppercase">Encriptado</span>
+                            </div>
+                            <div className="space-y-3 opacity-60">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] uppercase text-slate-500 font-bold ml-1">API Key</label>
+                                    <input className="w-full bg-black/40 border v5-border-subtle rounded-xl px-4 py-2 text-primary font-mono text-[10px]" readOnly type="password" value="************************" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] uppercase text-slate-500 font-bold ml-1">Secret Key</label>
+                                    <input className="w-full bg-black/40 border v5-border-subtle rounded-xl px-4 py-2 text-primary font-mono text-[10px]" readOnly type="password" value="****************************************" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Risk Management */}
+                        <section className="space-y-4">
+                            <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
+                                <span className="material-icons-round text-primary text-sm">shield</span>
+                                Gestão de Risco Elite
+                            </h2>
+
+                            <div className="glass-card p-6 rounded-2xl border v5-border-subtle bg-white/[0.02] space-y-8">
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end">
+                                        <label className="text-xs font-bold text-slate-300 uppercase">Limite de Banca (USDT)</label>
+                                        <span className="text-xl font-display font-bold text-primary">{bankroll.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <input
+                                        className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-primary"
+                                        type="range" min="100" max="10000" step="100"
+                                        value={bankroll}
+                                        onChange={(e) => setBankroll(Number(e.target.value))}
+                                    />
+                                    <div className="flex justify-between text-[8px] font-mono text-slate-600 uppercase">
+                                        <span>100 USDT</span>
+                                        <span>10.000 USDT</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end">
+                                        <label className="text-xs font-bold text-slate-300 uppercase">Alavancagem Máxima</label>
+                                        <span className="text-xl font-display font-bold text-accent-blue">{leverage}x</span>
+                                    </div>
+                                    <input
+                                        className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-accent-blue"
+                                        type="range" min="1" max="100" step="1"
+                                        value={leverage}
+                                        onChange={(e) => setLeverage(Number(e.target.value))}
+                                    />
+                                    <div className="flex justify-between text-[8px] font-mono text-slate-600 uppercase">
+                                        <span>1x SAFE</span>
+                                        <span>100x CROSS</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="pt-4 space-y-3">
+                            <button
+                                onClick={saveSettings}
+                                disabled={loading}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest"
+                            >
+                                <span className="material-icons-round text-sm">{loading ? 'sync' : 'save'}</span>
+                                {loading ? 'Sincronizando...' : 'Salvar'}
+                            </button>
+                            <button className="w-full bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20 font-bold py-3 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest">
+                                <span className="material-icons-round text-sm">power_settings_new</span>
+                                Emergência: Encerrar Tudo
+                            </button>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
         const SettingsPage = ({ onLogout, theme, setTheme }) => {
+            const [sysVersion, setSysVersion] = useState('V10.2');
+            const [sysReady, setSysReady] = useState(false);
+
+            useEffect(() => {
+                const fetchVer = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/api/version');
+                        if (res.ok) {
+                            const data = await res.json();
+                            setSysVersion(data.version);
+                            setSysReady(true);
+                        }
+                    } catch (e) { console.warn("Failed to fetch version"); }
+                };
+                fetchVer();
+            }, []);
+
             const handlePanic = async () => {
                 if (!confirm("⚠️ CAUTELA: O Protocolo de Pânico fechará TODAS as posições imediatamente no mercado. Confirmar?")) return;
                 try {
@@ -3030,7 +3162,7 @@
                         <div className="max-w-3xl mx-auto grid grid-cols-3 items-center">
                             <div className="flex flex-col">
                                 <h1 className="text-base font-display font-bold text-white tracking-wide uppercase">Config</h1>
-                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V7.1 SNIPER Protocol</p>
+                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">V10.2 ATR Edition</p>
                             </div>
                             <div className="w-full"></div> {/* Placeholder for centering */}
                             <div className="flex justify-end">
@@ -3047,7 +3179,7 @@
                                 Central de Comando Elite
                             </h2>
                             <div className="grid grid-cols-2 gap-3">
-                                <a href="/tower" className="flex flex-col items-center gap-3 p-4 v5-bg-card border v5-border-subtle rounded-xl hover:v5-border-primary hover:bg-primary/5 transition-all group">
+                                <Link to="/tower" className="flex flex-col items-center gap-3 p-4 v5-bg-card border v5-border-subtle rounded-xl hover:v5-border-primary hover:bg-primary/5 transition-all group">
                                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform">
                                         <span className="material-icons-round text-primary">speed</span>
                                     </div>
@@ -3055,8 +3187,8 @@
                                         <span className="text-[9px] font-black text-white block uppercase tracking-tighter">Command Tower</span>
                                         <span className="text-[7px] text-slate-500 uppercase font-mono">Real-time Stats</span>
                                     </div>
-                                </a>
-                                <a href="/armament/ui" className="flex flex-col items-center gap-3 p-4 v5-bg-card border v5-border-subtle rounded-xl hover:v5-border-primary hover:bg-primary/5 transition-all group">
+                                </Link>
+                                <Link to="/armament" className="flex flex-col items-center gap-3 p-4 v5-bg-card border v5-border-subtle rounded-xl hover:v5-border-primary hover:bg-primary/5 transition-all group">
                                     <div className="w-10 h-10 rounded-full bg-accent-blue/10 flex items-center justify-center border border-accent-blue/20 group-hover:scale-110 transition-transform">
                                         <span className="material-icons-round text-accent-blue">architecture</span>
                                     </div>
@@ -3064,107 +3196,273 @@
                                         <span className="text-[9px] font-black text-white block uppercase tracking-tighter">Detailed Config</span>
                                         <span className="text-[7px] text-slate-500 uppercase font-mono">Armament Elite</span>
                                     </div>
-                                </a>
+                                </Link>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Control Section */}
-                        <div className="glass-card p-4 rounded-xl border border-white/5 v5-bg-card v5-border-subtle">
-                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest v5-text-dim">
-                                <span className="material-icons-round text-sm">settings_suggest</span>
-                                Operação & Navegação
-                            </h2>
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest v5-text-dim">Modo Visual</label>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setTheme('classic')}
-                                            className={`flex-1 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all ${theme === 'classic' ? 'bg-primary text-black' : 'bg-white/5 text-slate-500 border border-white/5'}`}
-                                        >
-                                            Classic Dark
-                                        </button>
-                                        <button
-                                            onClick={() => setTheme('gemini')}
-                                            className={`flex-1 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all ${theme === 'gemini' ? 'bg-primary text-black' : 'bg-white/5 text-slate-500 border border-white/5'}`}
-                                        >
-                                            Modo Gemini
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1">
-                                    <button onClick={onLogout} className="flex items-center justify-center gap-2 p-3 w-full bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
-                                        <span className="material-icons-round text-red-500 group-hover:scale-110 transition-transform" style={{ fontSize: '20px' }}>logout</span>
-                                        <span className="text-[8px] font-bold uppercase text-red-500">Sair do Sistema</span>
+                    {/* Control Section */}
+                    <div className="glass-card p-4 rounded-xl border border-white/5 v5-bg-card v5-border-subtle">
+                        <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest v5-text-dim">
+                            <span className="material-icons-round text-sm">settings_suggest</span>
+                            Operação & Navegação
+                        </h2>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest v5-text-dim">Modo Visual</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setTheme('classic')}
+                                        className={`flex-1 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all ${theme === 'classic' ? 'bg-primary text-black' : 'bg-white/5 text-slate-500 border border-white/5'}`}
+                                    >
+                                        Classic Dark
+                                    </button>
+                                    <button
+                                        onClick={() => setTheme('gemini')}
+                                        className={`flex-1 font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all ${theme === 'gemini' ? 'bg-primary text-black' : 'bg-white/5 text-slate-500 border border-white/5'}`}
+                                    >
+                                        Modo Gemini
                                     </button>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Panic Protocol */}
-                        <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-950/5">
-                            <h2 className="text-[9px] font-bold mb-1 text-red-500 flex items-center gap-2 uppercase tracking-widest">
-                                <span className="material-icons-round text-xs">gpp_maybe</span>
-                                Protocolo Dark Space
-                            </h2>
-                            <p className="text-[8px] text-slate-500 mb-3 uppercase tracking-widest">Limpeza total de posições em aberto.</p>
-                            <button
-                                onClick={handlePanic}
-                                className="w-full bg-red-600/20 hover:bg-red-600 border border-red-500/30 text-red-500 hover:text-white font-black py-2 rounded-lg text-[9px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2">
-                                <span className="material-icons-round text-xs">flash_on</span>
-                                EXECUTAR LIMPEZA
-                            </button>
-                        </div>
-
-                        {/* API Info */}
-                        <div className="glass-card p-4 rounded-xl border v5-border-subtle v5-bg-card">
-                            <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest">
-                                <span className="material-icons-round text-primary text-sm">hubs</span>
-                                API Telemetry
-                            </h2>
-                            <div className="space-y-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Bybit Auth</label>
-                                    <div className="bg-black/40 border v5-border-subtle rounded-lg p-3 text-[10px] font-mono text-slate-400 flex justify-between items-center">
-                                        <span>••••••••••••••••••••••••</span>
-                                        <span className="text-emerald-500 text-[8px] font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">SECURE</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Frequency Mode</label>
-                                    <div className="flex gap-2">
-                                        <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest">Testnet</button>
-                                        <button className="flex-1 v5-bg-card text-slate-500 border v5-border-subtle font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest opacity-30">Mainnet</button>
-                                    </div>
-                                </div>
+                            <div className="grid grid-cols-1">
+                                <button onClick={onLogout} className="flex items-center justify-center gap-2 p-3 w-full bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/10 transition-all group">
+                                    <span className="material-icons-round text-red-500 group-hover:scale-110 transition-transform" style={{ fontSize: '20px' }}>logout</span>
+                                    <span className="text-[8px] font-bold uppercase text-red-500">Sair do Sistema</span>
+                                </button>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Version Info - V4.9.4.2 */}
-                        <div className="glass-card p-4 rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
-                            <h2 className="text-[10px] font-bold mb-3 flex items-center gap-2 text-primary uppercase tracking-wider">
-                                <span className="material-icons-round" style={{ fontSize: '18px' }}>verified</span>
-                                Versão do Sistema
-                            </h2>
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[11px] text-slate-300">Versão Atual</span>
-                                    <span className="text-base font-bold text-primary font-mono">V7.1 SNIPER</span>
+                    {/* Panic Protocol */}
+                    <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-950/5">
+                        <h2 className="text-[9px] font-bold mb-1 text-red-500 flex items-center gap-2 uppercase tracking-widest">
+                            <span className="material-icons-round text-xs">gpp_maybe</span>
+                            Protocolo Dark Space
+                        </h2>
+                        <p className="text-[8px] text-slate-500 mb-3 uppercase tracking-widest">Limpeza total de posições em aberto.</p>
+                        <button
+                            onClick={handlePanic}
+                            className="w-full bg-red-600/20 hover:bg-red-600 border border-red-500/30 text-red-500 hover:text-white font-black py-2 rounded-lg text-[9px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2">
+                            <span className="material-icons-round text-xs">flash_on</span>
+                            EXECUTAR LIMPEZA
+                        </button>
+                    </div>
+
+                    {/* API Info */}
+                    <div className="glass-card p-4 rounded-xl border v5-border-subtle v5-bg-card">
+                        <h2 className="text-[10px] font-bold mb-4 flex items-center gap-2 text-slate-400 uppercase tracking-widest">
+                            <span className="material-icons-round text-primary text-sm">hubs</span>
+                            API Telemetry
+                        </h2>
+                        <div className="space-y-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Bybit Auth</label>
+                                <div className="bg-black/40 border v5-border-subtle rounded-lg p-3 text-[10px] font-mono text-slate-400 flex justify-between items-center">
+                                    <span>••••••••••••••••••••••••</span>
+                                    <span className="text-emerald-500 text-[8px] font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">SECURE</span>
                                 </div>
-                                <div className="flex justify-between items-center border-t v5-border-subtle pt-2">
-                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Protocolo Elite</span>
-                                    <span className="text-[9px] text-emerald-500 font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">ACTIVE</span>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Frequency Mode</label>
+                                <div className="flex gap-2">
+                                    <button className="flex-1 bg-primary text-black font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest">Testnet</button>
+                                    <button className="flex-1 v5-bg-card text-slate-500 border v5-border-subtle font-bold py-2 rounded-lg text-[9px] uppercase tracking-widest opacity-30">Mainnet</button>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Version Info - V4.9.4.2 */}
+                    <div className="glass-card p-4 rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
+                        <h2 className="text-[10px] font-bold mb-3 flex items-center gap-2 text-primary uppercase tracking-wider">
+                            <span className="material-icons-round" style={{ fontSize: '18px' }}>verified</span>
+                            Versão do Sistema
+                        </h2>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[11px] text-slate-300">Versão Atual</span>
+                                <span className="text-base font-bold text-primary font-mono">V10.2 ATR EDITION</span>
+                            </div>
+                            <div className="flex justify-between items-center border-t v5-border-subtle pt-2">
+                                <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Protocolo Elite</span>
+                                <span className="text-[9px] text-emerald-500 font-bold px-1.5 py-0.5 bg-emerald-500/10 rounded">ACTIVE</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            )
+            );
+        };
+
+        const TowerPage = () => {
+            const [latency, setLatency] = useState(0);
+            const [health, setHealth] = useState(100);
+            const [connectionStatus, setConnectionStatus] = useState('pending');
+            const [auditLogs, setAuditLogs] = useState([]);
+            const [reportsCount, setReportsCount] = useState(0);
+            const [selectedTrade, setSelectedTrade] = useState(null);
+
+            const updateTower = async () => {
+                try {
+                    const start = Date.now();
+                    const resVer = await fetch(API_BASE + '/api/version');
+                    if (resVer.ok) setLatency(Date.now() - start);
+
+                    const healthRes = await fetch(API_BASE + '/health');
+                    if (healthRes.ok) {
+                        const data = await healthRes.json();
+                        setHealth(data.bybit_connected ? 100 : 0);
+                        setConnectionStatus(data.bybit_connected ? 'active' : 'error');
+                    }
+                } catch (e) {
+                    console.warn("Failed to update health", e);
+                }
+            };
+
+            const fetchAuditLog = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/history?limit=12');
+                    const trades = await res.json();
+                    setAuditLogs(trades);
+                    setReportsCount(trades.filter(t => t.reasoning_report).length);
+                } catch (e) {
+                    console.error("Failed to fetch audit log", e);
+                }
+            };
+
+            useEffect(() => {
+                updateTower();
+                fetchAuditLog();
+                const towerInt = setInterval(updateTower, 5000);
+                const auditInt = setInterval(fetchAuditLog, 30000);
+                return () => {
+                    clearInterval(towerInt);
+                    clearInterval(auditInt);
+                };
+            }, []);
+
+            const getLatencyStyle = (val) => {
+                if (val < 250) return { text: 'text-emerald-400', bg: 'bg-emerald-400', desc: 'Optimal Execution' };
+                if (val < 500) return { text: 'text-gold', bg: 'bg-gold', desc: 'Moderate Delay' };
+                return { text: 'text-danger', bg: 'bg-danger', desc: 'High Latency Warning' };
+            };
+
+            const lStyle = getLatencyStyle(latency);
+
+            return (
+                <div className="flex flex-col h-full v5-bg-deep v5-text-main font-sans p-4 overflow-y-auto pb-32 sm:pb-24">
+                    {/* Header */}
+                    <header className="mb-6 v5-bg-deep/80 backdrop-blur-xl border-b v5-border-subtle -mx-4 -mt-4 px-4 py-4 sticky top-0 z-50">
+                        <div className="max-w-3xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Link to="/settings" className="text-gray-400 hover:text-white transition">
+                                    <span className="material-icons-round">arrow_back</span>
+                                </Link>
+                                <div>
+                                    <h1 className="text-base font-display font-bold text-white tracking-wide uppercase leading-tight">Command Tower</h1>
+                                    <p className="text-[8px] text-slate-500 uppercase tracking-widest font-mono">Observability Elite V10.2</p>
+                                </div>
+                            </div>
+                            <div className={`flex items-center gap-2 px-2 py-1 rounded-full border ${connectionStatus === 'active' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${connectionStatus === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                <span className={`text-[8px] font-bold uppercase ${connectionStatus === 'active' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {connectionStatus === 'active' ? 'WS Active' : 'WS Error'}
+                                </span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="space-y-6 max-w-3xl mx-auto w-full">
+                        {/* Metrics Grid */}
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="glass-card p-5 rounded-2xl border v5-border-subtle bg-white/[0.02] relative overflow-hidden group">
+                                <span className="absolute top-2 right-2 material-icons-round text-primary/10 text-6xl pointer-events-none">speed</span>
+                                <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-2">Signal Latency</h3>
+                                <div className="flex items-baseline gap-2 mb-3">
+                                    <span className={`text-4xl font-bold tracking-tighter ${lStyle.text}`}>{latency}</span>
+                                    <span className="text-slate-600 font-mono text-xs">ms</span>
+                                </div>
+                                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div className={`h-full transition-all duration-300 ${lStyle.bg}`} style={{ width: `${Math.min(100, (latency / 500) * 100)}%` }}></div>
+                                </div>
+                                <p className={`text-[9px] mt-2 font-mono uppercase ${lStyle.text}`}>{lStyle.desc}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="glass-card p-5 rounded-2xl border v5-border-subtle bg-white/[0.02] relative overflow-hidden">
+                                    <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-2">Stream Health</h3>
+                                    <div className="flex items-baseline gap-1 mb-2">
+                                        <span className="text-3xl font-bold tracking-tighter text-white">{health}</span>
+                                        <span className="text-slate-600 font-mono text-[10px]">%</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-primary" style={{ width: `${health}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className="glass-card p-5 rounded-2xl border v5-border-subtle bg-white/[0.02] relative overflow-hidden">
+                                    <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-2">Audit Logs</h3>
+                                    <div className="flex items-baseline gap-1 mb-2">
+                                        <span className="text-3xl font-bold tracking-tighter text-white">{reportsCount}</span>
+                                        <span className="text-slate-600 font-mono text-[10px]">Reports</span>
+                                    </div>
+                                    <p className="text-[9px] text-primary font-mono uppercase">V10.2 Compliant</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Audit Log */}
+                        <section className="space-y-3">
+                            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
+                                <span className="material-icons-round text-primary text-sm">psychology</span>
+                                Reasoning Archive
+                            </h2>
+
+                            <div className="space-y-3">
+                                {auditLogs.length === 0 ? (
+                                    <div className="py-12 text-center opacity-20">
+                                        <p className="text-[10px] uppercase tracking-widest">Sincronizando...</p>
+                                    </div>
+                                ) : (
+                                    auditLogs.map((t, i) => {
+                                        const isWin = (t.pnl || 0) >= 0;
+                                        return (
+                                            <div key={i} onClick={() => setSelectedTrade(t)} className={`glass-card p-4 rounded-xl border v5-border-subtle bg-white/[0.02] border-l-2 ${isWin ? 'border-l-emerald-500' : 'border-l-red-500'} active:scale-[0.98] transition-transform cursor-pointer`}>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <span className="text-[8px] font-mono text-slate-500 uppercase">{t.symbol}</span>
+                                                        <h4 className="text-sm font-bold text-white uppercase">{t.side}</h4>
+                                                    </div>
+                                                    <span className={`text-xs font-mono font-bold ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                        {isWin ? '+' : ''}${Math.abs(t.pnl || 0).toFixed(2)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </section>
+                    </main>
+
+                    {selectedTrade && (
+                        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6" onClick={() => setSelectedTrade(null)}>
+                            <div className="glass-panel w-full max-w-lg rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[70vh]" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Audit Report</h3>
+                                    <button onClick={() => setSelectedTrade(null)} className="material-icons-round text-sm">close</button>
+                                </div>
+                                <div className="p-6 overflow-y-auto font-mono text-[10px] text-slate-300 whitespace-pre-wrap opacity-80">
+                                    {selectedTrade.reasoning_report || "Report pending..."}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
         };
 
         const NavBar = ({ onLogout }) => {
             const location = useLocation();
-            if (location.pathname === '/logs') return null;
 
             const NavItem = ({ to, icon, label, isActive }) => (
                 <Link
@@ -3412,6 +3710,8 @@
                             <Route path="/logs" element={<LogsPage />} />
                             <Route path="/vault" element={<VaultPage />} />
                             <Route path="/settings" element={<SettingsPage onLogout={handleLogout} theme={theme} setTheme={setTheme} />} />
+                            <Route path="/tower" element={<TowerPage />} />
+                            <Route path="/armament" element={<ArmamentPage />} />
                         </Routes>
                         <NavBar onLogout={handleLogout} />
                     </div>

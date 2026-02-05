@@ -5,7 +5,7 @@ import datetime
 import asyncio
 import logging
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +23,7 @@ asyncio.get_event_loop().set_default_executor(executor)
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
 # V7.0: Single Trade Sniper - Sniper Evolution Protocol
 # V10.1: Cycle Diversification & Compound - Institutional Logic & Pulse
-VERSION = "V10.2"
+VERSION = "V10.3"
 DEPLOYMENT_ID = "V102_ATR_EDITION_SNIPER"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
@@ -277,41 +277,39 @@ async def debug_test():
 
 @app.get("/banca/ui")
 async def get_banca_ui():
-    """Serve the Banca Command Center HTML page."""
-    banca_html_path = os.path.join(FRONTEND_DIR, "banca_command_center_v4.0", "code.html")
-    if os.path.exists(banca_html_path):
-        return FileResponse(banca_html_path)
-    return {"error": "Banca UI file not found"}
+    """🆕 Serve the SPA Dashboard (redirecting legacy)."""
+    return RedirectResponse(url="/#/")
 
 @app.get("/vault/ui")
 async def get_vault_ui():
-    """Serve the Vault Management HTML page."""
-    vault_html_path = os.path.join(FRONTEND_DIR, "vault_v4.0", "code.html")
-    if os.path.exists(vault_html_path):
-        return FileResponse(vault_html_path)
-    return {"error": "Vault UI file not found"}
+    """🆕 Serve the SPA Vault (redirecting legacy)."""
+    return RedirectResponse(url="/#/vault")
 
 @app.get("/armament/ui")
 async def get_armament_ui():
-    """🆕 Serve the detailed Armament Settings page."""
-    armament_path = os.path.join(FRONTEND_DIR, "armament_settings_v4.0", "code.html")
-    if os.path.exists(armament_path):
-        return FileResponse(armament_path)
-    return {"error": "Armament UI file not found"}
+    """🆕 Serve the SPA Armament (redirecting legacy)."""
+    return RedirectResponse(url="/#/armament")
 
 @app.get("/tower")
 @app.get("/command-tower")
 async def get_tower_ui():
-    """🆕 V6.0: Serve the Command Tower UI page."""
-    # V6.0: Search in multiple locations for robustness (Direct vs Subfolder)
-    paths = [
-        os.path.join(FRONTEND_DIR, "armament_settings_v4.0", "config", "command_tower", "code.html"),
-        os.path.join(FRONTEND_DIR, "config", "command_tower", "code.html")
-    ]
-    for tower_path in paths:
-        if os.path.exists(tower_path):
-            return FileResponse(tower_path)
-    return {"error": "Command Tower UI file not found"}
+    """🆕 Serve the SPA Tower (redirecting legacy)."""
+    return RedirectResponse(url="/#/tower")
+
+@app.get("/radar")
+async def get_radar_ui():
+    """🆕 Serve the SPA Radar."""
+    return RedirectResponse(url="/#/radar")
+
+@app.get("/logs")
+async def get_logs_ui():
+    """🆕 Serve the SPA Logs."""
+    return RedirectResponse(url="/#/logs")
+
+@app.get("/vault")
+async def get_vault_ui():
+    """🆕 Serve the SPA Vault."""
+    return RedirectResponse(url="/#/vault")
 
 @app.get("/banca")
 async def get_banca():
@@ -801,6 +799,42 @@ async def toggle_admiral_rest(payload: dict):
         logger.error(f"Error toggling admiral rest: {e}")
         return {"error": str(e)}
 
+# ============ V10.2 SYSTEM CONFIG ENDPOINTS ============
+
+@app.get("/api/version")
+async def get_version():
+    """V10.2: Unified version reporting."""
+    return {
+        "version": VERSION,
+        "deployment_id": DEPLOYMENT_ID,
+        "release_name": "ATR Edition"
+    }
+
+@app.get("/api/system/settings")
+async def get_system_settings():
+    """V10.2: Fetch current operational settings."""
+    from services.vault_service import vault_service
+    status = await vault_service.get_cycle_status()
+    return {
+        "leverage": 50, # Static for now
+        "bankroll_limit": status.get("cycle_start_bankroll", 0),
+        "cautious_mode": status.get("cautious_mode", False),
+        "min_score": status.get("min_score_threshold", 90),
+        "sniper_mode": status.get("sniper_mode_active", True)
+    }
+
+@app.post("/api/system/settings")
+async def update_system_settings(payload: dict):
+    """V10.2: Update operational settings."""
+    from services.vault_service import vault_service
+    # This is a bridge to existing vault_service methods
+    if "cautious_mode" in payload:
+        await vault_service.set_cautious_mode(payload["cautious_mode"], payload.get("min_score", 90))
+    if "sniper_mode" in payload:
+        await vault_service.set_sniper_mode(payload["sniper_mode"])
+    
+    return {"status": "success", "updated": payload}
+
 # =================================================================
 # STATIC MOUNTING & STARTUP
 # =================================================================
@@ -815,7 +849,7 @@ else:
         return {"status": "online", "message": "Dashboard directory missing."}
 
 if __name__ == "__main__":
-    target_port = 8080
+    target_port = settings.PORT or 5001
     target_host = "0.0.0.0"
     logger.info(f"🌐 Server starting on http://{target_host}:{target_port}")
     uvicorn.run(app, host=target_host, port=target_port, reload=False)

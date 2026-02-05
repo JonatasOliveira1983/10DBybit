@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # App Logic
     DEBUG: bool = True
-    PORT: int = 5001
+    PORT: int = 8080
     HOST: str = "0.0.0.0"
     MAX_SLOTS: int = 1
     RISK_CAP_PERCENT: float = 0.20

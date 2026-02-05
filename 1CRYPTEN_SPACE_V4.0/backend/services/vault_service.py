@@ -17,7 +17,7 @@ class VaultService:
         
     async def get_cycle_status(self) -> dict:
         """
-        Retorna o status atual do ciclo de 20 trades.
+        Retorna o status atual do ciclo de 10 trades Sniper.
         Returns: {sniper_wins, cycle_number, cycle_profit, in_admiral_rest, rest_until}
         """
         try:
