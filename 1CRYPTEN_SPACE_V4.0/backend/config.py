@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     PORT: int = 8080
     HOST: str = "0.0.0.0"
-    MAX_SLOTS: int = 1
+    MAX_SLOTS: int = 2  # V10.4: Dual Sniper - Slot 2 opens when Slot 1 is Risk-Free
     RISK_CAP_PERCENT: float = 0.20
     LEVERAGE: int = 50
     INITIAL_SLOTS: int = 1

@@ -263,6 +263,38 @@
             font-family: 'JetBrains Mono', monospace;
             letter-spacing: 1px;
         }
+
+        /* V10.4 Slot Tabs */
+        .slot-tab {
+            padding: 0.5rem 1rem;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #64748b;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .slot-tab:hover {
+            background: rgba(0, 224, 255, 0.1);
+            border-color: rgba(0, 224, 255, 0.2);
+        }
+
+        .slot-tab.active {
+            background: rgba(0, 224, 255, 0.15);
+            border-color: rgba(0, 224, 255, 0.4);
+            color: #00E0FF;
+        }
+
+        .slot-tab.risk-free {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: rgba(255, 215, 0, 0.4);
+            color: #FFD700;
+        }
     </style>
     <style>
         body {
@@ -349,11 +381,19 @@
             </div>
         </section>
         <section class="slots-container px-3 sm:px-4 py-3 sm:py-4 custom-scroll">
-            <h3 id="slots-header"
-                class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 sm:mb-4 flex items-center gap-2">
-                Active Deployments <span class="h-1 w-1 rounded-full bg-slate-500"></span> 0 Assets
-            </h3>
-            <div id="slots-list" class="grid grid-cols-2 gap-2 sm:gap-3">
+            <div class="flex items-center justify-between mb-2 sm:mb-3">
+                <h3 id="slots-header"
+                    class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    Active Deployments <span class="h-1 w-1 rounded-full bg-slate-500"></span> <span
+                        id="slots-count">0</span> Slots
+                </h3>
+                <!-- V10.4 Slot Tabs -->
+                <div id="slot-tabs" class="flex gap-2">
+                    <button data-slot="1" class="slot-tab active">Slot 1</button>
+                    <button data-slot="2" class="slot-tab opacity-50">Slot 2</button>
+                </div>
+            </div>
+            <div id="slots-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <!-- Slots dynamic -->
             </div>
         </section>
@@ -519,15 +559,51 @@
                 const active = slots.filter(s => s.symbol);
                 updateChartVisuals(active);
 
-                document.getElementById('slots-header').innerHTML = `Active Deployments <span class="h-1 w-1 rounded-full bg-slate-500"></span> ${active.length} Assets`;
+                // V10.4: Update header with count
+                document.getElementById('slots-count').textContent = active.length;
 
-                const container = document.getElementById('slots-list');
-                if (active.length === 0) {
-                    container.innerHTML = `<div class="col-span-2 py-10 text-center opacity-30 uppercase font-bold text-[10px]">Silêncio Radar: Aguardando Sinais</div>`;
-                    return;
+                // V10.4: Show tabs when we have 2 slots (regardless of active state)
+                const tabsContainer = document.getElementById('slot-tabs');
+                if (slots.length >= 2) {
+                    tabsContainer.classList.remove('hidden');
+                    // Update tab states
+                    slots.forEach(s => {
+                        const tab = tabsContainer.querySelector(`[data-slot="${s.id}"]`);
+                        if (tab) {
+                            if (s.symbol) {
+                                const entry = s.entry_price || 0;
+                                const stop = s.current_stop || 0;
+                                const side = (s.side || '').toUpperCase();
+                                const isRiskFree = side === 'BUY' ? (stop >= entry && stop > 0) : (stop <= entry && stop > 0);
+                                tab.classList.toggle('risk-free', isRiskFree);
+                                tab.classList.remove('opacity-50');
+                            } else {
+                                tab.classList.add('opacity-50');
+                                tab.classList.remove('risk-free');
+                            }
+                        }
+                    });
+                } else {
+                    tabsContainer.classList.add('hidden');
                 }
 
-                container.innerHTML = active.map(s => {
+                const container = document.getElementById('slots-list');
+
+                // V10.4: Render ALL slots (active + empty waiting slots)
+                container.innerHTML = slots.map(s => {
+                    if (!s.symbol) {
+                        // Empty slot - show waiting card
+                        return `
+                            <div class="slot-card p-6 rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center gap-3 min-h-[200px] opacity-60" data-slot-id="${s.id}">
+                                <div class="absolute top-0 left-0 px-2 py-1 text-[9px] font-bold text-slate-500 bg-black/40 rounded-br-lg">SLOT ${s.id}</div>
+                                <span class="material-icons-round text-4xl text-slate-600 animate-pulse">radar</span>
+                                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Aguardando Sinal</p>
+                                <p class="text-[9px] text-slate-600">Slot livre para nova operação</p>
+                            </div>
+                        `;
+                    }
+
+                    // Active slot - full card
                     const pnl = s.pnl_percent || 0;
                     const pnlClass = pnl >= 0 ? 'text-emerald-400' : 'text-danger';
 
@@ -551,9 +627,13 @@
                     const gasPercent = Math.min(100, Math.max(5, (Math.abs(momentum) / 50000) * 100));
                     const gasColor = momentum >= 0 ? 'bg-emerald-500' : 'bg-red-500';
 
+                    // V10.4: Slot ID badge
+                    const slotBadge = `<div class="absolute top-0 left-0 px-2 py-1 text-[9px] font-bold text-slate-400 bg-black/40 rounded-br-lg">SLOT ${s.id || 1}</div>`;
+
                     return `
-                        <div class="slot-card p-6 rounded-3xl border ${borderClass} flex flex-col gap-5 transition-all duration-500 single-order-mega relative overflow-hidden">
-                            ${isZeroRisk ? '<div class="absolute top-0 right-0 px-3 py-1 risk-shield-badge text-[10px] font-black text-black rounded-bl-xl tracking-tighter shadow-lg">🛡️ RISK ZERO SHIELD</div>' : ''}
+                        <div class="slot-card p-6 rounded-3xl border ${borderClass} flex flex-col gap-5 transition-all duration-500 relative overflow-hidden" data-slot-id="${s.id || 1}">
+                            ${slotBadge}
+                            ${isZeroRisk ? '<div class="absolute top-0 right-0 px-3 py-1 risk-shield-badge text-[10px] font-black text-black rounded-bl-xl tracking-tighter shadow-lg">🛡️ RISK ZERO</div>' : ''}
                             
                             <!-- Header: Symbol and Vital Stats -->
                             <div class="flex justify-between items-start relative z-10">

@@ -1612,7 +1612,7 @@
                                     <span className="material-icons-round text-primary text-2xl animate-spin-slow">searching</span>
                                 </div>
                             </div>
-                            <h3 className="text-lg font-display font-bold text-white mb-2 uppercase tracking-[0.3em] bg-clip-text text-transparent bg-gradient-to-r from-primary via-white to-primary bg-[length:200%_auto] animate-shimmer">Radar V10.0</h3>
+                            <h3 className="text-lg font-display font-bold text-white mb-2 uppercase tracking-[0.3em] bg-clip-text text-transparent bg-gradient-to-r from-primary via-white to-primary bg-[length:200%_auto] animate-shimmer">Radar V10.4</h3>
                             <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em] max-w-[280px] text-center font-black leading-relaxed opacity-60">
                                 Reversão Institucional
                             </p>
@@ -2740,10 +2740,13 @@
                 return slot.pnl_percent || 0;
             };
 
-            // V7.1 Single Trade Sniper: Get the single active slot (Slot 1)
-            const activeSlot = slots.find(s => s.symbol) || null;
-            const displaySlot = activeSlot || { symbol: 'BTCUSDT.P', entry_price: 0, current_stop: 0, side: 'Buy', id: 'BTC' };
-            const isCompassMode = !activeSlot;
+            // V10.4: Dual Slot Logic - Support for switching between Slot 1 and Slot 2
+            const effectiveSlotId = selectedSlotId || 1;
+            const activeSlot = slots.find(s => s.id === (typeof effectiveSlotId === 'number' ? effectiveSlotId : 1)) || null;
+
+            // If the selected slot is empty, we show BTC as a compass, but we keep the slot context
+            const displaySlot = (activeSlot && activeSlot.symbol) ? activeSlot : { ...activeSlot, symbol: 'BTCUSDT.P', entry_price: 0, current_stop: 0, side: 'Buy' };
+            const isCompassMode = !activeSlot || !activeSlot.symbol;
 
             // Fetch Radar Signals to show "Best Signal" when idle
             const [radarSignals, setRadarSignals] = useState([]);
@@ -2813,7 +2816,7 @@
                                     <span className="text-[8px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                                         C{cycleStatus.cycle_number || 1}: {(cycleStatus.used_symbols_in_cycle || []).length}/10
                                     </span>
-                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V9.0</span>
+                                    <span className="text-[8px] border border-white/10 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-widest">V10.4</span>
                                     <img src="/logo10D.png" alt="Logo" className="w-10 h-10 object-contain opacity-90" />
                                 </div>
                             </div>
@@ -2906,6 +2909,36 @@
                                     ></div>
                                 </div>
                             </div>
+                        </section>
+
+                        {/* V10.4 Slot Selector Tabs */}
+                        <section className="flex-shrink-0 flex gap-2 mb-1">
+                            {slots.filter(s => s.id <= 2).map(s => {
+                                const isSelected = (selectedSlotId || 1) === s.id;
+                                const hasTrade = !!s.symbol;
+                                const isRiskFree = hasTrade && (s.visual_status === 'RISK_ZERO' || s.visual_status === 'BIG_SURF');
+
+                                return (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => setSelectedSlotId(s.id)}
+                                        className={`flex-1 py-2 px-3 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${isSelected
+                                            ? 'bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(255,215,0,0.1)]'
+                                            : 'v5-bg-card border-white/5 text-slate-500 opacity-60 hover:opacity-100'
+                                            }`}
+                                    >
+                                        <div className="flex flex-col items-center">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[9px] font-black uppercase tracking-widest">Slot {s.id}</span>
+                                                {isRiskFree && <span className="material-icons-round text-[10px] text-primary animate-pulse">shield</span>}
+                                            </div>
+                                            <span className="text-[10px] font-bold truncate max-w-[80px]">
+                                                {hasTrade ? s.symbol.replace('.P', '') : 'LIVRE'}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </section>
 
                         {/* 1. CHART SECTION - 50% da tela, clique para fullscreen */}

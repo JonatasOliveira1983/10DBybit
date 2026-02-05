@@ -30,6 +30,24 @@ class BankrollManager:
         self.execution_lock = asyncio.Lock() # Iron Lock Atomic Protector
         self.pending_slots = set() # V4.9.4.2: Local memory lock to prevent duplicate assignments
 
+    def _is_slot_risk_free(self, slot: dict) -> bool:
+        """
+        [V10.4] Check if a slot has reached Risk-Free status.
+        Risk-Free = Stop Loss at or beyond entry price (locked profit).
+        """
+        if not slot or not slot.get("symbol"):
+            return False
+        entry = slot.get("entry_price", 0)
+        stop = slot.get("current_stop", 0)
+        side = (slot.get("side") or "").upper()
+        if entry <= 0 or stop <= 0:
+            return False
+        if side == "BUY" and stop >= entry:
+            return True
+        if side == "SELL" and stop <= entry:
+            return True
+        return False
+
     async def sync_slots_with_exchange(self):
         """
         V4.9.4.3: Persistence Shield 2.0 - FIREBASE IS TRUTH.
@@ -199,61 +217,67 @@ class BankrollManager:
 
     async def calculate_real_risk(self):
         """
-        Calculates the real risk for the single Sniper slot.
+        [V10.4] Calculates the real risk for both Sniper slots.
+        Risk = 20% per slot that is NOT Risk-Free.
+        Max possible = 40% if both at risk (shouldn't happen with dual logic).
         """
         slots = await firebase_service.get_active_slots()
         real_risk = 0.0
         
-        # Only slot 1 matters
-        slot = next((s for s in slots if s["id"] == 1), None)
-        if slot and slot.get("symbol"):
-            entry = slot.get("entry_price")
-            stop = slot.get("current_stop")
-            side = slot.get("side")
-            side_norm = (side or "").upper()
-            
-            is_risk_free = False
-            if side_norm == "BUY" and stop and entry and stop >= entry:
-                is_risk_free = True
-            elif side_norm == "SELL" and stop and entry and stop <= entry:
-                is_risk_free = True
-            
-            if not is_risk_free:
-                real_risk = self.margin_per_slot
+        for slot in slots:
+            if slot.get("symbol") and not self._is_slot_risk_free(slot):
+                real_risk += self.margin_per_slot
         
         # Add pending risk if any
         if self.pending_slots:
-            real_risk = self.margin_per_slot
+            real_risk += self.margin_per_slot
         
-        return real_risk
+        return min(real_risk, 0.40)  # Cap at 40%
 
     async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER") -> Optional[int]:
         """
-        [V7.0] SINGLE TRADE SNIPER RULE:
-        Strictly allows opening a slot ONLY if ALL slots are empty.
-        Always returns slot 1 as the primary sniper slot.
+        [V10.4] DUAL SNIPER RULE:
+        - Slot 1: Available if empty
+        - Slot 2: Available only if Slot 1 is RISK-FREE (stop >= entry)
+        Returns the slot ID to use, or None if blocked.
         """
         try:
             slots = await firebase_service.get_active_slots()
-            occupied = [s for s in slots if s.get("symbol")]
-            
-            if len(occupied) > 0:
-                logger.info(f"🚫 SINGLE SNIPER RULE: Waiting for {occupied[0]['symbol']} to close.")
-                return None
+            slot1 = next((s for s in slots if s["id"] == 1), None)
+            slot2 = next((s for s in slots if s["id"] == 2), None)
             
             # Atomic Lock Check
             if self.pending_slots:
-                 logger.warning(f"Atomic Lock: System already processing a trade. BLOCKED.")
-                 return None
-
-            # Check if this symbol is already the one being processed
+                logger.warning(f"Atomic Lock: System already processing a trade. BLOCKED.")
+                return None
+            
+            # Check if this symbol is already pending
             if symbol:
                 norm_symbol = symbol.replace(".P", "").upper()
                 if any(p_sym == norm_symbol for p_sym, p_id in self.pending_slots):
-                     return None
-
-            # If empty, return slot 1 as the designated Sniper slot
-            return 1
+                    return None
+                # Also check if symbol already in an active slot
+                for s in slots:
+                    if s.get("symbol") and s["symbol"].replace(".P", "").upper() == norm_symbol:
+                        return None
+            
+            # Priority 1: Slot 1 empty → Use Slot 1
+            if slot1 and not slot1.get("symbol"):
+                logger.info(f"🎯 V10.4: Slot 1 disponível.")
+                return 1
+            
+            # Priority 2: Slot 1 occupied but Risk-Free, Slot 2 empty → Use Slot 2
+            if slot1 and slot1.get("symbol"):
+                if self._is_slot_risk_free(slot1):
+                    if slot2 and not slot2.get("symbol"):
+                        logger.info(f"🎯🎯 V10.4: Slot 1 RISK-FREE! Habilitando Slot 2.")
+                        return 2
+                    else:
+                        logger.info(f"🚫 V10.4: Slot 1 Risk-Free mas Slot 2 já ocupado.")
+                else:
+                    logger.info(f"🚫 V10.4: Aguardando Slot 1 ({slot1.get('symbol')}) atingir Risk-Free.")
+            
+            return None
             
         except Exception as e:
             logger.error(f"Error checking slot availability: {e}")
