@@ -49,11 +49,18 @@ class FirebaseService:
             firebase_env = os.getenv("FIREBASE_CREDENTIALS")
             if firebase_env:
                 try:
+                    # V10.6.6: Log credential detection for debugging
+                    logger.info(f"🔑 FIREBASE_CREDENTIALS found (length: {len(firebase_env)} chars)")
                     cred_dict = json.loads(firebase_env)
                     cred = credentials.Certificate(cred_dict)
-                    logger.info("Loaded Firebase credentials from Environment Variable.")
+                    logger.info(f"✅ Firebase credentials parsed. Project: {cred_dict.get('project_id', 'unknown')}")
+                except json.JSONDecodeError as je:
+                    logger.error(f"❌ JSON Parse Error in FIREBASE_CREDENTIALS: {je}")
+                    logger.error(f"First 100 chars of env var: {firebase_env[:100]}...")
                 except Exception as e:
-                    logger.error(f"Failed to parse FIREBASE_CREDENTIALS env var: {e}")
+                    logger.error(f"❌ Failed to parse FIREBASE_CREDENTIALS: {e}")
+            else:
+                logger.warning("⚠️ FIREBASE_CREDENTIALS environment variable not found")
 
             # 2. Try Local File (Development)
             if not cred:
@@ -75,11 +82,13 @@ class FirebaseService:
                         # Initialize with RTDB URL if available
                         options = {}
                         db_url = settings.FIREBASE_DATABASE_URL or os.getenv("FIREBASE_DATABASE_URL")
+                        # V10.6.6: Log RTDB URL status
                         if db_url and db_url != "None":
                             options['databaseURL'] = db_url
-                            logger.info(f"Using Firebase Database URL: {db_url}")
+                            logger.info(f"✅ FIREBASE_DATABASE_URL configured: {db_url[:50]}...")
                         else:
-                            logger.warning("FIREBASE_DATABASE_URL is missing or 'None'. RTDB Pulse will be disabled.")
+                            logger.error("❌ FIREBASE_DATABASE_URL is MISSING! RTDB features disabled.")
+                            logger.error("   Add this env var: FIREBASE_DATABASE_URL=https://YOUR-PROJECT-ID.firebaseio.com")
                         app = firebase_admin.initialize_app(cred, options)
                     
                     # Initialize Clients
