@@ -5,7 +5,9 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         name="viewport" />
-    <title>Journey Radar v4.0 - 1Crypten Space</title>
+    <title>Journey Radar - 1Crypten Space</title>
+    <link rel="icon" type="image/png" href="../logo10D.png?v=2">
+    <link rel="shortcut icon" type="image/png" href="../logo10D.png?v=2">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
@@ -205,11 +207,9 @@
             class="sticky top-0 z-50 px-6 pt-12 pb-4 bg-background-dark/80 backdrop-blur-md flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 flex items-center justify-center">
-                    <img alt="1Crypten Logo" class="w-full h-full object-contain"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLuybb5pKHv4y_J2ZJLok-mXlBHjL_JYE_FGym5uVd79Nm4pyDYNuGjobaaBb41LWR6VptC8wJtFgPuhuZFesV9jrnmhOAlxPFChqENZ8Y5eJlA0LSPOjL9g4cW2ABVgs-N2vlOR6m5RZH3RbP1Ha3WZxT1qt7nmeKBY5rXDgFef8w2qbWXGiyAEJ88ZY_pu9GJTHlO0mm2E9QMVStpsUpcZjro9nv_ovMlwbFyw45aqAySdjRtM4-GDVGflfJkpOv9j_5Vl2qsXc" />
+                    <img alt="1Crypten Logo" class="w-full h-full object-contain" src="../logo10D.png" />
                 </div>
-                <h1 class="font-display font-bold text-lg tracking-tight">Journey Radar <span
-                        class="text-xs font-normal opacity-50 ml-1">v4.9.4.2 PWA</span></h1>
+                <h1 class="font-display font-bold text-lg tracking-tight">Journey Radar</h1>
             </div>
             <button
                 class="w-10 h-10 rounded-full flex items-center justify-center bg-accent-blue/50 text-primary border border-primary/20">
@@ -233,7 +233,7 @@
                 <div class="flex justify-between items-center mb-3">
                     <div class="flex items-center gap-2">
                         <span class="material-icons-round text-primary text-[16px]">sync</span>
-                        <span class="text-[10px] uppercase tracking-widest opacity-50">Ciclo de Trades V9.0</span>
+                        <span class="text-[10px] uppercase tracking-widest opacity-50">Ciclo de Trades Elite</span>
                     </div>
                     <span class="text-xs font-mono font-bold text-primary" id="cycle-counter">0/10</span>
                 </div>
@@ -491,7 +491,7 @@
             const cycleNum = cycle.cycle_number || 1;
             const trackerLabel = document.querySelector('#cycle-tracker-container .glass-card > div:first-child span:last-child');
             if (trackerLabel) {
-                trackerLabel.textContent = `Ciclo #${cycleNum} de Trades V9.0`;
+                trackerLabel.textContent = `Ciclo #${cycleNum} de Trades Elite`;
             }
         }
 

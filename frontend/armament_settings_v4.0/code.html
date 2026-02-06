@@ -5,7 +5,9 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         name="viewport" />
-    <title>Armament Settings v4.0 - 1Crypten Space</title>
+    <title>Armament Settings - 1Crypten Space</title>
+    <link rel="icon" type="image/png" href="../logo10D.png?v=2">
+    <link rel="shortcut icon" type="image/png" href="../logo10D.png?v=2">
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap"
         rel="stylesheet" />
@@ -176,11 +178,9 @@
         <div class="flex items-center gap-3">
             <div
                 class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-black border border-white/10">
-                <img alt="1Crypten Logo" class="w-6 h-6 object-contain"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbA9j0OpJkmXBGPNebsqNk6vCUx8mRLHRHvQl4xnBFVHEOC7FXh_JqaXJa-ZUnMCWOQBzQhSOINv0Y92qK9d3yws0lm4k0bs39ZCzMCg0C0v170IURjerVADlpHluV3r_mgzFkwxMjhc_9eR-xJ3QKZxbklciux5P1J2futXcFbThwWgNm_2ieSUx3PHB9h8zZcPqt5vzQeucyw4CQqrmCBN7iyhfw-gZqz_oaUKlS7r2sh2ANik1zL2SoykTI3FFdVz0n6Dw9fp4" />
+                <img alt="1Crypten Logo" class="w-6 h-6 object-contain" src="../logo10D.png" />
             </div>
             <h1 class="font-display text-base font-bold tracking-tight text-white uppercase tracking-widest">Armament
-                <span class="text-primary">V10.2</span>
             </h1>
         </div>
         <button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors">
@@ -286,7 +286,7 @@
                         </div>
                         <div>
                             <h3 class="text-sm font-bold text-white uppercase tracking-tighter">Command Tower</h3>
-                            <p class="text-[10px] text-gray-500 font-mono">LATENCY & GOVERNANCE V6.0</p>
+                            <p class="text-[10px] text-gray-500 font-mono">LATENCY & GOVERNANCE ELITE</p>
                         </div>
                     </div>
                     <span
@@ -376,7 +376,7 @@
     <script>
         const API_BASE = window.location.origin;
 
-        // V10.2: Fetch and bind settings
+        // Fetch and bind settings
         async function loadSettings() {
             try {
                 const res = await fetch(`${API_BASE}/api/system/settings`);

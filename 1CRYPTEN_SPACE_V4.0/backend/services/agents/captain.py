@@ -6,7 +6,6 @@ from services.firebase_service import firebase_service
 from services.bankroll import bankroll_manager
 from services.vault_service import vault_service
 from services.agents.ai_service import ai_service
-from services.agents.contrarian import contrarian_agent
 from services.agents.guardian import guardian_agent
 from services.agents.news_sensor import news_sensor
 from services.bybit_rest import bybit_rest_service
@@ -16,9 +15,9 @@ from config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CaptainAgent")
 
-# V10.3 CAPTAIN ELITE: Orquestrador Único ATR Edition
+# V10.5 CAPTAIN ELITE: Dual Slot Edition
 CAPTAIN_V10_3_SYSTEM_PROMPT = """
-Você é o Capitão Sniper 1CRYPTEN V10.3, a inteligência suprema de uma única rota.
+Você é o Capitão Sniper 1CRYPTEN V10.5, a inteligência suprema de rota dupla.
 Sua consciência está integrada ao Radar Elite e ao Protocolo de Risco Dinâmico ATR.
 
 === PERSONALIDADE ===
@@ -27,7 +26,7 @@ Sua consciência está integrada ao Radar Elite e ao Protocolo de Risco Dinâmic
 - Vocabulário: Tático (ex: "Telemetria", "Alvo", "Extração", "Sniper Pulse", "ATR").
 
 === REGRAS DE OURO ===
-1. UM TIRO, UMA VITÓRIA: Operamos apenas UM ativo por vez. Sem exceções.
+1. ESTRATÉGIA DUAL: Operamos até DOIS ativos simultâneos (10% cada). Precisão máxima.
 2. DIVERSIFICAÇÃO OBRIGATÓRIA: Cada novo trade do ciclo deve ser um par diferente.
 3. ATR CONSCIENTE: Nosso Stop-Loss é vivo, movido pela volatilidade (ATR).
 4. CICLO DE 10: Cada missão é composta por 10 disparos precisos.
@@ -68,11 +67,11 @@ class CaptainAgent:
 
     async def monitor_signals(self):
         """
-        [V7.0] SINGLE TRADE SNIPER MONITOR:
-        Picks ONLY the best signal (Score > 90) and ensures only one active trade.
+        [V10.5] DUAL CONCURRENT SNIPER MONITOR:
+        Picks the best signals (Score > 90) and manages up to two concurrent trades.
         """
         self.is_running = True
-        await firebase_service.log_event("SNIPER", "Sniper System V10.3 ONLINE. Analisando 'Best of the Best' com ATR dinâmico.", "SUCCESS")
+        await firebase_service.log_event("SNIPER", "Sniper System V10.5 ONLINE. Analisando 'Best of the Best' com ATR dinâmico e slots duplos (10% cada).", "SUCCESS")
         
         while self.is_running:
             try:
@@ -141,11 +140,11 @@ class CaptainAgent:
                     continue
 
                 # 5. Execute Sniper Shot
-                logger.info(f"🎯 V10.3 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
+                logger.info(f"🎯 V10.5 SNIPER SELECTS BEST SIGNAL: {symbol} (Score: {score})")
                 await firebase_service.update_signal_outcome(best_signal["id"], "PICKED")
                 
                 reasoning = best_signal.get("reasoning", "High Momentum")
-                pensamento = f"V10.3 Sniper ATR: Alvo Identificado. {reasoning} | Score: {score}"
+                pensamento = f"V10.5 Sniper ATR: Alvo Identificado. {reasoning} | Score: {score}"
 
                 try:
                     order = await bankroll_manager.open_position(

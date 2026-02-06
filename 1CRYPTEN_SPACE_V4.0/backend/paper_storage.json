@@ -1,16 +1,16 @@
 {
-  "positions": [
+  "positions": [],
+  "balance": 3.4906812000000036,
+  "history": [
     {
-      "symbol": "XAUTUSDT",
+      "symbol": "ONDOUSDT.P",
       "side": "Buy",
-      "size": "0.084",
-      "avgPrice": "4790.2",
-      "leverage": "50",
-      "stopLoss": "4742.298",
-      "takeProfit": "4886.004",
-      "createdTime": "123456789"
+      "avgEntryPrice": "0.2408",
+      "avgExitPrice": "0.2453",
+      "closedPnl": "3.4906812000000036",
+      "leverage": "50.0",
+      "qty": "830.0",
+      "updatedTime": "1770377847835"
     }
-  ],
-  "balance": 0.0,
-  "history": []
+  ]
 }

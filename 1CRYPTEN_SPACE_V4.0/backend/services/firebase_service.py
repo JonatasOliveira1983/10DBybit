@@ -160,9 +160,14 @@ class FirebaseService:
     async def update_banca_status(self, data: dict):
         if not self.is_active: return data
         try:
-            # V5.2.4.3: Added 5s timeout
+            # Sync to Firestore
             await asyncio.wait_for(asyncio.to_thread(self.db.collection("banca_status").document("status").set, data, merge=True), timeout=5.0)
-        except Exception: pass
+            
+            # V5.2.5: Sync to Realtime DB for instant PWA updates
+            if self.rtdb:
+                await asyncio.to_thread(self.rtdb.child("banca_status").set, data)
+        except Exception as e:
+            logger.error(f"Error updating banca status to RTDB: {e}")
         return data
 
     async def log_banca_snapshot(self, data: dict):
@@ -257,9 +262,14 @@ class FirebaseService:
                 
         if not self.is_active: return data
         try:
-            # V5.2.4.3: Added 5s timeout
+            # Sync to Firestore
             await asyncio.wait_for(asyncio.to_thread(self.db.collection("slots_ativos").document(str(slot_id)).set, data, merge=True), timeout=5.0)
-        except Exception: pass
+            
+            # V5.2.5: Sync to Realtime DB for instant PWA updates
+            if self.rtdb:
+                await asyncio.to_thread(self.rtdb.child("slots").child(str(slot_id)).update, data)
+        except Exception as e:
+            logger.error(f"Error updating slot {slot_id} to RTDB: {e}")
         return data
 
     async def log_signal(self, signal_data: dict):

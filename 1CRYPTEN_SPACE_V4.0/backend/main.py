@@ -23,9 +23,9 @@ asyncio.get_event_loop().set_default_executor(executor)
 # V5.2.5: Protocolo de Unificação e Blindagem - Elite Evolution
 # V7.0: Single Trade Sniper - Sniper Evolution Protocol
 # V10.1: Cycle Diversification & Compound - Institutional Logic & Pulse
-# V10.4: Dual Sniper Slot System - Multitasking Evolution Protocol
-VERSION = "V10.4"
-DEPLOYMENT_ID = "V10.4_DUAL_SLOT_EDITION"
+# V10.5: Concurrent Dual Slot - 10% Margin Logic
+VERSION = "V10.5"
+DEPLOYMENT_ID = "V10.5_CONCURRENT_EDITION"
 
 # Global Directory Configurations - Hardened for Docker/Cloud Run
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -78,15 +78,10 @@ async def lifespan(app: FastAPI):
             bybit_ws_service = importlib.import_module("services.bybit_ws").bybit_ws_service
             await asyncio.sleep(1)
             
-            # Use bankroll_manager (singular)
+            # Use bankroll_manager from services.bankroll
             logger.info("Step 0.4: Loading Bankroll Manager...")
-            try:
-                mod = importlib.import_module("services.bankroll_manager")
-                bankroll_manager = mod.bankroll_manager
-            except ImportError:
-                 logger.warning("bankroll_manager not found, trying bankroll...")
-                 mod = importlib.import_module("services.bankroll")
-                 bankroll_manager = mod.bankroll_manager
+            mod = importlib.import_module("services.bankroll")
+            bankroll_manager = mod.bankroll_manager
             
             await asyncio.sleep(1)
             logger.info("Step 0: Service modules loaded ✅")

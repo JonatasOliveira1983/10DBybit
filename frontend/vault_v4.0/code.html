@@ -6,6 +6,8 @@
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         name="viewport" />
     <title>Vault Management</title>
+    <link rel="icon" type="image/png" href="../logo10D.png?v=2">
+    <link rel="shortcut icon" type="image/png" href="../logo10D.png?v=2">
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -66,7 +68,7 @@
             border-radius: 10px;
         }
 
-        /* V4.9.4.2: Elite Vault Evolution */
+        /* Elite Vault Evolution */
         html {
             font-size: 14px !important;
         }
@@ -212,7 +214,7 @@
                     Operacional</p>
             </div>
 
-            <!-- Sniper Cycle Card (V8.0 Update) -->
+            <!-- Sniper Cycle Card -->
             <div class="glass rounded-xl p-4 border border-primary/30 cyan-glow">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
@@ -220,7 +222,6 @@
                         <span class="text-gray-400 text-sm font-black uppercase tracking-widest truncate">Objetivo
                             6G/4L</span>
                     </div>
-                    <p id="cycle-number" class="text-xs font-mono text-primary/60">#1</p>
                 </div>
                 <div class="flex items-baseline gap-2">
                     <p id="gains-losses-count" class="text-2xl font-bold text-white">0G / 0L</p>
@@ -495,7 +496,6 @@
                 const displayBalance = banca.configured_balance || banca.saldo_total || 0;
                 safeSet('active-balance', `$${displayBalance.toFixed(2)}`);
                 safeSet('vault-total', `$${(vault.vault_total || 0).toFixed(2)}`);
-                safeSet('cycle-number', `#${vault.cycle_number || 1}`);
                 safeSet('sniper-wins', `${vault.sniper_wins || 0}/20`);
                 safeSet('cycle-profit', `$${(vault.cycle_profit || 0).toFixed(2)}`);
                 safeSet('cycle-losses-val', `$${(vault.cycle_losses || 0).toFixed(2)}`);

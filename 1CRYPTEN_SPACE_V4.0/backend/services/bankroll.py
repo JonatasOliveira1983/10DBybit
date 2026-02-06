@@ -22,7 +22,7 @@ class BankrollManager:
     def __init__(self):
         self.max_slots = settings.MAX_SLOTS
         self.risk_cap = 0.20 
-        self.margin_per_slot = 0.20 # 20% per slot (Single Sniper rule)
+        self.margin_per_slot = 0.10 # [V10.5] 10% per slot (Combined = 20% Max)
         self.initial_slots = 1
         self.last_log_times = {} # Cooldown for logs
         # V4.2: Sniper TP = +2% price = 100% ROI @ 50x
@@ -232,14 +232,14 @@ class BankrollManager:
         if self.pending_slots:
             real_risk += self.margin_per_slot
         
-        return min(real_risk, 0.40)  # Cap at 40%
+        return min(real_risk, 0.20)  # [V10.5] Cap at 20% (Dual slots)
 
     async def can_open_new_slot(self, symbol: str = None, slot_type: str = "SNIPER") -> Optional[int]:
         """
-        [V10.4] DUAL SNIPER RULE:
-        - Slot 1: Available if empty
-        - Slot 2: Available only if Slot 1 is RISK-FREE (stop >= entry)
-        Returns the slot ID to use, or None if blocked.
+        [V10.5] DUAL CONCURRENT RULE:
+        - Slot 1: Available if empty (10% Margin)
+        - Slot 2: Available if empty (10% Margin)
+        Both can be active at the same time.
         """
         try:
             slots = await firebase_service.get_active_slots()
@@ -261,22 +261,16 @@ class BankrollManager:
                     if s.get("symbol") and s["symbol"].replace(".P", "").upper() == norm_symbol:
                         return None
             
-            # Priority 1: Slot 1 empty → Use Slot 1
+            # [V10.5] Concurrent Dual Slot: Any empty slot is available
             if slot1 and not slot1.get("symbol"):
-                logger.info(f"🎯 V10.4: Slot 1 disponível.")
+                logger.info(f"🎯 V10.5: Slot 1 disponível.")
                 return 1
             
-            # Priority 2: Slot 1 occupied but Risk-Free, Slot 2 empty → Use Slot 2
-            if slot1 and slot1.get("symbol"):
-                if self._is_slot_risk_free(slot1):
-                    if slot2 and not slot2.get("symbol"):
-                        logger.info(f"🎯🎯 V10.4: Slot 1 RISK-FREE! Habilitando Slot 2.")
-                        return 2
-                    else:
-                        logger.info(f"🚫 V10.4: Slot 1 Risk-Free mas Slot 2 já ocupado.")
-                else:
-                    logger.info(f"🚫 V10.4: Aguardando Slot 1 ({slot1.get('symbol')}) atingir Risk-Free.")
+            if slot2 and not slot2.get("symbol"):
+                logger.info(f"🎯 V10.5: Slot 2 disponível.")
+                return 2
             
+            logger.info("🚫 V10.5: Todos os slots ocupados.")
             return None
             
         except Exception as e:
@@ -418,14 +412,14 @@ class BankrollManager:
             cycle_bankroll = cycle_status.get("cycle_start_bankroll", 0)
             
             if cycle_bankroll >= 20:
-                # V9.0: Use locked cycle bankroll for consistent position sizing
-                margin = cycle_bankroll * 0.20
-                logger.info(f"📊 V9.0 Compound: Usando banca do ciclo ${cycle_bankroll:.2f} → Margem: ${margin:.2f}")
+                # V10.5: Concurrent Dual Slot - 10% each
+                margin = cycle_bankroll * 0.10
+                logger.info(f"📊 V10.5 Compound: Usando banca do ciclo ${cycle_bankroll:.2f} → Margem (10%): ${margin:.2f}")
             else:
                 # First trade of cycle: initialize cycle bankroll
-                margin = balance * 0.20
+                margin = balance * 0.10
                 await vault_service.initialize_cycle_bankroll(balance)
-                logger.info(f"📊 V9.0: Novo ciclo iniciado com banca ${balance:.2f} → Margem: ${margin:.2f}")
+                logger.info(f"📊 V10.5: Novo ciclo iniciado com banca ${balance:.2f} → Margem (10%): ${margin:.2f}")
             
             if margin < 4.0:
                  margin = 4.0 # Force minimum operational margin if balance allows
