@@ -1,4 +1,4 @@
-const CACHE_NAME = '1crypten-elite-cache';
+const CACHE_NAME = '1crypten-elite-cache-v10.6.4';
 const STATIC_ASSETS = [
     '/',
     'logo10D.png',
