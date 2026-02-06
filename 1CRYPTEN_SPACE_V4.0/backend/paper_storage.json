@@ -1,1 +1,36 @@
-{"positions": [], "balance": 0.0, "history": []}
+{
+  "positions": [
+    {
+      "symbol": "XAUTUSDT",
+      "side": "Buy",
+      "avgPrice": 4911.9,
+      "stopLoss": 4843.251428571429,
+      "size": 0.041,
+      "positionValue": 201.3879,
+      "unrealisedPnl": 0
+    },
+    {
+      "symbol": "LINKUSDT",
+      "side": "Buy",
+      "size": "11.3",
+      "avgPrice": "8.828",
+      "leverage": "50",
+      "stopLoss": "8.64948",
+      "takeProfit": "9.00252",
+      "createdTime": "123456789"
+    }
+  ],
+  "balance": 0.06301200000000004,
+  "history": [
+    {
+      "symbol": "BNBUSDT",
+      "side": "Buy",
+      "avgEntryPrice": "657.3",
+      "avgExitPrice": "658.3",
+      "closedPnl": "0.06301200000000004",
+      "leverage": "50.0",
+      "qty": "0.3",
+      "updatedTime": "1770411334200"
+    }
+  ]
+}
