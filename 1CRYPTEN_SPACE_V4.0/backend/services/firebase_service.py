@@ -27,6 +27,10 @@ class FirebaseService:
         # V10.5 Dual Slot System: Limit to 2 slots
         self.slots_cache = [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0} for i in range(1, 3)]
         self._reconnect_task = None
+        # V10.6.5: Connection health tracking
+        self._consecutive_failures = 0
+        self._last_successful_op = time.time()
+        self._reconnect_attempts = 0
 
     async def initialize(self):
         """Asynchronously initializes the Firebase Admin SDK."""
@@ -115,14 +119,27 @@ class FirebaseService:
                 self._reconnect_task = asyncio.create_task(self._reconnection_loop())
 
     async def _reconnection_loop(self):
-        """Background loop that tries to reconnect to Firebase if offline."""
+        """
+        V10.6.5: Enhanced reconnection loop with exponential backoff.
+        Starts at 15s, doubles each attempt, max 60s.
+        """
+        base_delay = 15  # Start with 15s instead of 60s
+        max_delay = 60
+        
         while not self.is_active:
-            logger.info("Firebase Reconnection Attempt...")
+            self._reconnect_attempts += 1
+            delay = min(base_delay * (2 ** (self._reconnect_attempts - 1)), max_delay)
+            
+            logger.warning(f"🔄 Firebase Reconnection Attempt #{self._reconnect_attempts} (next in {delay}s)...")
             await self.initialize()
+            
             if self.is_active:
-                logger.info("Firebase RECONNECTED successfully.")
+                logger.info(f"✅ Firebase RECONNECTED after {self._reconnect_attempts} attempts.")
+                self._reconnect_attempts = 0
+                self._consecutive_failures = 0
                 break
-            await asyncio.sleep(60) # Try every minute
+            
+            await asyncio.sleep(delay)
 
     async def _flush_buffers(self):
         """Pushes buffered logs and signals to Firebase after a reconnection."""
@@ -135,6 +152,30 @@ class FirebaseService:
         # For simplicity, we just log that we are online now.
         await self.log_event("System", "🔥 Firebase Connection Restored. Buffers active.", "SUCCESS")
 
+    async def _health_check(self):
+        """
+        V10.6.5: Proactive health check triggered by consecutive failures.
+        Tests basic Firebase connectivity and triggers reconnection if needed.
+        """
+        logger.info("🏥 Running Firebase health check...")
+        try:
+            # Simple read test with short timeout
+            test_result = await asyncio.wait_for(
+                asyncio.to_thread(self.db.collection("banca_status").document("status").get),
+                timeout=5.0
+            )
+            if test_result.exists:
+                logger.info("✅ Firebase health check passed. Resetting failure counter.")
+                self._consecutive_failures = 0
+                self._last_successful_op = time.time()
+            else:
+                raise Exception("Health check returned empty result")
+        except Exception as e:
+            logger.error(f"❌ Firebase health check FAILED: {e}")
+            # Mark as inactive and trigger reconnection
+            self.is_active = False
+            if not self._reconnect_task or self._reconnect_task.done():
+                self._reconnect_task = asyncio.create_task(self._reconnection_loop())
 
     async def get_banca_status(self):
         if not self.is_active:
@@ -152,10 +193,16 @@ class FirebaseService:
             if doc.exists:
                 return doc.to_dict()
         except asyncio.TimeoutError:
-            logger.warning("Firebase timeout ao buscar banca status. System remains active but this request failed.")
+            self._consecutive_failures += 1
+            logger.warning(f"Firebase timeout ao buscar banca status (failures: {self._consecutive_failures}). Using fallback.")
+            # V10.6.5: Auto-trigger reconnection check after 5 consecutive failures
+            if self._consecutive_failures >= 5:
+                logger.error("🚨 5+ consecutive Firebase failures. Triggering health check...")
+                asyncio.create_task(self._health_check())
             return {"saldo_total": 0, "risco_real_percent": 0, "slots_disponiveis": 10, "status": "TIMEOUT"}
         except Exception as e:
-            logger.error(f"Error fetching banca: {e}")
+            self._consecutive_failures += 1
+            logger.error(f"Error fetching banca (failures: {self._consecutive_failures}): {e}")
         return {"saldo_total": 0, "risco_real_percent": 0, "slots_disponiveis": 10, "status": "ERROR"}
 
     async def update_banca_status(self, data: dict):
@@ -251,12 +298,20 @@ class FirebaseService:
             if data and len(data) >= 1:
                 self.slots_cache = data
                 self.last_slots_fetch = now_time
+                # V10.6.5: Reset failure counter on success
+                self._consecutive_failures = 0
+                self._last_successful_op = now_time
                 return self.slots_cache
                 
+        except asyncio.TimeoutError:
+            self._consecutive_failures += 1
+            logger.warning(f"🕐 Firebase slots timeout (failures: {self._consecutive_failures}). Using cache.")
+            if self._consecutive_failures >= 5:
+                asyncio.create_task(self._health_check())
         except Exception as e:
-            # V10.6.5: Improved Error Visibility
+            self._consecutive_failures += 1
             err_type = type(e).__name__
-            logger.warning(f"Transient Firebase error fetching slots ({err_type}): {e}. Using cache.")
+            logger.warning(f"Transient Firebase error fetching slots ({err_type}, failures: {self._consecutive_failures}): {e}. Using cache.")
             
         return self.slots_cache
 
