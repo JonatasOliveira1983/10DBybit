@@ -24,7 +24,8 @@ class FirebaseService:
         self.rtdb = None # Realtime DB
         self.log_buffer = deque(maxlen=500) # Increased buffer for offline periods
         self.signal_buffer = deque(maxlen=500)
-        self.slots_cache = [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0} for i in range(1, 11)]
+        # V10.5 Dual Slot System: Limit to 2 slots
+        self.slots_cache = [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0} for i in range(1, 3)]
         self._reconnect_task = None
 
     async def initialize(self):
@@ -215,7 +216,11 @@ class FirebaseService:
                 query = self.db.collection("trade_history").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(limit)
                 
                 if last_timestamp:
-                    query = query.start_after({"timestamp": last_timestamp})
+                    try:
+                        ts_val = float(last_timestamp)
+                        query = query.start_after({"timestamp": ts_val})
+                    except (ValueError, TypeError):
+                        query = query.start_after({"timestamp": last_timestamp})
                 
                 docs = query.stream()
                 return [doc.to_dict() for doc in docs]
@@ -376,6 +381,35 @@ class FirebaseService:
             # V5.2.4.3: Added 3s timeout for RTDB updates
             await asyncio.wait_for(asyncio.to_thread(self.rtdb.update, {"btc_command_center": data}), timeout=3.0)
         except Exception: pass
+
+    async def update_system_state(self, state: str, slots_occupied: int = 0, message: str = ""):
+        """
+        V10.6: Updates system state in RTDB for frontend synchronization.
+        state: SCANNING | MONITORING | PAUSED
+        """
+        if not self.is_active or not self.rtdb: return
+        try:
+            data = {
+                "current": state,
+                "slots_occupied": slots_occupied,
+                "message": message,
+                "updated_at": time.time() * 1000
+            }
+            await asyncio.wait_for(asyncio.to_thread(self.rtdb.update, {"system_state": data}), timeout=3.0)
+            logger.info(f"🔄 V10.6 System State: {state} (Slots: {slots_occupied}/2)")
+        except Exception as e:
+            logger.warning(f"Error updating system state: {e}")
+
+    async def get_system_state(self):
+        """V10.6: Fetches the current system state from RTDB as a fallback."""
+        if not self.is_active or not self.rtdb:
+            return {"current": "PAUSED", "message": "Firebase Offline", "slots_occupied": 0}
+        try:
+            state = await asyncio.to_thread(self.rtdb.child("system_state").get)
+            return state or {"current": "PAUSED", "message": "Sem Dados", "slots_occupied": 0}
+        except Exception as e:
+            logger.error(f"Error fetching system state: {e}")
+            return {"current": "PAUSED", "message": "Erro Firebase", "slots_occupied": 0}
 
     async def update_ws_health(self, latency: float, status: str = "ONLINE"):
         """🆕 V6.0: Updates WebSocket Health (Command Tower) in RTDB."""

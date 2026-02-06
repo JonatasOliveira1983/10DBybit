@@ -1,14 +1,15 @@
-# 1CRYPTEN SPACE - V10.5 Elite (Concurrent Edition) 💎🛰️
+# 1CRYPTEN SPACE - V10.6.3 (Autonomous Edition) 💎🛰️
 
-Sistema de Trading Autônomo Multitarefa com **Protocolo Concurrent Dual Sniper**, focado em escala de capital, gestão de risco dinâmica e estabilidade V10.5 **Elite**.
+Sistema de Trading Autônomo Multitarefa com **Protocolo Concurrent Dual Sniper**, focado em escala de capital, gestão de risco dinâmica e autonomia total V10.6.3.
 
 ---
 
-## 🆕 Novidades V10.5 - Elite Concurrent Edition (Current)
-- **Concurrent Dual Sniper**: Slot 2 agora é independente do estado do Slot 1, permitindo preenchimento simultâneo para máxima agilidade.
-- **Defensive UI Protocol**: Blindagem total contra falhas de processamento de dados (String protection) e validação rigorosa de arrays.
-- **Elite Branding**: Interface unificada "1Crypten Elite", sem sub-versões visuais e com assets padronizados.
-- **Optimized Capital Scale**: Alocação de 10% por slot para maior segurança e diversificação em ciclos de 10 disparos.
+## 🆕 Novidades V10.6.3 - Autonomous Edition (Current)
+- **Autonomous Captain Mode**: Remoção de controles manuais em favor de uma IA 100% autônoma. O sistema monitora e executa sem interrupções humanas.
+- **Micro-Margin Accessibility**: Piso de margem reduzido para **$1.0** (anteriormente $4.0), permitindo que bancas pequenas operem fielmente com a regra de 10%.
+- **Seamless Vault Sync**: Sincronização global de trade history e progresso de ciclos (1/10) entre todos os componentes da UI.
+- **Hybrid Multi-Mode Sync**: Implementação de redundância RTDB + REST para status do sistema e gerenciamento de slots ativos.
+- **Fixed Pagination History**: Recuperação otimizada do histórico de trades com tratamento de tipos (Timestamp Float) para scroll infinito.
 
 ## 🆕 Novidades V10.4 - Dual Slot Edition
 - **Dual Sniper Slots**: Permite a abertura de um segundo trade simultâneo assim que o primeiro atinge o estado de **Risk-Zero**.
@@ -34,10 +35,10 @@ Sistema de Trading Autônomo Multitarefa com **Protocolo Concurrent Dual Sniper*
 ---
 
 ## 📊 Gerenciamento de Risco
-- **Risk-Zero Trigger**: Slot 2 desbloqueado apenas após Slot 1 estar com Stop no Break-even.
-- **Independent Trailing**: Cada slot possui sua própria escada de proteção e trailing profit.
-- **Exposure Cap**: Limite rígido de 2 ordens para evitar overtrading e preservar a banca.
-- **Master Toggle**: Controle total via Vault UI.
+- **Independent Execution**: Ambos os slots operam de forma independente, sem necessidade de Risk-Zero para ativação do segundo slot.
+- **Autonomous SL/TP**: Gestão de saída via stop-loss dinâmico (ATR) e take-profit automático configurado na exchange.
+- **Exposure Cap**: Limite balanceado de 2 slots ativos (20% exposição total) para proteção contra cisnes negros.
+- **Guardian Protocol**: Loop de monitoramento que garante a consistência entre o estado da Exchange e o Firestore (Persistence Shield).
 
 ---
 

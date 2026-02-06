@@ -30,9 +30,9 @@ async def main():
     
     fs = firestore.client()
     
-    # Resetar todos os slots para estado IDLE
-    print("\n[1/3] Resetando slots (1-10)...")
-    for i in range(1, 11):
+    # Resetar APENAS 2 slots (V10.6: Sistema simplificado)
+    print("\n[1/3] Resetando slots (1-2)...")
+    for i in range(1, 3):  # APENAS 2 SLOTS
         fs.collection("slots_ativos").document(str(i)).set({
             "id": i,
             "symbol": None,
@@ -42,7 +42,7 @@ async def main():
             "target_price": None,
             "status_risco": "IDLE",
             "pnl_percent": 0,
-            "slot_type": "SNIPER" if i <= 5 else "SURF",
+            "slot_type": "SNIPER",  # Todos são SNIPER agora
             "timestamp_last_update": 0,
             "visual_status": "IDLE",
             "pensamento": "",
@@ -54,7 +54,7 @@ async def main():
         print(f"  Slot {i} -> IDLE")
     
     # Resetar Vault para sniper_mode=False
-    print("\n[2/3] Bloqueando Capitão...")
+    print("\n[2/3] Bloqueando Capitao...")
     fs.collection("vault_management").document("current_cycle").set({
         "cycle_number": 1,
         "cycle_profit": 0.0,
@@ -70,23 +70,23 @@ async def main():
         "in_admiral_rest": False,
         "cautious_mode": False,
         "min_score_threshold": 90,
-        "sniper_mode_active": False
+        "sniper_mode_active": True
     })
-    print("  Capitão BLOQUEADO")
+    print("  Capitao BLOQUEADO")
     
-    # Resetar Banca
+    # Resetar Banca - com 2 slots disponiveis
     print("\n[3/3] Resetando Banca...")
     fs.collection("banca_status").document("status").set({
         "id": "status",
         "saldo_total": 0.0,
         "risco_real_percent": 0.0,
-        "slots_disponiveis": 1,
+        "slots_disponiveis": 2,  # V10.6: 2 slots disponiveis
         "lucro_total_acumulado": 0.0,
         "lucro_ciclo": 0.0,
         "vault_total": 0.0,
         "status": "ONLINE_CLEAN"
     })
-    print("  Banca resetada (slots_disponiveis: 1)")
+    print("  Banca resetada (slots_disponiveis: 2)")
     
     # Limpar paper_storage
     print("\n[4/4] Limpando paper_storage...")

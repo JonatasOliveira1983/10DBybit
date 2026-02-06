@@ -172,28 +172,6 @@
 
     <!-- Main Content -->
     <main class="pt-28 pb-8 px-4 max-w-7xl mx-auto">
-        <!-- MASTER EXECUTION CONTROL (V8.0) -->
-        <div class="mb-6">
-            <div id="master-control-card"
-                class="glass rounded-2xl p-6 border-2 transition-all duration-500 flex flex-col sm:flex-row items-center justify-between gap-6 border-red-500/30 bg-red-500/5">
-                <div class="flex items-center gap-4 text-center sm:text-left">
-                    <div id="master-status-icon"
-                        class="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
-                        <span class="material-icons-round text-4xl">block</span>
-                    </div>
-                    <div>
-                        <h2 id="master-status-text" class="text-2xl font-black text-white uppercase tracking-tighter">
-                            Capitão Sniper Pausado</h2>
-                        <p id="master-subtext" class="text-sm text-gray-400 font-medium">Aguardando autorização para
-                            iniciar caçada.</p>
-                    </div>
-                </div>
-                <button id="master-toggle-btn" onclick="toggleMasterSniper()"
-                    class="w-full sm:w-auto px-10 py-4 rounded-xl font-black uppercase tracking-widest text-lg transition-all duration-300 transform active:scale-95 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20">
-                    LIBERAR CAPITÃO
-                </button>
-            </div>
-        </div>
 
         <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
         <!-- Stats Grid - V4.9.4 ELITE REDESIGN -->
@@ -440,8 +418,8 @@
                     <input type="number" id="new-banca-amount" placeholder="20.00" min="20"
                         class="w-full bg-gray-900 border border-gray-700 rounded-xl px-10 py-4 text-white font-bold text-xl focus:border-emerald-500 focus:ring-emerald-500 transition-all">
                 </div>
-                <p class="text-[10px] text-gray-600 mt-2 uppercase font-mono italic">A entrada será recalibrada para 20%
-                    deste valor.</p>
+                <p class="text-[10px] text-gray-600 mt-2 uppercase font-mono italic">A entrada será recalibrada para 10%
+                    por slot (Total 20%).</p>
             </div>
 
             <div class="flex gap-3">
@@ -517,17 +495,22 @@
                         window.meta100Announced = true;
                     }
                 }
-                // [V8.1] Master Toggle Status with Position Awareness
-                const masterActive = vault.sniper_mode_active !== false;
-                updateMasterUI(masterActive, activeSlot);
+                // [V8.1] check for active positions
+                const activeSlot = slots.find(s => s.symbol);
+                // Autonomous mode: UI toggle is gone.
 
                 // [V8.0] Gains / Losses Count
                 const gainsCount = vault.cycle_gains_count || 0;
                 const lossesCount = vault.cycle_losses_count || 0;
-                safeSet('gains-losses-count', `${gainsCount}G / ${lossesCount}L`);
+                const usedSymbols = vault.used_symbols_in_cycle || [];
 
-                const progress = (((gainsCount + lossesCount) / 10) * 100);
+                // Align UI display with main dashboard (1/10)
+                safeSet('gains-losses-count', `${usedSymbols.length}/10`);
+                safeSet('trades-count', `${usedSymbols.length}/10`);
+
+                const progress = ((usedSymbols.length / 10) * 100);
                 safeStyle('cycle-progress', 'width', `${Math.min(100, progress)}%`);
+                safeStyle('meta-progress', 'width', `${Math.min(100, progress)}%`);
 
                 // Update recommended amount
                 safeSet('recommended-amount', `$${(vault.recommended_withdrawal || 0).toFixed(2)}`);
@@ -674,7 +657,7 @@
                 if (data.status === 'success') {
                     closeBancaModal();
                     fetchVaultStatus();
-                    speakCaptain(`Banca Sniper ajustada para ${amount} dólares. Operação recalibrada em vinte por cento.`);
+                    speakCaptain(`Banca Sniper ajustada para ${amount} dólares. Operação recalibrada para dez por cento por slot.`);
                 } else {
                     alert(data.message || 'Erro ao atualizar banca');
                 }
@@ -790,6 +773,9 @@
 
         // Voice of the Captain (Google Neural2-B)
         async function speakCaptain(text) {
+            // [V10.5] Respect user preference
+            if (localStorage.getItem('captain_voice_enabled') === 'false') return;
+
             try {
                 const response = await fetch(`${API_BASE}/api/tts`, {
                     method: 'POST',

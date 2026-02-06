@@ -66,11 +66,11 @@ class VaultService:
             "cycle_gains_count": 0,     # [V8.0] Count of trades with PnL > 0
             "cycle_losses_count": 0,    # [V8.0] Count of trades with PnL < 0
             "accumulated_vault": 0.0,
-            "sniper_mode_active": True,  # [V8.0] Master Toggle for Captain
+            "sniper_mode_active": True,  # [V10.6.2] Always Active by default
             # V9.0 Cycle Diversification & Compound
             "used_symbols_in_cycle": [],  # V9.0: Lista de pares já operados no ciclo
             "cycle_start_bankroll": 0.0,  # V9.0: Banca travada no início do ciclo
-            "next_entry_value": 0.0       # V9.0: Valor de entrada (20% da banca ciclo)
+            "next_entry_value": 0.0       # V9.0: Valor de entrada (10% da banca ciclo)
         }
     
     async def initialize_cycle(self):
@@ -227,7 +227,7 @@ class VaultService:
             if not firebase_service.is_active or not firebase_service.db:
                 return
             
-            entry_value = balance * 0.20  # 20% margin rule
+            entry_value = balance * 0.10  # [V10.6.2] Correct 10% margin rule
             
             def _init():
                 firebase_service.db.collection("vault_management").document("current_cycle").update({
@@ -255,7 +255,7 @@ class VaultService:
             old_bankroll = current.get("cycle_start_bankroll", 0)
             
             profit_pct = ((new_balance - old_bankroll) / old_bankroll * 100) if old_bankroll > 0 else 0
-            new_entry = new_balance * 0.20
+            new_entry = new_balance * 0.10 # [V10.6.2] Correct 10% margin rule
             
             if not firebase_service.is_active or not firebase_service.db:
                 return
@@ -338,18 +338,19 @@ class VaultService:
             
             await asyncio.to_thread(_update)
             
-            # [V8.0] 10-Trade Cycle Trigger
-            if new_total_trades >= 10:
-                await firebase_service.log_event("VAULT", f"🏁 CICLO DE 10 TRADES FINALIZADO! Resultado: {new_wins_count}G / {new_losses_count}L. Recalibragem de banca ativada.", "SUCCESS")
-                # Automation could go here to lock trading or notify
+            # [V10.6.2] Automated 10-Trade Cycle Recalibration
+            if new_total_trades > 0 and new_total_trades % 10 == 0:
+                await firebase_service.log_event("VAULT", f"🏁 CICLO DE 10 TRADES FINALIZADO! Resultado: {new_wins_count}G / {new_losses_count}L. Recalibragem de banca e reset de ativos ativados.", "SUCCESS")
+                await self.recalculate_cycle_bankroll()
+                await self.reset_cycle_symbols()
                 
             event_type = "SUCCESS" if is_gain else "WARNING"
-            result_msg = f"V8.0 Sniper {result_label} | Progresso: {new_wins_count}G / {new_losses_count}L (Total: {new_total_trades}/10) | PnL: ${pnl:.2f}"
+            result_msg = f"V10.6.2 Sniper {result_label} | Progresso: {new_wins_count}G / {new_losses_count}L (Total: {new_total_trades}) | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
                 # In a real implementation, this would trigger a bankroll reset or profit withdrawal
                 
             event_type = "SUCCESS" if pnl > 0 else "WARNING"
-            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/10 | Trade #{new_total_trades}/10 | PnL: ${pnl:.2f}"
+            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins_count}/10 | Trade #{new_total_trades}/10 | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
             
             if new_wins_count >= 10:
@@ -442,6 +443,8 @@ class VaultService:
                 "sniper_wins": new_wins,
                 "cycle_profit": new_profit,
                 "cycle_losses": new_losses,
+                "cycle_gains_count": len([t for t in trades if t.get('slot_type') == 'SNIPER' and t.get('pnl', 0) > 0]),
+                "cycle_losses_count": len([t for t in trades if t.get('slot_type') == 'SNIPER' and t.get('pnl', 0) <= 0]),
                 "total_trades_cycle": len([t for t in trades if t.get('slot_type') == 'SNIPER']),
                 "used_symbols_in_cycle": list(used_symbols)
             }
@@ -667,9 +670,9 @@ class VaultService:
         try:
             status = await self.get_cycle_status()
             
-            # [V8.0] Master Toggle Check
-            if not status.get("sniper_mode_active", True):
-                return False, "Capitão Sniper está PAUSADO (Manual Stop)."
+            # [V10.6.2] Master Toggle IGNORED for Autonomous Mode
+            # if not status.get("sniper_mode_active", True):
+            #    return False, "Capitão Sniper está PAUSADO (Manual Stop)."
 
             if status.get("in_admiral_rest"):
                 rest_until = status.get("rest_until", "")

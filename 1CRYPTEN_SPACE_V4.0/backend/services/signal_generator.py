@@ -33,6 +33,9 @@ class SignalGenerator:
         self.trend_cache_ttl = 300  # 5 minutes cache
         self.last_sent_signals = {} # {symbol: {'score': int, 'timestamp': float}}
         self.btc_drag_mode = False # V10.2: Initial State
+        # V10.6 System Harmony: State Machine
+        self.system_state = "PAUSED"  # SCANNING | MONITORING | PAUSED
+        self.last_state_update = 0
 
     async def get_1h_trend_analysis(self, symbol: str) -> dict:
         """
@@ -227,12 +230,45 @@ class SignalGenerator:
                 # 🆕 V6.0: Broadcast WebSocket Health to Command Tower
                 await firebase_service.update_ws_health(bybit_ws_service.latency_ms)
 
-                # V5.2.1: Check slot 1 availability
+                # V10.6 System Harmony: Check ALL slots and manage state
+                from services.vault_service import vault_service
+                trading_allowed, reason = await vault_service.is_trading_allowed()
+                
+                if not trading_allowed:
+                    # Captain is PAUSED by user
+                    if self.system_state != "PAUSED":
+                        self.system_state = "PAUSED"
+                        await firebase_service.update_system_state("PAUSED", 0, reason)
+                        logger.info(f"🔴 V10.6: System State → PAUSED ({reason})")
+                    await asyncio.sleep(5)  # V10.6.1: Reduced from 30s
+                    continue
+                
+                # Count occupied slots
+                slots = await firebase_service.get_active_slots()
+                occupied_count = sum(1 for s in slots if s.get("symbol"))
+                
+                if occupied_count >= 2:
+                    # Both slots occupied → MONITORING mode (pause signal generation)
+                    if self.system_state != "MONITORING":
+                        self.system_state = "MONITORING"
+                        await firebase_service.update_system_state("MONITORING", occupied_count, "Monitorando 2/2 posições")
+                        logger.info(f"👁️ V10.6: System State → MONITORING (Slots: {occupied_count}/2)")
+                    # Complete pause - only check periodically if a slot freed up
+                    await asyncio.sleep(10)
+                    continue
+                
+                # At least one slot free → SCANNING mode
+                if self.system_state != "SCANNING":
+                    self.system_state = "SCANNING"
+                    await firebase_service.update_system_state("SCANNING", occupied_count, "Buscando oportunidades")
+                    logger.info(f"🔍 V10.6: System State → SCANNING (Slots: {occupied_count}/2)")
+                
+                # Fresh scan for best opportunity
                 can_sniper = await bankroll_manager.can_open_new_slot(slot_type="SNIPER")
                 
                 if can_sniper is None:
-                    # Slow down scanning if Slot 1 is full
-                    await asyncio.sleep(15) 
+                    # Edge case: slot check says no, but we detected free slot
+                    await asyncio.sleep(5) 
                     continue
 
                 # V9.0 Sniper Scan: Only instruments with exactly 50x leverage

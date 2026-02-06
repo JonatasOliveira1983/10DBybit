@@ -121,8 +121,8 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(sig_gen.radar_loop())
                 asyncio.create_task(captain.monitor_signals())
                 asyncio.create_task(captain.monitor_active_positions_loop())
-                # Position reaper disabled on startup - will enable after Vault authorization
-                # asyncio.create_task(bankroll_manager.position_reaper_loop())
+                # Position reaper ENABLED - handles ghost slot cleanup
+                asyncio.create_task(bankroll_manager.position_reaper_loop())
                 
                 # 3.1: V5.2.3: Initial Sync - Ensure Vault and Banca are aligned with history
                 async def initial_sync():
@@ -322,7 +322,7 @@ async def get_banca():
             return {
                 "saldo_total": equity,
                 "risco_real_percent": 0.0,
-                "slots_disponiveis": 10,
+                "slots_disponiveis": 2,
                 "status": "LIVE_FETCH"
             }
         return status
@@ -333,7 +333,7 @@ async def get_banca():
     return {
         "saldo_total": 0.0,
         "risco_real_percent": 0.0,
-        "slots_disponiveis": 10,
+        "slots_disponiveis": 2,
         "status": "ERROR"
     }
 
@@ -377,8 +377,8 @@ async def get_slots():
     except Exception as e:
         logger.error(f"Error fetching slots: {e}")
     
-    # Fallback: 10 empty slots
-    return [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0, "side": None} for i in range(1, 11)]
+    # Fallback: 2 empty slots (Dual Slot System)
+    return [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0, "side": None} for i in range(1, 3)]
 
 @app.get("/api/signals")
 async def get_signals(min_score: int = 0, limit: int = 20):
@@ -796,6 +796,16 @@ async def toggle_admiral_rest(payload: dict):
         return {"error": str(e)}
 
 # ============ V10.2 SYSTEM CONFIG ENDPOINTS ============
+
+@app.get("/api/system/state")
+async def get_system_state():
+    """V10.6: REST fallback for system status (Harmony)."""
+    from services.firebase_service import firebase_service
+    try:
+        return await firebase_service.get_system_state()
+    except Exception as e:
+        logger.error(f"Error in system state endpoint: {e}")
+        return {"current": "PAUSED", "message": "Erro API", "slots_occupied": 0}
 
 @app.get("/api/version")
 async def get_version():

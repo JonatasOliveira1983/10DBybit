@@ -330,6 +330,22 @@
                         class="custom-checkbox w-5 h-5 rounded border-gray-700 bg-black text-primary focus:ring-primary focus:ring-offset-black"
                         type="checkbox" />
                 </label>
+                <!-- V10.5 Captain's Voice Expansion -->
+                <label class="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                            <span class="material-icons-round text-gold text-sm">record_voice_over</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-white">Voz do Capitão</span>
+                            <span class="text-[10px] text-gray-500 tracking-tighter uppercase">Alertas de voz em tempo
+                                real</span>
+                        </div>
+                    </div>
+                    <input id="voice-toggle" checked=""
+                        class="custom-checkbox w-5 h-5 rounded border-gray-700 bg-black text-primary focus:ring-primary focus:ring-offset-black"
+                        type="checkbox" />
+                </label>
             </div>
         </section>
         <section class="pt-6 space-y-3">
@@ -390,6 +406,9 @@
                         document.getElementById('leverage-val').textContent = data.leverage + "x";
                         document.getElementById('leverage-slider').value = data.leverage;
                     }
+                    // Load voice toggle from localStorage (client-side preference)
+                    const voiceEnabled = localStorage.getItem('captain_voice_enabled') !== 'false';
+                    document.getElementById('voice-toggle').checked = voiceEnabled;
                 }
             } catch (e) { console.warn("Failed to load settings"); }
         }
@@ -400,6 +419,10 @@
                 leverage: parseInt(document.getElementById('leverage-slider').value)
             };
             try {
+                // Save voice preference to localStorage
+                const voiceEnabled = document.getElementById('voice-toggle').checked;
+                localStorage.setItem('captain_voice_enabled', voiceEnabled);
+
                 const res = await fetch(`${API_BASE}/api/system/settings`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

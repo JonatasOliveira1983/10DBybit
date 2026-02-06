@@ -28,7 +28,7 @@ class BankrollManager:
         # V4.2: Sniper TP = +2% price = 100% ROI @ 50x
         self.sniper_tp_percent = 0.02  # 2% price movement
         self.execution_lock = asyncio.Lock() # Iron Lock Atomic Protector
-        self.pending_slots = set() # V4.9.4.2: Local memory lock to prevent duplicate assignments
+        self.pending_slots = {} # V4.9.4.2: Local memory lock { (symbol, slot_id): timestamp }
 
     def _is_slot_risk_free(self, slot: dict) -> bool:
         """
@@ -246,33 +246,41 @@ class BankrollManager:
             slot1 = next((s for s in slots if s["id"] == 1), None)
             slot2 = next((s for s in slots if s["id"] == 2), None)
             
-            # Atomic Lock Check
+            # Atomic Lock Check & TTL Expiry
+            current_time = time.time()
+            expired_keys = [k for k, ts in self.pending_slots.items() if (current_time - ts) > 30]
+            for k in expired_keys:
+                logger.warning(f"🔓 Atomic Lock TTL Expired for {k}. Clearing.")
+                del self.pending_slots[k]
+                
             if self.pending_slots:
-                logger.warning(f"Atomic Lock: System already processing a trade. BLOCKED.")
+                logger.warning(f"Atomic Lock: System already processing a trade. BLOCKED. Pending: {list(self.pending_slots.keys())}")
                 return None
             
             # Check if this symbol is already pending
             if symbol:
                 norm_symbol = symbol.replace(".P", "").upper()
-                if any(p_sym == norm_symbol for p_sym, p_id in self.pending_slots):
+                if any(k[0] == norm_symbol for k in self.pending_slots):
                     return None
                 # Also check if symbol already in an active slot
                 for s in slots:
                     if s.get("symbol") and s["symbol"].replace(".P", "").upper() == norm_symbol:
                         return None
-            
             # [V10.5] Concurrent Dual Slot: Any empty slot is available
-            if slot1 and not slot1.get("symbol"):
+            is_slot1_free = slot1 is not None and not slot1.get("symbol")
+            is_slot2_free = slot2 is not None and not slot2.get("symbol")
+
+            if is_slot1_free:
                 logger.info(f"🎯 V10.5: Slot 1 disponível.")
                 return 1
             
-            if slot2 and not slot2.get("symbol"):
+            if is_slot2_free:
                 logger.info(f"🎯 V10.5: Slot 2 disponível.")
                 return 2
             
-            logger.info("🚫 V10.5: Todos os slots ocupados.")
+            logger.info(f"🚫 V10.5: Todos os slots ocupados. (S1: {'Free' if is_slot1_free else 'Busy'}, S2: {'Free' if is_slot2_free else 'Busy'})")
             return None
-            
+        
         except Exception as e:
             logger.error(f"Error checking slot availability: {e}")
             return None
@@ -343,7 +351,7 @@ class BankrollManager:
                 logger.warning(f"Iron Lock: Signal {symbol} already active in Firebase. BLOCKED.")
                 return None
             
-            if any(p_sym == norm_symbol for p_sym, p_id in self.pending_slots):
+            if any(k[0] == norm_symbol for k in self.pending_slots):
                  logger.warning(f"Iron Lock: Signal {symbol} already pending in memory. BLOCKED.")
                  return None
 
@@ -360,7 +368,7 @@ class BankrollManager:
                 return None
             
             # 1.3 Atomic Lock: Claim the slot in memory before any network calls
-            self.pending_slots.add((norm_symbol, slot_id))
+            self.pending_slots[(norm_symbol, slot_id)] = time.time()
             logger.info(f"Iron Lock: Claimed Slot {slot_id} for {symbol}. Proceeding with execution...")
 
         try:
@@ -421,11 +429,11 @@ class BankrollManager:
                 await vault_service.initialize_cycle_bankroll(balance)
                 logger.info(f"📊 V10.5: Novo ciclo iniciado com banca ${balance:.2f} → Margem (10%): ${margin:.2f}")
             
-            if margin < 4.0:
-                 margin = 4.0 # Force minimum operational margin if balance allows
+            if margin < 1.0:
+                 margin = 1.0 # Force minimum operational margin if balance allows
             
             if margin < 1.0:
-                logger.warning(f"❌ Balance too low for 20% margin trade: ${balance:.2f}")
+                logger.warning(f"❌ Balance too low for 10% margin trade: ${balance:.2f}")
                 return False
             
             # [V10.2] ATR-Based Dynamic Stop-Loss Rule
@@ -500,7 +508,7 @@ class BankrollManager:
         finally:
             # 5. Release Lock
             if (norm_symbol, slot_id) in self.pending_slots:
-                self.pending_slots.remove((norm_symbol, slot_id))
+                del self.pending_slots[(norm_symbol, slot_id)]
 
 
     async def emergency_close_all(self):
