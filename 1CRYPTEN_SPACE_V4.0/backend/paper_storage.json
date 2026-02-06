@@ -1,1 +1,16 @@
-{"positions": [], "balance": 0.0, "history": []}
+{
+  "positions": [
+    {
+      "symbol": "XAUTUSDT",
+      "side": "Buy",
+      "size": "0.084",
+      "avgPrice": "4790.2",
+      "leverage": "50",
+      "stopLoss": "4742.298",
+      "takeProfit": "4886.004",
+      "createdTime": "123456789"
+    }
+  ],
+  "balance": 0.0,
+  "history": []
+}
