@@ -276,13 +276,12 @@ class BybitREST:
         """
         try:
             api_symbol = self.normalize_symbol(symbol)
-            # [V6.1] Safety Guard: Prevent fetching ALL tickers (heavy payload) accidentally
-            # Unless explicitly asking for all (e.g. initial scan), we should block None in high-freq calls
-            if symbol is None and not self.is_scanning_phase(): # Hypothetical check, or just block None strictly if logic dictates
-                 # For now, let's strictly require a symbol or a specific "ALL" flag if we wanted everything.
-                 # But looking at usage, get_top_200 uses get_tickers(category) which implies ALL.
-                 # The error logs showed 'Error fetching tickers for None', implying symbol=None was passed unintendedly.
-                 pass
+            # [V6.1.1] HOTFIX (AttributeError): Removed non-existent is_scanning_phase check.
+            # Strictly blocking None to prevent heavy API load.
+            if symbol is None:
+                logger.warning("[PERFORMANCE] get_tickers called with None symbol! BLOCKED to save bandwidth.")
+                # Return empty structure to prevent crashes downstream
+                return {"retCode": 0, "result": {"list": []}}
 
             params = {"category": self.category}
             if api_symbol: 
