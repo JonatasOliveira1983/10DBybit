@@ -288,14 +288,29 @@ class CaptainAgent:
                 positions = await bybit_rest_service.get_active_positions(symbol=symbol)
                 for pos in positions:
                     if float(pos["size"]) > 0:
+                        pnl_usd = execution_protocol.calculate_pnl(slot["entry_price"], last_price, float(pos["size"]), slot["side"])
+                        trade_data = {
+                            "symbol": symbol,
+                            "side": slot["side"],
+                            "entry_price": slot["entry_price"],
+                            "exit_price": last_price,
+                            "qty": float(pos["size"]),
+                            "slot_id": slot_id,
+                            "slot_type": slot.get("slot_type")
+                        }
                         await bybit_rest_service.close_position(symbol, pos["side"], float(pos["size"]))
-                        await firebase_service.hard_reset_slot(slot_id, reason, pnl_usd)
+                        await firebase_service.hard_reset_slot(slot_id, reason, pnl_usd, trade_data=trade_data)
         except Exception as e: logger.error(f"Failed to close {symbol}: {e}")
 
     async def _update_sl(self, symbol, side, new_sl, slot_id, pnl_pct):
         try:
             new_sl = await bybit_rest_service.round_price(symbol, new_sl)
-            if bybit_rest_service.execution_mode == "REAL": await bybit_rest_service.set_trading_stop(symbol=symbol, category="linear", stopLoss=str(new_sl))
+            if bybit_rest_service.execution_mode == "REAL": 
+                res = await bybit_rest_service.set_trading_stop(category="linear", symbol=symbol, stopLoss=str(new_sl))
+                if res.get("retCode") != 0:
+                    logger.error(f"🛑 BYBIT SL ERROR [{symbol}]: {res}")
+                else:
+                    logger.info(f"🛡️ BYBIT SL UPDATED [{symbol}]: {new_sl}")
             await firebase_service.update_slot(slot_id, {"current_stop": new_sl, "pensamento": f"⚓ Capitão: SL posicionado em {new_sl:.5f} (ROI: {pnl_pct:.1f}%)"})
         except Exception as e: logger.error(f"Failed update SL {symbol}: {e}")
 

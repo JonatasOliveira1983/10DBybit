@@ -56,5 +56,10 @@ O sistema opera de forma assíncrona com três camadas integradas:
 4. `Bankroll` aloca margem específica para o slot selecionado.
 5. `ExecutionProtocol` monitora ambos os slots de forma independente.
 
+### ⚡ Stability & Result Persistence (V10.4.1)
+- **Result Fix**: Resolved variable name collision in `VaultService` preventing trade registration.
+- **History Sync**: Enabled full trade data persistence for both PAPER and REAL modes.
+- **Robust SL**: Added enhanced telemetry and error handling for exchange-side Stop Loss updates.
+
 ---
-*Versão do Documento: 10.4 | Dual Slot Multitasking & Portfolio Expansion*
+*Versão do Documento: 10.4.1 | Dual Slot Stability & Persistence Update*

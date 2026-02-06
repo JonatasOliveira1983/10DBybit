@@ -352,7 +352,7 @@ class VaultService:
             result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins}/10 | Trade #{new_total_trades}/10 | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
             
-            if new_wins >= 10:
+            if new_wins_count >= 10:
                 await firebase_service.log_event("VAULT", f"🏆 CICLO PERFEITO {current.get('cycle_number', 1)}! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
             
             # [V9.0] Fix: Ensure symbol is added to cycle list

@@ -600,6 +600,7 @@ class BybitREST:
             if tpslMode: params["tpslMode"] = tpslMode
             
             response = await asyncio.to_thread(self.session.set_trading_stop, **params)
+            logger.info(f"set_trading_stop response for {symbol}: {response}")
             return response
         except Exception as e:
             logger.error(f"Error setting SL for {symbol}: {e}")
