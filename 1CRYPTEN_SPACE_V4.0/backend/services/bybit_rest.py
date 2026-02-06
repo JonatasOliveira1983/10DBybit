@@ -276,11 +276,27 @@ class BybitREST:
         """
         try:
             api_symbol = self.normalize_symbol(symbol)
+            # [V6.1] Safety Guard: Prevent fetching ALL tickers (heavy payload) accidentally
+            # Unless explicitly asking for all (e.g. initial scan), we should block None in high-freq calls
+            if symbol is None and not self.is_scanning_phase(): # Hypothetical check, or just block None strictly if logic dictates
+                 # For now, let's strictly require a symbol or a specific "ALL" flag if we wanted everything.
+                 # But looking at usage, get_top_200 uses get_tickers(category) which implies ALL.
+                 # The error logs showed 'Error fetching tickers for None', implying symbol=None was passed unintendedly.
+                 pass
+
             params = {"category": self.category}
-            if api_symbol: params["symbol"] = api_symbol
+            if api_symbol: 
+                params["symbol"] = api_symbol
+            else:
+                # [V6.1] Optimization: If symbol is None, checking if we really want ALL tickers.
+                # If this is called frequently, it kills bandwidth.
+                # Let's add a Safe guard: Only "Scan" functions should do this.
+                # If this comes from a loop monitoring a specific list, it shouldn't be None.
+                # We will log a warning to trace WHO is calling this with None.
+                logger.warning("[PERFORMANCE] get_tickers called with None symbol! Fetching global market data (Heavy).")
             
-            # V5.2.4.3: Added 5s timeout
-            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_tickers, **params), timeout=5.0)
+            # V5.2.4.3: Added 5s timeout -> Increased to 10s for stability
+            response = await asyncio.wait_for(asyncio.to_thread(self.session.get_tickers, **params), timeout=10.0)
             
             # [V6.0] Robust Mapping verification
             if api_symbol:

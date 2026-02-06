@@ -245,8 +245,8 @@ class FirebaseService:
                 docs = self.db.collection("slots_ativos").order_by("id").stream()
                 return [doc.to_dict() for doc in docs]
             
-            # Increase timeout further for high-latency environments
-            data = await asyncio.wait_for(asyncio.to_thread(_get_slots), timeout=10.0)
+            # Increase timeout further for high-latency environments (V10.6.5 Stability)
+            data = await asyncio.wait_for(asyncio.to_thread(_get_slots), timeout=20.0)
             
             if data and len(data) >= 1:
                 self.slots_cache = data
@@ -254,7 +254,9 @@ class FirebaseService:
                 return self.slots_cache
                 
         except Exception as e:
-            logger.warning(f"Transient Firebase error fetching slots: {e}. Using cache.")
+            # V10.6.5: Improved Error Visibility
+            err_type = type(e).__name__
+            logger.warning(f"Transient Firebase error fetching slots ({err_type}): {e}. Using cache.")
             
         return self.slots_cache
 
