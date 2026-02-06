@@ -932,7 +932,7 @@
         // Firebase Config
         const firebaseConfig = {
             projectId: "projeto-teste-firestore-3b00e",
-            databaseURL: "https://projeto-teste-firestore-3b00e-default-rtdb.firebaseio.com/"
+            databaseURL: "https://projeto-teste-firestore-3b00e-default-rtdb.europe-west1.firebasedatabase.app"
         };
 
         try {
@@ -1081,23 +1081,130 @@
             const [slots, setSlots] = useState(initialData);
 
             useEffect(() => {
-                if (!rtdb) return;
-                try {
-                    const ref = rtdb.ref('slots');
-                    ref.on('value', (snapshot) => {
-                        const val = snapshot.val();
-                        if (val) {
-                            // Convert object { "1": {}, "2": {} } to array
-                            const slotsArray = Object.values(val).sort((a, b) => (a.id || 0) - (b.id || 0));
-                            setSlots(slotsArray);
-                            localStorage.setItem('slots_cache', JSON.stringify(slotsArray));
+                // Primary: Realtime DB (Harmony)
+                let unsubscribe = null;
+                if (rtdb) {
+                    try {
+                        const ref = rtdb.ref('live_slots'); // Fixed path: was 'slots'
+                        unsubscribe = ref.on('value', (snapshot) => {
+                            const val = snapshot.val();
+                            if (val) {
+                                // Convert object { "1": {}, "2": {} } to array
+                                const slotsArray = Object.values(val).sort((a, b) => (a.id || 0) - (b.id || 0));
+                                setSlots(slotsArray);
+                                localStorage.setItem('slots_cache', JSON.stringify(slotsArray));
+                            }
+                        });
+                    } catch (e) { console.error("Slots RTDB Error:", e); }
+                }
+
+                // Secondary: REST Polling Fallback (ensures slots sync on first load/failure)
+                const fetchSlots = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/api/slots');
+                        if (res.ok) {
+                            const data = await res.json();
+                            // Logic: If RTDB hasn't fired yet, use this
+                            setSlots(prev => (prev.length === 0 || prev.every(s => !s.symbol)) ? data : prev);
                         }
-                    });
-                    return () => ref.off();
-                } catch (e) { }
+                    } catch (e) { }
+                };
+
+                fetchSlots();
+                const itv = setInterval(fetchSlots, 10000);
+
+                return () => {
+                    if (unsubscribe && rtdb) rtdb.ref('live_slots').off('value', unsubscribe);
+                    clearInterval(itv);
+                };
             }, []);
             return slots;
         };
+
+        // --- Hook: V10.6 System State (Harmony) ---
+        const useSystemState = () => {
+            const [state, setState] = useState({ current: 'PAUSED', slots_occupied: 0, message: '', updated_at: 0 });
+
+            useEffect(() => {
+                // Primary: Realtime DB (Harmony)
+                let unsubscribe = null;
+                if (rtdb) {
+                    try {
+                        const ref = rtdb.ref('system_state');
+                        unsubscribe = ref.on('value', (snapshot) => {
+                            const val = snapshot.val();
+                            if (val) setState(val);
+                        });
+                    } catch (e) { console.error("System State RTDB Error:", e); }
+                }
+
+                // Secondary: REST Polling Fallback (ensures status is never stuck)
+                const fetchFallback = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/api/system/state');
+                        if (res.ok) {
+                            const val = await res.json();
+                            // Only update if RTDB hasn't updated recently or we are still on default
+                            setState(prev => {
+                                if (!prev.updated_at || (val.updated_at && val.updated_at > prev.updated_at)) {
+                                    return val;
+                                }
+                                return prev;
+                            });
+                        }
+                    } catch (e) { }
+                };
+
+                fetchFallback();
+                const itv = setInterval(fetchFallback, 15000);
+
+                return () => {
+                    if (unsubscribe && rtdb) rtdb.ref('system_state').off('value', unsubscribe);
+                    clearInterval(itv);
+                };
+            }, []);
+
+            return state;
+        };
+
+        // --- Component: V10.6 SystemStatusBar (Harmony) ---
+        const SystemStatusBar = () => {
+            const systemState = useSystemState();
+
+            const config = {
+                SCANNING: {
+                    icon: '🔍',
+                    label: 'Buscando Oportunidades',
+                    color: 'text-blue-400',
+                    bg: 'bg-blue-500/10',
+                    border: 'border-blue-500/30'
+                },
+                MONITORING: {
+                    icon: '👁️',
+                    label: `Monitorando ${systemState.slots_occupied}/2 Posições`,
+                    color: 'text-amber-400',
+                    bg: 'bg-amber-500/10',
+                    border: 'border-amber-500/30'
+                },
+                PAUSED: {
+                    icon: '⏸️',
+                    label: systemState.message || 'Capitão Pausado',
+                    color: 'text-slate-400',
+                    bg: 'bg-slate-500/10',
+                    border: 'border-slate-500/30'
+                }
+            };
+
+            const current = config[systemState.current] || config.PAUSED;
+
+            return (
+                <div className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-full ${current.bg} ${current.border} border`}>
+                    <span className="text-sm">{current.icon}</span>
+                    <span className={`text-xs font-medium ${current.color}`}>{current.label}</span>
+                </div>
+            );
+        };
+
         const TradingChart = ({ symbol, entryPrice, stopLossPrice, side, pnlFallback, slotId, slotType }) => {
             const chartContainerRef = useRef();
             const chartRef = useRef();
@@ -2414,6 +2521,11 @@
                                 </div>
                             </div>
 
+                            {/* V10.6 System Status Bar */}
+                            <div className="flex justify-center mt-2">
+                                <SystemStatusBar />
+                            </div>
+
                             {/* Tab Switcher */}
                             <div className="flex gap-4 mt-4 border-b border-white/5">
                                 <button onClick={() => setActiveTab('signals')}
@@ -2829,6 +2941,11 @@
                         </div>
                     </header>
 
+                    {/* V10.6 System Status Bar */}
+                    <div className="flex justify-center px-4 py-2">
+                        <SystemStatusBar />
+                    </div>
+
                     <main className="flex-1 flex flex-col main-scrollable p-2 sm:p-3 gap-2 sm:gap-3 content-with-navbar">
                         {/* Premium Portfolio Performance Cards */}
                         <section className="flex-shrink-0 grid grid-cols-3 gap-2">
@@ -3022,6 +3139,12 @@
                             <h1 className="text-base sm:text-lg font-display font-bold v5-text-main text-center uppercase tracking-widest">Vault Management</h1>
                             <div className="flex justify-end">
                                 <img src="/logo10D.png" alt="Logo" className="w-12 h-12 object-contain opacity-90" />
+                            </div>
+                        </div>
+                        {/* V10.6 System Status Bar */}
+                        <div className="max-w-3xl mx-auto mt-2">
+                            <div className="flex justify-center">
+                                <SystemStatusBar />
                             </div>
                         </div>
                     </header>

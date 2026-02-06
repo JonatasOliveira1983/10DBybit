@@ -3,7 +3,7 @@ const STATIC_ASSETS = [
     '/',
     'logo10D.png',
     'SoHoje1.png',
-    'https://cdn.tailwindcss.com',
+    // Removed problematic CORS asset: 'https://cdn.tailwindcss.com',
     'https://unpkg.com/react@18/umd/react.production.min.js',
     'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
     'https://unpkg.com/react-router-dom@6/dist/umd/react-router-dom.production.min.js',

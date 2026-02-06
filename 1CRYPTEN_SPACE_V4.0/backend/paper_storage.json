@@ -1,16 +1,1 @@
-{
-  "positions": [],
-  "balance": 3.4906812000000036,
-  "history": [
-    {
-      "symbol": "ONDOUSDT.P",
-      "side": "Buy",
-      "avgEntryPrice": "0.2408",
-      "avgExitPrice": "0.2453",
-      "closedPnl": "3.4906812000000036",
-      "leverage": "50.0",
-      "qty": "830.0",
-      "updatedTime": "1770377847835"
-    }
-  ]
-}
+{"positions": [], "balance": 0.0, "history": []}
