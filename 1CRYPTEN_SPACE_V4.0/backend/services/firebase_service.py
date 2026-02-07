@@ -75,16 +75,19 @@ class FirebaseService:
             # V5.2.4.4: SSL Resilience Retry Loop for production connectivity
             for attempt in range(3):
                 try:
+                    # V10.7.1: Define options BEFORE try block to fix scope issue
+                    options = {}
+                    db_url = settings.FIREBASE_DATABASE_URL or os.getenv("FIREBASE_DATABASE_URL")
+                    if db_url and db_url != "None":
+                        options['databaseURL'] = db_url
+                    
                     # Avoid re-initializing if already running
                     try:
                         app = firebase_admin.get_app()
+                        logger.info("Firebase app already initialized, reusing...")
                     except ValueError:
                         # Initialize with RTDB URL if available
-                        options = {}
-                        db_url = settings.FIREBASE_DATABASE_URL or os.getenv("FIREBASE_DATABASE_URL")
-                        # V10.6.6: Log RTDB URL status
                         if db_url and db_url != "None":
-                            options['databaseURL'] = db_url
                             logger.info(f"✅ FIREBASE_DATABASE_URL configured: {db_url[:50]}...")
                         else:
                             logger.error("❌ FIREBASE_DATABASE_URL is MISSING! RTDB features disabled.")
@@ -94,7 +97,8 @@ class FirebaseService:
                     # Initialize Clients
                     self.db = firestore.client()
                     try:
-                        if 'databaseURL' in options:
+                        # V10.7.1: Check if app has databaseURL configured
+                        if db_url and db_url != "None":
                             self.rtdb = db.reference("/")
                             logger.info("Firebase Realtime DB connected.")
                         else:
