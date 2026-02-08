@@ -13,10 +13,9 @@ class Settings(BaseSettings):
     BYBIT_API_KEY: Optional[str] = None
     BYBIT_API_SECRET: Optional[str] = None
     BYBIT_CATEGORY: str = "linear"
-    BYBIT_CATEGORY: str = "linear"
     BYBIT_TESTNET: bool = False # FALSE = Mainnet Data (Real Prices)
     BYBIT_EXECUTION_MODE: str = "PAPER" # "PAPER" = Virtual Execution
-    BYBIT_SIMULATED_BALANCE: float = 100.0 # Virtual $100
+    BYBIT_SIMULATED_BALANCE: float = 20.0 # Virtual $20 (Banca Sniper)
 
     # Gemini
     GEMINI_API_KEY: Optional[str] = None
@@ -36,6 +35,7 @@ class Settings(BaseSettings):
     LEVERAGE: int = 50
     INITIAL_SLOTS: int = 1
     BREAKEVEN_TRIGGER_PERCENT: float = 5.0 # Increased to 5% ROI to avoid premature exits
+    WIN_ROI_THRESHOLD: float = 100.0 # V11.0: ROI mínimo para contar como WIN no ciclo 1/10
     
     # Redis
     REDIS_HOST: str = "localhost"

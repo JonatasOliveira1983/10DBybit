@@ -272,6 +272,24 @@
                     </div>
                 </div>
             </div>
+
+            <!-- V11.0 Mega Cycle Tracker (1/100) -->
+            <div class="glass-card rounded-2xl p-4 mt-4 border border-purple-500/20">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[14px]">💎</span>
+                        <span class="text-[10px] uppercase tracking-widest text-purple-300/80">Mega Ciclo 1/100</span>
+                    </div>
+                    <span id="mega-cycle-counter" class="text-xs font-mono font-bold text-purple-400">0/100</span>
+                </div>
+                <div class="h-1.5 bg-white/5 rounded-full overflow-hidden border border-purple-500/20">
+                    <div id="mega-cycle-bar"
+                        class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500"
+                        style="width: 0%"></div>
+                </div>
+                <p class="text-[8px] text-purple-300/50 mt-2 italic">Trades com ROI ≥ 100% acumulam para o mega ciclo
+                </p>
+            </div>
         </div>
 
         <main class="flex-1 px-6 space-y-4">
@@ -493,6 +511,13 @@
             if (trackerLabel) {
                 trackerLabel.textContent = `Ciclo #${cycleNum} de Trades Elite`;
             }
+
+            // V11.0: Update Mega Cycle (1/100) Tracker
+            const megaWins = cycle.mega_cycle_wins || 0;
+            const megaCounter = document.getElementById('mega-cycle-counter');
+            const megaBar = document.getElementById('mega-cycle-bar');
+            if (megaCounter) megaCounter.textContent = `${megaWins}/100`;
+            if (megaBar) megaBar.style.width = `${Math.min(100, megaWins)}%`;
         }
 
         // Initial load and periodic refresh

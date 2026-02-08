@@ -370,15 +370,28 @@ async def get_banca_history(limit: int = 50):
 @app.get("/api/slots")
 async def get_slots():
     from services.firebase_service import firebase_service
+    from services.execution_protocol import execution_protocol
     try:
         slots = await firebase_service.get_active_slots()
         if slots:
+            # V11.0: Add Smart SL phase info to each slot
+            for slot in slots:
+                if slot.get("symbol") and slot.get("entry_price", 0) > 0:
+                    roi = slot.get("pnl_percent", 0)
+                    phase_info = execution_protocol.get_sl_phase_info(roi)
+                    slot["sl_phase"] = phase_info["phase"]
+                    slot["sl_phase_icon"] = phase_info["icon"]
+                    slot["sl_phase_color"] = phase_info["color"]
+                else:
+                    slot["sl_phase"] = "IDLE"
+                    slot["sl_phase_icon"] = "⏳"
+                    slot["sl_phase_color"] = "gray"
             return slots
     except Exception as e:
         logger.error(f"Error fetching slots: {e}")
     
     # Fallback: 2 empty slots (Dual Slot System)
-    return [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0, "side": None} for i in range(1, 3)]
+    return [{"id": i, "symbol": None, "entry_price": 0, "current_stop": 0, "side": None, "sl_phase": "IDLE", "sl_phase_icon": "⏳"} for i in range(1, 3)]
 
 @app.get("/api/signals")
 async def get_signals(min_score: int = 0, limit: int = 20):

@@ -1,16 +1,17 @@
 """
-🛡️ Protocolo de Execução Elite V5.0 - Adaptive Stop Loss
+🛡️ Protocolo de Execução Elite V11.0 - Smart Stop Loss Protocol
 ==========================================================
 Módulo responsável por executar lógica de fechamento independente por slot.
-Implementa Flash Close (SNIPER), Surf Shield (SURF) e Adaptive SL com telemetria visual.
+Implementa Smart SL com 4 fases: SAFE → RISK_ZERO → PROFIT_LOCK → MEGA_PULSE.
 
 Author: Antigravity AI
-Version: 5.0 (Adaptive Stop Loss)
+Version: 11.0 (Smart Stop Loss Protocol)
 
-V5.0 Changes:
-- SNIPER: Adaptive SL que move conforme ROI sobe (não mais fixo)
-- SURF: Escada melhorada com mais níveis de proteção
-- NEW: Status TRAILING para indicar SL em movimento
+V11.0 Changes:
+- PHASE_SAFE: SL inicial em -50% ROI (entrada)
+- PHASE_RISK_ZERO: SL move para entry quando ROI >= 30%
+- PHASE_PROFIT_LOCK: SL trava 80% do lucro quando ROI >= 100%
+- PHASE_MEGA_PULSE: Trailing dinâmico baseado em Gás (CVD) para ROI >= 100%
 """
 
 import logging
@@ -19,41 +20,47 @@ from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger("ExecutionProtocol")
 
+# V11.0 Smart SL Protocol Phases
+SMART_SL_PHASES = {
+    "PHASE_SAFE": {"trigger_roi": 0, "stop_roi": -50.0, "icon": "🔴", "color": "red"},
+    "PHASE_RISK_ZERO": {"trigger_roi": 30.0, "stop_roi": 0.0, "icon": "🛡️", "color": "green"},
+    "PHASE_PROFIT_LOCK": {"trigger_roi": 100.0, "stop_roi": 80.0, "icon": "🟡", "color": "gold"},
+    "PHASE_MEGA_PULSE": {"trigger_roi": 100.0, "trailing_gap": 20.0, "icon": "💎", "color": "diamond"}
+}
+
 class ExecutionProtocol:
     """
     Executa a lógica de fechamento para cada slot de forma independente.
     Cada ordem tem seu próprio 'contrato de execução'.
     
-    V5.0 Adaptive Stop Loss:
-    - SNIPER: Flash Close com TP nativo + Adaptive Trailing SL
-    - SURF: Surf Shield com escada granular melhorada
+    V11.0 Smart Stop Loss Protocol:
+    - PHASE_SAFE: SL em -50% ROI (proteção inicial)
+    - PHASE_RISK_ZERO: SL em entry quando ROI >= 30%
+    - PHASE_PROFIT_LOCK: SL trava 80% do lucro quando ROI >= 100%
+    - PHASE_MEGA_PULSE: Trailing com gap de 20% ROI + verificação de Gás
     """
     
     def __init__(self):
         self.leverage = 50
         
-        # === SNIPER CONFIG (Slot 1) ===
+        # === SNIPER CONFIG (Slot 1 & 2) ===
         self.sniper_target_roi = 100.0    # 100% ROI = 2% movimento @ 50x
         self.sniper_stop_roi = -50.0      # Stop Loss inicial = -50% ROI (1% movimento)
         self.flash_zone_threshold = 80.0  # Zona Roxa: 80% do target (ROI >= 80%)
         
-        # 🆕 V10.2: Relaxed Adaptive SL for SNIPER (ATR-Aware context)
-        # We start trailing later to allow for "breathing" and "sniper" candle wicks.
-        self.sniper_trailing_ladder = [
-            {"trigger": 80.0, "stop_roi": 40.0},   # ROI 80%  → SL at +40% (Lock nice profit)
-            {"trigger": 50.0, "stop_roi": 10.0},   # ROI 50%  → SL at +10% (Risk Zero Shield)
-            {"trigger": 30.0, "stop_roi": -20.0},  # ROI 30%  → SL at -20% (instead of -10% or -50%)
-        ]
-        # Se ROI < 30%, mantém SL original dinâmico (ATR-based)
+        # V11.0: Smart SL Phase Thresholds
+        self.phase_risk_zero_trigger = 30.0   # ROI para mover SL para entry
+        self.phase_profit_lock_trigger = 100.0 # ROI para travar 80% do lucro
+        self.mega_pulse_trailing_gap = 20.0    # Gap de ROI para trailing
         
         # === VISUAL STATUS CODES ===
-        # Usados pelo frontend para cores dos slots
         self.STATUS_SCANNING = "SCANNING"       # Azul - slot livre
         self.STATUS_IN_TRADE = "IN_TRADE"       # Dourado - posição aberta
-        self.STATUS_RISK_ZERO = "RISK_ZERO"     # Turquesa - stop na entrada ou acima
+        self.STATUS_RISK_ZERO = "RISK_ZERO"     # Verde - stop na entrada ou acima
         self.STATUS_FLASH_ZONE = "FLASH_ZONE"   # Roxo Neon - alvo iminente
-        self.STATUS_TRAILING = "TRAILING"       # 🆕 Amarelo Ouro - SL foi movido mas ainda negativo
-        self.STATUS_MEGA_PULSE = "MEGA_PULSE"   # 💎 V7.2: Sniper Trailing Profit (ROI > 100%)
+        self.STATUS_TRAILING = "TRAILING"       # Amarelo Ouro - SL foi movido
+        self.STATUS_MEGA_PULSE = "MEGA_PULSE"   # 💎 V11.0: Trailing Profit (ROI > 100%)
+        self.STATUS_PROFIT_LOCK = "PROFIT_LOCK" # 🟡 V11.0: Lucro travado em 80%
         
     def get_visual_status(self, slot_data: Dict[str, Any], roi: float) -> str:
         """
@@ -151,65 +158,133 @@ class ExecutionProtocol:
 
     async def process_sniper_logic(self, slot_data: Dict[str, Any], current_price: float, roi: float, atr: Optional[float] = None) -> Tuple[bool, Optional[str], Optional[float]]:
         """
-        [V7.0] SINGLE TRADE SNIPER LOGIC:
-        Strictly adhering to:
-        1. Fixed 100% ROI Take Profit / MEGA_PULSE Trailing.
-        2. Maximum 50% Loss Stop Loss.
-        3. Trailed SL Hit Detection.
+        [V11.0] SMART STOP-LOSS PROTOCOL:
+        4 fases de proteção inteligente baseado em ROI e Gás (CVD).
+        
+        PHASE_SAFE:       ROI < 30%  → SL em -50% ROI (entrada)
+        PHASE_RISK_ZERO:  ROI >= 30% → SL move para entry (0% ROI)
+        PHASE_PROFIT_LOCK: ROI >= 100% → SL trava em 80% do lucro
+        PHASE_MEGA_PULSE: ROI >= 100% + Gás favorável → Trailing dinâmico
         """
         symbol = slot_data.get("symbol", "UNKNOWN")
         side = slot_data.get("side", "Buy")
         entry = slot_data.get("entry_price", 0)
         current_sl = slot_data.get("current_stop", 0)
+        side_norm = side.lower()
         
         # 🛡️ 1. Universal Stop Loss Check
-        side_norm = side.lower()
         if current_sl > 0:
             if (side_norm == "buy" and current_price <= current_sl) or \
                (side_norm == "sell" and current_price >= current_sl):
-                logger.info(f"🛑 SNIPER SL HIT: {symbol} Price={current_price} | SL={current_sl}")
-                return True, f"SNIPER_STOP_LOSS_HIT ({roi:.1f}%)", None
+                phase = self.get_sl_phase(roi)
+                logger.info(f"🛑 SNIPER SL HIT: {symbol} Price={current_price} | SL={current_sl} | Phase={phase}")
+                return True, f"SNIPER_SL_{phase} ({roi:.1f}%)", None
 
-        # 🎯 V7.2 SNIPER TRAILING TARGET (MEGA_PULSE)
-        if roi >= 100.0:
-            # Trailing Profit Mode: Lock 80% and follow with 20% gap
-            target_stop_roi = max(80.0, roi - 20.0) 
+        # 🛑 HARD STOP LOSS (-50% ROI)
+        if roi <= -50.0:
+            logger.warning(f"🛑 SNIPER HARD SL: {symbol} ROI={roi:.1f}%")
+            return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)", None
+        
+        # V11.0: Determinar fase atual do Smart SL
+        phase = self.get_sl_phase(roi)
+        
+        # 🌟 PHASE_MEGA_PULSE: Trailing dinâmico com verificação de Gás
+        if roi >= self.phase_profit_lock_trigger:
+            gas_favorable = await self._check_gas_favorable(symbol, side)
             
-            # Convert target_stop_roi to price
+            if gas_favorable:
+                # Trailing Profit Mode: SL segue com gap de 20% ROI
+                target_stop_roi = max(80.0, roi - self.mega_pulse_trailing_gap)
+                phase_label = "MEGA_PULSE"
+            else:
+                # Gás desfavorável: Travar em 80% do lucro (PROFIT_LOCK)
+                target_stop_roi = 80.0
+                phase_label = "PROFIT_LOCK"
+            
             price_offset_pct = target_stop_roi / (self.leverage * 100)
-            side_norm = side.lower()
             new_stop = entry * (1 + price_offset_pct) if side_norm == "buy" else entry * (1 - price_offset_pct)
             
             from services.bybit_rest import bybit_rest_service
             new_stop = await bybit_rest_service.round_price(symbol, new_stop)
             
-            # Only update if it's an improvement to avoid SL regressions
+            # Só atualiza se for melhoria
             if (side_norm == "buy" and new_stop > current_sl) or (side_norm == "sell" and (current_sl == 0 or new_stop < current_sl)):
-                logger.info(f"💎 SNIPER MEGA_PULSE: {symbol} ROI={roi:.1f}% | New trailing SL: {new_stop:.6f}")
+                logger.info(f"💎 SNIPER {phase_label}: {symbol} ROI={roi:.1f}% | Gás={'OK' if gas_favorable else 'CONTRA'} | SL: {new_stop:.6f}")
                 return False, None, new_stop
             
-            return False, None, None # Continue trailing
+            return False, None, None
 
-        # 🛑 HARD STOP LOSS (50%)
-        if roi <= -50.0:
-            logger.warning(f"🛑 SNIPER HARD SL (50%): {symbol} ROI={roi:.1f}%")
-            return True, f"SNIPER_SL_HARD_STOP ({roi:.1f}%)", None
-        # If ROI > 50% and ATR exists, use it as a conservative floor
-        if 50.0 <= roi < 100.0 and atr and atr > 0:
-            atr_sl_dist = 3.0 * atr # Wider 3x ATR for SNIPER
-            atr_sl = current_price - atr_sl_dist if side_norm == "buy" else current_price + atr_sl_dist
+        # 🛡️ PHASE_RISK_ZERO: Mover SL para entry quando ROI >= 30%
+        if roi >= self.phase_risk_zero_trigger:
+            target_stop_roi = 0.0  # SL na entrada (Risk Zero)
             
-            # Logic: If ATR SL is better (closer to price but profitable) than the ladder SL, use it
-            # But the ladder SL is primary for "locking" profits.
-            pass # We'll let the ladder calculate, but we will incorporate ATR check there if needed.
-
-        new_stop = await self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
+            price_offset_pct = target_stop_roi / (self.leverage * 100)  # = 0
+            new_stop = entry * (1 + price_offset_pct) if side_norm == "buy" else entry * (1 - price_offset_pct)
+            
+            from services.bybit_rest import bybit_rest_service
+            new_stop = await bybit_rest_service.round_price(symbol, new_stop)
+            
+            # Só atualiza se SL ainda não está na entry ou melhor
+            if side_norm == "buy":
+                if current_sl < new_stop:
+                    logger.info(f"🛡️ SNIPER RISK_ZERO: {symbol} ROI={roi:.1f}% | SL → Entry: {new_stop:.6f}")
+                    return False, None, new_stop
+            else:
+                if current_sl == 0 or current_sl > new_stop:
+                    logger.info(f"🛡️ SNIPER RISK_ZERO: {symbol} ROI={roi:.1f}% | SL → Entry: {new_stop:.6f}")
+                    return False, None, new_stop
         
-        return False, None, new_stop
+        # 🔴 PHASE_SAFE: Manter SL inicial (-50% ROI)
+        # Nenhuma ação necessária, SL já foi definido na abertura
+        
+        return False, None, None
     
-        new_stop = await self._calculate_sniper_trailing_stop(symbol, entry, roi, side, current_sl)
-        
-        return False, None, new_stop
+    def get_sl_phase(self, roi: float) -> str:
+        """
+        V11.0: Retorna a fase atual do Smart SL baseado no ROI.
+        """
+        if roi >= 100.0:
+            return "MEGA_PULSE"
+        elif roi >= 30.0:
+            return "RISK_ZERO"
+        else:
+            return "SAFE"
+    
+    def get_sl_phase_info(self, roi: float) -> Dict[str, Any]:
+        """
+        V11.0: Retorna informações completas da fase atual para o frontend.
+        """
+        phase = self.get_sl_phase(roi)
+        phase_key = f"PHASE_{phase}"
+        info = SMART_SL_PHASES.get(phase_key, SMART_SL_PHASES["PHASE_SAFE"])
+        return {
+            "phase": phase,
+            "icon": info.get("icon", "🔴"),
+            "color": info.get("color", "red"),
+            "stop_roi": info.get("stop_roi", -50.0)
+        }
+    
+    async def _check_gas_favorable(self, symbol: str, side: str) -> bool:
+        """
+        V11.0: Verifica se o Gás (CVD/momentum) é favorável para trailing.
+        Returns True se o CVD está a favor da posição.
+        """
+        try:
+            from services.redis_service import redis_service
+            cvd = await redis_service.get_cvd(symbol)
+            side_norm = side.lower()
+            
+            # Gás favorável: CVD positivo para Long, negativo para Short
+            if side_norm == "buy":
+                favorable = cvd > 5000  # CVD positivo forte
+            else:
+                favorable = cvd < -5000  # CVD negativo forte
+            
+            logger.debug(f"🏎️ GAS CHECK: {symbol} | Side={side} | CVD={cvd:.2f} | Favorable={favorable}")
+            return favorable
+        except Exception as e:
+            logger.warning(f"Gas check failed: {e}")
+            return False  # Default: conservador (trava lucro)
     
     async def _calculate_sniper_trailing_stop(self, symbol: str, entry_price: float, roi: float, side: str, current_sl: float) -> Optional[float]:
         """

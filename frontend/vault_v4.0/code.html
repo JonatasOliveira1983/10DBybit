@@ -270,6 +270,24 @@
                 <p id="vault-withdrawals" class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">0
                     retiradas</p>
             </div>
+
+            <!-- V11.0 Mega Cycle Card (1/100) -->
+            <div class="glass rounded-xl p-4 border border-purple-500/30 bg-purple-500/5">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-[24px]">💎</span>
+                    <span class="text-gray-400 text-sm uppercase tracking-widest">Mega Ciclo</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <p id="mega-cycle-wins" class="text-2xl font-bold text-purple-400">0</p>
+                    <p class="text-sm text-slate-500">/100</p>
+                </div>
+                <div class="mt-3 h-1.5 bg-gray-900 rounded-full overflow-hidden">
+                    <div id="mega-cycle-progress"
+                        class="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-500"
+                        style="width: 0%"></div>
+                </div>
+                <p class="text-[8px] text-purple-300/50 mt-2 italic">Trades com ROI ≥ 100%</p>
+            </div>
         </div>
 
         <!-- Status Alerts -->
@@ -495,9 +513,7 @@
                         window.meta100Announced = true;
                     }
                 }
-                // [V8.1] check for active positions
-                const activeSlot = slots.find(s => s.symbol);
-                // Autonomous mode: UI toggle is gone.
+                // [V8.1] Autonomous mode: UI toggle is gone.
 
                 // [V8.0] Gains / Losses Count
                 const gainsCount = vault.cycle_gains_count || 0;
@@ -514,6 +530,11 @@
 
                 // Update recommended amount
                 safeSet('recommended-amount', `$${(vault.recommended_withdrawal || 0).toFixed(2)}`);
+
+                // V11.0: Mega Cycle (1/100) Population
+                const megaWins = vault.mega_cycle_wins || 0;
+                safeSet('mega-cycle-wins', megaWins);
+                safeStyle('mega-cycle-progress', 'width', `${Math.min(100, megaWins)}%`);
 
                 // Update history
                 renderWithdrawalHistory(history);

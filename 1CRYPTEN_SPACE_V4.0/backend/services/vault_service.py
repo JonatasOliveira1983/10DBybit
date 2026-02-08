@@ -70,7 +70,12 @@ class VaultService:
             # V9.0 Cycle Diversification & Compound
             "used_symbols_in_cycle": [],  # V9.0: Lista de pares já operados no ciclo
             "cycle_start_bankroll": 0.0,  # V9.0: Banca travada no início do ciclo
-            "next_entry_value": 0.0       # V9.0: Valor de entrada (10% da banca ciclo)
+            "next_entry_value": 0.0,      # V9.0: Valor de entrada (10% da banca ciclo)
+            # V11.0 Mega Cycle (1/100)
+            "mega_cycle_wins": 0,         # V11.0: Trades com ROI >= 100%
+            "mega_cycle_total": 0,        # V11.0: Total de trades no mega ciclo
+            "mega_cycle_number": 1,       # V11.0: Número do mega ciclo atual
+            "mega_cycle_profit": 0.0      # V11.0: Lucro acumulado no mega ciclo
         }
     
     async def initialize_cycle(self):
@@ -290,18 +295,20 @@ class VaultService:
 
     async def register_sniper_trade(self, trade_data: dict) -> dict:
         """
-        [V7.0] SINGLE TRADE SNIPER: Registra um trade no ciclo de 10.
-        - Sniper Wins (ROI >= 100%): Sobe o contador de 10x.
-        - Sniper Loss ou ROI < 100%: Não conta como win, mas acumula lucro/perda.
+        [V11.0] SNIPER TRADE: Registra um trade no ciclo.
+        - Contador 1/10: Só conta como WIN se ROI >= 100%
+        - Contador 1/100: Mega ciclo também incrementa com ROI >= 100%
         """
         try:
+            from config import settings
+            
             if not firebase_service.is_active or not firebase_service.db:
                 return self._default_cycle()
             
             current = await self.get_cycle_status()
             pnl = trade_data.get("pnl", 0)
             
-            # ROI Check: Only count as win if ROI >= 100%
+            # V11.0: Calcular ROI para verificação de WIN
             roi = trade_data.get("pnl_percent", 0)
             if roi == 0 and trade_data.get("entry_price") and trade_data.get("exit_price"):
                 from services.execution_protocol import execution_protocol
@@ -311,17 +318,37 @@ class VaultService:
                     trade_data.get("side", "Buy")
                 )
 
+            # V11.0: WIN_ROI_THRESHOLD define o mínimo para contar como vitória
+            win_threshold = getattr(settings, 'WIN_ROI_THRESHOLD', 100.0)
+            is_sniper_win = roi >= win_threshold  # V11.0: Só ROI >= 100% conta como WIN
+            is_pnl_positive = pnl > 0
+            
             new_wins_count = current.get("cycle_gains_count", 0)
             new_losses_count = current.get("cycle_losses_count", 0)
             
-            is_gain = pnl > 0
+            # V11.0: Mega Cycle counters
+            mega_wins = current.get("mega_cycle_wins", 0)
+            mega_total = current.get("mega_cycle_total", 0)
+            mega_profit = current.get("mega_cycle_profit", 0.0)
+            mega_number = current.get("mega_cycle_number", 1)
             
-            if is_gain:
+            # V11.0: Lógica de contagem de WIN/LOSS
+            if is_sniper_win:
                 new_wins_count += 1
-                result_label = "GAIN 🟢"
+                mega_wins += 1
+                result_label = "🏆 WIN" if roi >= 100 else "GAIN 🟢"
+                result_emoji = "💎"
+            elif is_pnl_positive:
+                # PnL positivo mas ROI < 100% - não conta como win no 1/10
+                result_label = "PARTIAL ⚡"
+                result_emoji = "⚡"
             else:
                 new_losses_count += 1
                 result_label = "LOSS 🔴"
+                result_emoji = "❌"
+            
+            mega_total += 1
+            mega_profit += pnl
                 
             new_profit = current.get("cycle_profit", 0) + pnl
             new_total_trades = current.get("total_trades_cycle", 0) + 1
@@ -330,8 +357,21 @@ class VaultService:
                 "cycle_gains_count": new_wins_count,
                 "cycle_losses_count": new_losses_count,
                 "cycle_profit": new_profit,
-                "total_trades_cycle": new_total_trades
+                "total_trades_cycle": new_total_trades,
+                # V11.0: Mega Cycle
+                "mega_cycle_wins": mega_wins,
+                "mega_cycle_total": mega_total,
+                "mega_cycle_profit": mega_profit
             }
+            
+            # V11.0: Mega Cycle Completion (100 trades)
+            if mega_wins >= 100:
+                mega_number += 1
+                update_data["mega_cycle_number"] = mega_number
+                update_data["mega_cycle_wins"] = 0
+                update_data["mega_cycle_total"] = 0
+                update_data["mega_cycle_profit"] = 0.0
+                await firebase_service.log_event("VAULT", f"🏆🏆🏆 MEGA CICLO #{mega_number-1} CONCLUÍDO! 100 trades com ROI >= 100%! Lucro: ${mega_profit:.2f}", "SUCCESS")
             
             def _update():
                 firebase_service.db.collection("vault_management").document("current_cycle").update(update_data)
@@ -340,21 +380,17 @@ class VaultService:
             
             # [V10.6.2] Automated 10-Trade Cycle Recalibration
             if new_total_trades > 0 and new_total_trades % 10 == 0:
-                await firebase_service.log_event("VAULT", f"🏁 CICLO DE 10 TRADES FINALIZADO! Resultado: {new_wins_count}G / {new_losses_count}L. Recalibragem de banca e reset de ativos ativados.", "SUCCESS")
+                await firebase_service.log_event("VAULT", f"🏁 CICLO DE 10 TRADES FINALIZADO! Resultado: {new_wins_count}W / {new_losses_count}L (ROI>=100%). Recalibragem de banca.", "SUCCESS")
                 await self.recalculate_cycle_bankroll()
                 await self.reset_cycle_symbols()
                 
-            event_type = "SUCCESS" if is_gain else "WARNING"
-            result_msg = f"V10.6.2 Sniper {result_label} | Progresso: {new_wins_count}G / {new_losses_count}L (Total: {new_total_trades}) | PnL: ${pnl:.2f}"
-            await firebase_service.log_event("VAULT", result_msg, event_type)
-                # In a real implementation, this would trigger a bankroll reset or profit withdrawal
-                
-            event_type = "SUCCESS" if pnl > 0 else "WARNING"
-            result_msg = f"Vault Sniper {result_label} | ROI: {roi:.1f}% | #{new_wins_count}/10 | Trade #{new_total_trades}/10 | PnL: ${pnl:.2f}"
+            # Log detalhado V11.0
+            event_type = "SUCCESS" if is_sniper_win else ("INFO" if is_pnl_positive else "WARNING")
+            result_msg = f"{result_emoji} V11.0 {result_label} | ROI: {roi:.1f}% | 1/10: {new_wins_count}/10 | 1/100: {mega_wins}/100 | PnL: ${pnl:.2f}"
             await firebase_service.log_event("VAULT", result_msg, event_type)
             
             if new_wins_count >= 10:
-                await firebase_service.log_event("VAULT", f"🏆 CICLO PERFEITO {current.get('cycle_number', 1)}! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
+                await firebase_service.log_event("VAULT", f"🏆 CICLO PERFEITO #{current.get('cycle_number', 1)}! 10 trades com ROI>=100%! Sniper Profit: ${new_profit:.2f}", "SUCCESS")
             
             # [V9.0] Fix: Ensure symbol is added to cycle list
             if trade_data.get("symbol"):
