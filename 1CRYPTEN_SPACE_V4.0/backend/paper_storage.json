@@ -1,5 +1,26 @@
 {
-  "positions": [],
+  "positions": [
+    {
+      "symbol": "BNBUSDT",
+      "side": "Buy",
+      "size": "0.15",
+      "avgPrice": "650.2",
+      "leverage": "50",
+      "stopLoss": "639.205",
+      "takeProfit": "663.2040000000001",
+      "createdTime": "123456789"
+    },
+    {
+      "symbol": "BCHUSDT",
+      "side": "Buy",
+      "size": "0.19",
+      "avgPrice": "523.4",
+      "leverage": "50",
+      "stopLoss": "512.932",
+      "takeProfit": "533.8679999999999",
+      "createdTime": "123456789"
+    }
+  ],
   "balance": 20.0,
   "history": []
 }
